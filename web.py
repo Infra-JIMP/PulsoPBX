@@ -17,10 +17,15 @@ from names import load_names
 logger = logging.getLogger(__name__)
 
 INDEX_FILE = Path(__file__).parent / "static" / "index.html"
+FAVICON_FILE = Path(__file__).parent / "static" / "favicon.ico"
 
 
 async def _handle_index(request: web.Request) -> web.FileResponse:
     return web.FileResponse(INDEX_FILE)
+
+
+async def _handle_favicon(request: web.Request) -> web.FileResponse:
+    return web.FileResponse(FAVICON_FILE, headers={"Cache-Control": "public, max-age=86400"})
 
 
 async def _handle_status(request: web.Request) -> web.Response:
@@ -28,6 +33,7 @@ async def _handle_status(request: web.Request) -> web.Response:
     client = request.app["client"]  # AmiClient | None, se AMI nao estiver configurada
     config = request.app["config"]
     alerts = request.app["alerts"]
+    incidents = request.app["incidents"]
 
     if config.demo_mode:
         ami_status = "demo"
@@ -58,6 +64,7 @@ async def _handle_status(request: web.Request) -> web.Response:
                 merged["setor"] = override["setor"]
 
     extensions = tracker.snapshot()
+    open_incidents = await asyncio.to_thread(incidents.open_by_extension) if incidents is not None else {}
     for ext in extensions:
         meta = names.get(ext["extension"], {})
         ext["nome"] = meta.get("nome", "")
@@ -67,6 +74,7 @@ async def _handle_status(request: web.Request) -> web.Response:
             if alerts is not None
             else {"status": "not_configured", "sent_count": 0, "total_recipients": 0}
         )
+        ext["incident"] = open_incidents.get(ext["extension"])
 
     online = sum(1 for e in extensions if e["online"])
     confirming = sum(1 for e in extensions if e["pending_status"] is not None)
@@ -75,6 +83,11 @@ async def _handle_status(request: web.Request) -> web.Response:
         meta = names.get(event["extension"], {})
         event["nome"] = meta.get("nome", "")
         event["setor"] = meta.get("setor", "")
+    recent_incidents = await asyncio.to_thread(incidents.recent) if incidents is not None else []
+    for incident in recent_incidents:
+        meta = names.get(incident["extension"], {})
+        incident["nome"] = meta.get("nome", "")
+        incident["setor"] = meta.get("setor", "")
 
     return web.json_response(
         {
@@ -89,23 +102,26 @@ async def _handle_status(request: web.Request) -> web.Response:
             "extensions": extensions,
             "recent_events": recent_events,
             "recent_alerts": alerts.recent_events() if alerts is not None else [],
+            "incidents": recent_incidents,
         }
     )
 
 
-def create_app(tracker, client, config, alerts=None) -> web.Application:
+def create_app(tracker, client, config, alerts=None, incidents=None) -> web.Application:
     app = web.Application()
     app["tracker"] = tracker
     app["client"] = client
     app["config"] = config
     app["alerts"] = alerts
+    app["incidents"] = incidents
     app.router.add_get("/", _handle_index)
+    app.router.add_get("/favicon.ico", _handle_favicon)
     app.router.add_get("/api/status", _handle_status)
     return app
 
 
-async def run_dashboard(tracker, client, config, alerts=None) -> None:
-    app = create_app(tracker, client, config, alerts)
+async def run_dashboard(tracker, client, config, alerts=None, incidents=None) -> None:
+    app = create_app(tracker, client, config, alerts, incidents)
     runner = web.AppRunner(app)
     await runner.setup()
     site = web.TCPSite(runner, config.dashboard_host, config.dashboard_port)

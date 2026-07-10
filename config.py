@@ -6,10 +6,12 @@ configurar) em vez de travar no startup.
 """
 import os
 from dataclasses import dataclass
+from pathlib import Path
 
 from dotenv import load_dotenv
 
 load_dotenv()
+PROJECT_DIR = Path(__file__).parent
 
 
 def _bool_env(name: str, default: bool) -> bool:
@@ -38,6 +40,7 @@ class Config:
     reconcile_seconds: float
     alert_max_attempts: int
     alert_retry_base_seconds: float
+    incidents_db_path: Path
 
     dashboard_host: str
     dashboard_port: int
@@ -61,6 +64,9 @@ def load_config() -> Config:
     whatsapp_recipients = [r.strip() for r in recipients_raw.split(",") if r.strip()]
 
     mikopbx_api_key = os.environ.get("MIKOPBX_API_KEY") or None
+    incidents_path = Path(os.environ.get("INCIDENTS_DB_PATH", "data/pulsopbx.db"))
+    if not incidents_path.is_absolute():
+        incidents_path = PROJECT_DIR / incidents_path
 
     return Config(
         ami_host=os.environ.get("AMI_HOST", "192.168.1.254"),
@@ -78,6 +84,7 @@ def load_config() -> Config:
         reconcile_seconds=float(os.environ.get("RECONCILE_SECONDS", "60")),
         alert_max_attempts=max(1, int(os.environ.get("ALERT_MAX_ATTEMPTS", "3"))),
         alert_retry_base_seconds=max(1, float(os.environ.get("ALERT_RETRY_BASE_SECONDS", "15"))),
+        incidents_db_path=incidents_path,
         dashboard_host=os.environ.get("DASHBOARD_HOST", "0.0.0.0"),
         dashboard_port=int(os.environ.get("DASHBOARD_PORT", "8080")),
         demo_mode=_bool_env("DEMO_MODE", False),

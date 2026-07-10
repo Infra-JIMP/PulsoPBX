@@ -48,7 +48,7 @@ O monitor coloca cada alerta confirmado em uma fila separada por destinatario. S
 ## 3. Rodar o monitor manualmente (antes de virar tarefa agendada)
 
 ```
-cd \\10.5.0.5\Alma\TI\Ramais\ramais_monitor
+cd C:\Users\eduardo.p\Desktop\Ramais\ramais_monitor
 .venv\Scripts\python.exe main.py
 ```
 
@@ -70,7 +70,7 @@ http://172.20.171.206:8080/
 - Selos de saúde da AMI (conectada / desconectada / não configurada / demonstração) e do WhatsApp (ativo / não configurado).
 - Faixa de prioridade operacional, tabela com os offline no topo (linha destacada em vermelho), nome, setor, status de entrega do alerta e há quanto tempo está no estado atual.
 - Campo de busca (por número, nome ou setor) e filtros Todos / Atenção / Offline / Online.
-- Trilha curta das transições confirmadas desde o início do serviço. Ela é mantida em memória; reiniciar o processo inicia uma nova trilha.
+- Histórico de incidentes recentes: queda confirmada, retorno, duração e situação atual. Ele usa SQLite local (`data/pulsopbx.db`) e é preservado após reinícios; a pasta `data/` não é versionada nem sobrescrita no deploy.
 
 ### 3.2. Nomes dos ramais (automático via API do MikoPBX)
 
@@ -103,7 +103,7 @@ Para conferir o visual com ramais de exemplo, rode com `DEMO_MODE=true` no `.env
 
 ## 4. Deploy 24/7 (JA CONFIGURADO)
 
-Para robustez, o servico roda de uma **copia local** em `C:\Users\eduardo.p\ramais_monitor` na `DKS-FG-006` (nao direto do compartilhamento de rede - assim um reboot do servidor de arquivos `10.5.0.5` nao derruba o monitor). O compartilhamento (`\\10.5.0.5\Alma\TI\Ramais\ramais_monitor`) e a copia de **desenvolvimento/fonte**.
+Para robustez, o servico roda de uma **copia local** em `C:\Users\eduardo.p\ramais_monitor` na `DKS-FG-006`. O repositório em `C:\Users\eduardo.p\Desktop\Ramais\ramais_monitor` é a cópia de desenvolvimento/fonte versionada no GitHub.
 
 ### Como esta rodando hoje
 - Tarefa agendada **`RamaisMonitor`** (criada por `install_task.ps1`): inicia no **logon** do usuario e reinicia sozinha se cair. Funciona sem admin, mas **so roda enquanto o usuario estiver logado** na `DKS-FG-006`.
@@ -120,7 +120,7 @@ Isso troca a tarefa para rodar como **SYSTEM** iniciando junto com o Windows, e 
 - `install_task.ps1` - registra a tarefa de logon (sem admin). **Ja executado.**
 - `install_system_task.ps1` - upgrade para servico SYSTEM + firewall (rodar como admin).
 - `uninstall_task.ps1` - remove a tarefa e para o servico.
-- `deploy_local.ps1` (no compartilhamento) - depois de editar o codigo no compartilhamento, rode isto na `DKS-FG-006` para sincronizar a copia local e reiniciar o servico. **NAO** copia `.env`/`.venv`/`logs` (esses ficam so na copia local).
+- `deploy_local.ps1` (na raiz do repositório) - depois de editar o código versionado, rode isto na `DKS-FG-006` para sincronizar a cópia local e reiniciar o serviço. **NÃO** copia `.env`/`.venv`/`logs`/`data` (esses ficam só na cópia local).
 
 ### Comandos uteis
 - Ver estado: `Get-ScheduledTask -TaskName RamaisMonitor`

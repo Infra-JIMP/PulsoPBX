@@ -8,6 +8,7 @@ import mikopbx_api
 from alerts import AlertDispatcher
 from ami_client import AmiClient
 from config import load_config
+from incidents import IncidentStore
 from notifier import WhatsAppNotifier
 from state import StateTracker
 from web import run_dashboard
@@ -39,12 +40,19 @@ def setup_logging() -> None:
     logging.basicConfig(level=logging.INFO, handlers=[file_handler, console_handler])
 
 
-async def tick_loop(tracker: StateTracker, alerts: AlertDispatcher | None) -> None:
+async def tick_loop(
+    tracker: StateTracker, alerts: AlertDispatcher | None, incidents: IncidentStore | None
+) -> None:
     logger = logging.getLogger("tick")
     while True:
         await asyncio.sleep(TICK_INTERVAL_SECONDS)
         for extension, status in tracker.tick():
             logger.info("Ramal %s mudou para %s (confirmado)", extension, status)
+            if incidents is not None:
+                try:
+                    await asyncio.to_thread(incidents.record_transition, extension, status)
+                except Exception:
+                    logger.exception("Falha ao registrar incidente do ramal %s", extension)
             if alerts is not None:
                 alerts.enqueue(extension, status)
 
@@ -55,6 +63,13 @@ async def run() -> None:
     config = load_config()
 
     tracker = StateTracker(debounce_seconds=config.debounce_seconds)
+    incidents: IncidentStore | None = IncidentStore(config.incidents_db_path)
+    try:
+        await asyncio.to_thread(incidents.initialize)
+        logger.info("Historico de incidentes em %s", config.incidents_db_path)
+    except Exception:
+        logger.exception("Historico persistente indisponivel; monitor seguira sem salvar incidentes")
+        incidents = None
 
     notifier: WhatsAppNotifier | None = None
     if config.whatsapp_enabled:
@@ -121,8 +136,8 @@ async def run() -> None:
         )
 
     tasks = [
-        tick_loop(tracker, alerts),
-        run_dashboard(tracker, client, config, alerts),
+        tick_loop(tracker, alerts, incidents),
+        run_dashboard(tracker, client, config, alerts, incidents),
     ]
     if alerts is not None:
         tasks.append(alerts.run())
@@ -141,6 +156,8 @@ async def run() -> None:
     finally:
         if client is not None:
             client.close()
+        if incidents is not None:
+            incidents.close()
 
 
 def main() -> None:
