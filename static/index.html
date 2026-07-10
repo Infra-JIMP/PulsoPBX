@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PulsoPBX · Monitor de Ramais</title>
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-2: #1b212a;
+    --row-hover: #1c2330;
+    --border: #262c36;
+    --border-strong: #313945;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --faint: #6e7681;
+    --green: #3fb950;
+    --green-bg: rgba(63, 185, 80, 0.12);
+    --red: #f85149;
+    --red-bg: rgba(248, 81, 73, 0.13);
+    --amber: #d29922;
+    --amber-bg: rgba(210, 153, 34, 0.13);
+    --blue: #58a6ff;
+    --blue-bg: rgba(88, 166, 255, 0.12);
+    --mono: ui-monospace, "Cascadia Code", Consolas, "Courier New", monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--text); font-size: 15px; -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1440px; margin: 0 auto; padding: 20px 24px 40px; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand h1 { font-size: 1.25rem; font-weight: 650; margin: 0; letter-spacing: .15px; }
+  .live { display: inline-flex; align-items: center; gap: 6px; font-size: .7rem; font-weight: 650; letter-spacing: .8px; color: var(--green); text-transform: uppercase; border: 1px solid var(--border-strong); border-radius: 999px; padding: 3px 9px; }
+  .live .pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: pulse 1.8s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .25; } }
+  .status-pills { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .pill { display: inline-flex; align-items: center; gap: 7px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 7px 12px; font-size: .82rem; color: var(--muted); }
+  .pill .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; background: var(--faint); }
+  .pill .dot.ok { background: var(--green); }
+  .pill .dot.bad { background: var(--red); }
+  .pill .dot.warn { background: var(--amber); }
+  .clock { font-variant-numeric: tabular-nums; color: var(--muted); font-size: .85rem; font-family: var(--mono); }
+
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 14px; }
+  .tile { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; min-width: 0; }
+  .tile .label { font-size: .74rem; color: var(--muted); text-transform: uppercase; letter-spacing: .65px; }
+  .tile .value { font-size: 2.15rem; font-weight: 650; font-variant-numeric: tabular-nums; margin-top: 4px; line-height: 1; }
+  .tile.online .value { color: var(--green); }
+  .tile.offline .value, .tile.confirming .value { color: var(--muted); }
+  .tile.offline.alert { border-color: var(--red); background: var(--red-bg); }
+  .tile.offline.alert .value { color: var(--red); }
+  .tile.confirming.alert { border-color: var(--amber); background: var(--amber-bg); }
+  .tile.confirming.alert .value { color: var(--amber); }
+
+  .operational { display: flex; align-items: center; gap: 12px; border: 1px solid var(--border); border-radius: 10px; padding: 11px 14px; margin-bottom: 20px; background: var(--panel); color: var(--muted); }
+  .operational strong { color: var(--text); font-size: .9rem; }
+  .operational .op-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--green); flex: 0 0 auto; }
+  .operational.alert { border-color: rgba(248,81,73,.55); background: var(--red-bg); }
+  .operational.alert .op-dot { background: var(--red); }
+  .operational.pending { border-color: rgba(210,153,34,.55); background: var(--amber-bg); }
+  .operational.pending .op-dot { background: var(--amber); }
+  .operational-detail { color: var(--muted); font-size: .85rem; }
+
+  .toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+  .search { position: relative; flex: 1; min-width: 200px; }
+  .search input { width: 100%; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: .9rem; padding: 9px 12px 9px 34px; outline: none; }
+  .search input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-bg); }
+  .search input::placeholder { color: var(--faint); }
+  .search .icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--faint); font-size: .95rem; }
+  .segmented { display: inline-flex; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .segmented button { background: transparent; border: none; color: var(--muted); padding: 9px 14px; font-size: .82rem; cursor: pointer; font-family: inherit; }
+  .segmented button + button { border-left: 1px solid var(--border); }
+  .segmented button.active { background: var(--panel-2); color: var(--text); font-weight: 650; }
+  .segmented button:hover:not(.active) { color: var(--text); }
+  .segmented button:focus-visible { position: relative; outline: 2px solid var(--blue); outline-offset: -2px; }
+
+  .table-wrap { border: 1px solid var(--border); border-radius: 12px; overflow-x: auto; }
+  table { width: 100%; min-width: 880px; border-collapse: collapse; }
+  thead th { text-align: left; font-size: .7rem; font-weight: 650; letter-spacing: .7px; text-transform: uppercase; color: var(--faint); padding: 12px 16px; background: var(--panel-2); border-bottom: 1px solid var(--border); }
+  tbody td { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: .9rem; vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr { background: var(--panel); }
+  tbody tr:hover { background: var(--row-hover); }
+  tbody tr.offline { background: var(--red-bg); box-shadow: inset 3px 0 0 var(--red); }
+  tbody tr.pending-fall { background: var(--amber-bg); box-shadow: inset 3px 0 0 var(--amber); }
+  tbody tr.pending-recovery { box-shadow: inset 3px 0 0 var(--blue); }
+  .col-ramal { font-family: var(--mono); font-weight: 650; font-size: .96rem; }
+  .col-nome { color: var(--text); }
+  .col-setor, .col-tempo { color: var(--muted); }
+  .col-tempo { font-variant-numeric: tabular-nums; font-family: var(--mono); font-size: .83rem; white-space: nowrap; }
+  .st { display: inline-flex; align-items: center; gap: 8px; font-weight: 650; font-size: .83rem; white-space: nowrap; }
+  .st .dot { width: 9px; height: 9px; border-radius: 50%; }
+  .st.on { color: var(--green); }.st.on .dot { background: var(--green); }
+  .st.off { color: var(--red); }.st.off .dot { background: var(--red); animation: pulse 1.4s ease-in-out infinite; }
+  .st.pending { color: var(--amber); }.st.pending .dot { background: var(--amber); animation: pulse 1.4s ease-in-out infinite; }
+  .st.recovery { color: var(--blue); }.st.recovery .dot { background: var(--blue); animation: pulse 1.4s ease-in-out infinite; }
+  .alert-status { display: inline-flex; align-items: center; min-height: 24px; padding: 3px 8px; border: 1px solid var(--border); border-radius: 999px; color: var(--muted); font-size: .75rem; white-space: nowrap; }
+  .alert-status.sent { color: var(--green); border-color: rgba(63,185,80,.45); background: var(--green-bg); }
+  .alert-status.queued, .alert-status.sending, .alert-status.retrying { color: var(--amber); border-color: rgba(210,153,34,.5); background: var(--amber-bg); }
+  .alert-status.failed, .alert-status.partial_failure { color: var(--red); border-color: rgba(248,81,73,.5); background: var(--red-bg); }
+  .empty { padding: 48px 16px; text-align: center; color: var(--faint); background: var(--panel); }
+
+  .activity { margin-top: 20px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); overflow: hidden; }
+  .activity-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 13px 16px; background: var(--panel-2); border-bottom: 1px solid var(--border); }
+  .activity-head h2 { font-size: .88rem; margin: 0; font-weight: 650; }
+  .activity-head span { color: var(--faint); font-size: .75rem; }
+  .activity-list { display: grid; grid-template-columns: repeat(3, 1fr); }
+  .activity-item { padding: 13px 16px; border-right: 1px solid var(--border); min-height: 68px; }
+  .activity-item:last-child { border-right: 0; }
+  .activity-main { font-size: .84rem; color: var(--text); }
+  .activity-main.offline { color: var(--red); }.activity-main.online { color: var(--green); }
+  .activity-meta { margin-top: 5px; color: var(--muted); font-size: .77rem; }
+  .activity-empty { padding: 18px 16px; color: var(--faint); font-size: .83rem; }
+  footer { margin-top: 16px; color: var(--faint); font-size: .78rem; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+
+  @media (max-width: 860px) { .stats { grid-template-columns: repeat(2, 1fr); } .activity-list { grid-template-columns: 1fr; } .activity-item { border-right: 0; border-bottom: 1px solid var(--border); } .activity-item:last-child { border-bottom: 0; } }
+  @media (max-width: 540px) { .wrap { padding: 16px 14px 28px; } .stats { gap: 8px; } .tile { padding: 13px; } .tile .value { font-size: 1.65rem; } .operational { align-items: flex-start; } .operational-detail { display: block; margin-top: 3px; } .segmented { width: 100%; } .segmented button { flex: 1; padding-left: 8px; padding-right: 8px; } }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="topbar">
+    <div class="brand"><h1>PulsoPBX · Monitor de Ramais</h1><span class="live"><span class="pulse"></span>Ao vivo</span></div>
+    <div class="status-pills">
+      <span class="pill"><span id="ami-dot" class="dot"></span><span id="ami-text">carregando…</span></span>
+      <span class="pill"><span id="wa-dot" class="dot"></span><span id="wa-text">carregando…</span></span>
+      <span class="clock" id="clock">--:--:--</span>
+    </div>
+  </div>
+
+  <section class="stats" aria-label="Resumo dos ramais">
+    <div class="tile"><div class="label">Total de ramais</div><div class="value" id="stat-total">–</div></div>
+    <div class="tile online"><div class="label">Online</div><div class="value" id="stat-online">–</div></div>
+    <div class="tile offline" id="tile-offline"><div class="label">Offline confirmado</div><div class="value" id="stat-offline">–</div></div>
+    <div class="tile confirming" id="tile-confirming"><div class="label">Em confirmação</div><div class="value" id="stat-confirming">–</div></div>
+  </section>
+
+  <section class="operational" id="operational" aria-live="polite"><span class="op-dot"></span><div><strong id="operational-title">Carregando estado operacional</strong><span class="operational-detail" id="operational-detail"></span></div></section>
+
+  <div class="toolbar">
+    <label class="search"><span class="icon" aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Buscar por ramal, nome ou setor…" autocomplete="off" aria-label="Buscar ramal, nome ou setor"></label>
+    <div class="segmented" id="filter" role="group" aria-label="Filtrar ramais">
+      <button data-f="all" class="active">Todos</button><button data-f="attention">Atenção</button><button data-f="offline">Offline</button><button data-f="online">Online</button>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th style="width:165px">Situação</th><th style="width:100px">Ramal</th><th>Nome</th><th>Setor</th><th style="width:185px">Alerta</th><th style="width:165px">Estado atual</th></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div id="empty" class="empty" style="display:none"></div>
+  </div>
+
+  <section class="activity" aria-labelledby="activity-title">
+    <div class="activity-head"><h2 id="activity-title">Transições confirmadas</h2><span>desde o início do serviço</span></div>
+    <div id="recent-events" class="activity-list"></div>
+  </section>
+
+  <footer><span id="foot-left">Aguardando dados…</span><span id="foot-right"></span></footer>
+</main>
+
+<script>
+const POLL_MS = 3000;
+let lastData = null;
+let searchTerm = "";
+let filterMode = "all";
+
+function humanDuration(seconds) {
+  seconds = Math.max(0, Math.floor(seconds));
+  if (seconds < 60) return seconds + "s";
+  const min = Math.floor(seconds / 60);
+  if (min < 60) return min + " min";
+  const hours = Math.floor(min / 60);
+  if (hours < 24) return hours + "h " + (min % 60) + "min";
+  const days = Math.floor(hours / 24);
+  return days + "d " + (hours % 24) + "h";
+}
+
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+function blank() { return '<span style="color:var(--faint)">—</span>'; }
+
+function renderPills(data) {
+  const amiDot = document.getElementById("ami-dot"); const amiText = document.getElementById("ami-text"); amiDot.className = "dot";
+  if (data.ami_status === "connected") { amiDot.classList.add("ok"); const suffix = data.last_reconcile_at ? " · sinc. há " + humanDuration(Date.now() / 1000 - data.last_reconcile_at) : ""; amiText.textContent = "AMI conectada" + suffix; }
+  else if (data.ami_status === "disconnected") { amiDot.classList.add("bad"); amiText.textContent = "AMI desconectada"; }
+  else if (data.ami_status === "demo") { amiDot.classList.add("warn"); amiText.textContent = "Modo demonstração"; }
+  else { amiText.textContent = "AMI não configurada"; }
+  const waDot = document.getElementById("wa-dot"); const waText = document.getElementById("wa-text"); waDot.className = "dot";
+  if (data.whatsapp_enabled) { waDot.classList.add("ok"); waText.textContent = "WhatsApp ativo"; } else { waDot.classList.add("warn"); waText.textContent = "WhatsApp não configurado"; }
+}
+
+function renderStats(data) {
+  document.getElementById("stat-total").textContent = data.total;
+  document.getElementById("stat-online").textContent = data.online;
+  document.getElementById("stat-offline").textContent = data.offline;
+  document.getElementById("stat-confirming").textContent = data.confirming;
+  document.getElementById("tile-offline").classList.toggle("alert", data.offline > 0);
+  document.getElementById("tile-confirming").classList.toggle("alert", data.confirming > 0);
+}
+
+function renderOperational(data) {
+  const box = document.getElementById("operational"); const title = document.getElementById("operational-title"); const detail = document.getElementById("operational-detail");
+  box.className = "operational";
+  if (data.offline > 0) { box.classList.add("alert"); title.textContent = data.offline + " ramal(is) exigem atenção"; detail.textContent = data.confirming ? " · " + data.confirming + " transição(ões) ainda em confirmação" : " · quedas já confirmadas pelo monitor"; }
+  else if (data.confirming > 0) { box.classList.add("pending"); title.textContent = data.confirming + " ramal(is) em confirmação"; detail.textContent = " · o alerta só será disparado após o tempo configurado"; }
+  else { title.textContent = "Operação estável"; detail.textContent = " · nenhum ramal offline confirmado"; }
+}
+
+function priority(ext) { if (ext.pending_status === "offline") return 0; if (!ext.online) return 1; if (ext.pending_status === "online") return 2; return 3; }
+function passesFilter(ext) {
+  if (filterMode === "attention" && ext.online && !ext.pending_status) return false;
+  if (filterMode === "offline" && ext.online) return false;
+  if (filterMode === "online" && !ext.online) return false;
+  if (searchTerm) { const hay = (ext.extension + " " + (ext.nome || "") + " " + (ext.setor || "")).toLowerCase(); if (!hay.includes(searchTerm)) return false; }
+  return true;
+}
+
+function stateMarkup(ext, now) {
+  if (ext.pending_status === "offline") return { row: "pending-fall", label: "Confirmando queda", className: "pending", duration: "Confirma em " + humanDuration(ext.confirmation_remaining_seconds) };
+  if (ext.pending_status === "online") return { row: "pending-recovery", label: "Confirmando retorno", className: "recovery", duration: "Confirma em " + humanDuration(ext.confirmation_remaining_seconds) };
+  return ext.online ? { row: "", label: "Online", className: "on", duration: humanDuration(now - ext.since) } : { row: "offline", label: "Offline", className: "off", duration: humanDuration(now - ext.since) };
+}
+
+function alertMarkup(alert) {
+  if (!alert || alert.status === "not_configured") return '<span class="alert-status">WhatsApp indisponível</span>';
+  const labels = { queued: "Alerta na fila", sending: "Enviando alerta", retrying: "Nova tentativa", sent: "Alerta enviado", failed: "Falha no alerta", partial_failure: "Envio parcial" };
+  const label = labels[alert.status] || "Sem alerta neste ciclo";
+  const suffix = alert.total_recipients ? " · " + alert.sent_count + "/" + alert.total_recipients : "";
+  return '<span class="alert-status ' + escapeHtml(alert.status) + '" title="' + escapeHtml(alert.last_error || label) + '">' + label + suffix + '</span>';
+}
+
+function renderTable(data) {
+  const now = Date.now() / 1000;
+  const rows = data.extensions.filter(passesFilter).sort((a, b) => priority(a) - priority(b) || String(a.extension).localeCompare(String(b.extension), "pt-BR", { numeric: true }));
+  const tbody = document.getElementById("tbody"); const empty = document.getElementById("empty");
+  if (!data.extensions.length) { tbody.innerHTML = ""; empty.style.display = "block"; empty.textContent = "Nenhum ramal disponível ainda. Assim que a AMI conectar, eles aparecem aqui."; return; }
+  if (!rows.length) { tbody.innerHTML = ""; empty.style.display = "block"; empty.textContent = "Nenhum ramal corresponde ao filtro ou à busca atual."; return; }
+  empty.style.display = "none";
+  tbody.innerHTML = rows.map(ext => {
+    const state = stateMarkup(ext, now); const nome = ext.nome ? escapeHtml(ext.nome) : blank(); const setor = ext.setor ? escapeHtml(ext.setor) : blank();
+    return '<tr class="' + state.row + '"><td><span class="st ' + state.className + '"><span class="dot"></span>' + state.label + '</span></td><td class="col-ramal">' + escapeHtml(ext.extension) + '</td><td class="col-nome">' + nome + '</td><td class="col-setor">' + setor + '</td><td>' + alertMarkup(ext.alert) + '</td><td class="col-tempo">' + state.duration + '</td></tr>';
+  }).join("");
+}
+
+function renderEvents(data) {
+  const holder = document.getElementById("recent-events"); const events = (data.recent_events || []).slice(0, 3);
+  if (!events.length) { holder.innerHTML = '<div class="activity-empty">Ainda não houve transições confirmadas desde que este serviço iniciou.</div>'; return; }
+  holder.innerHTML = events.map(event => {
+    const name = event.nome || (event.setor ? event.setor : "Ramal sem identificação"); const status = event.status === "offline" ? "ficou offline" : "voltou a ficar online";
+    return '<div class="activity-item"><div class="activity-main ' + event.status + '"><strong>' + escapeHtml(event.extension) + '</strong> ' + status + '</div><div class="activity-meta">' + escapeHtml(name) + ' · há ' + humanDuration(Date.now() / 1000 - event.at) + '</div></div>';
+  }).join("");
+}
+
+function renderAll() {
+  if (!lastData) return;
+  renderPills(lastData); renderStats(lastData); renderOperational(lastData); renderTable(lastData); renderEvents(lastData);
+  const shown = lastData.extensions.filter(passesFilter).length;
+  document.getElementById("foot-left").textContent = "Exibindo " + shown + " de " + lastData.total + " ramais";
+  document.getElementById("foot-right").textContent = lastData.generated_at ? "Dados recebidos às " + new Date(lastData.generated_at * 1000).toLocaleTimeString("pt-BR") : "";
+}
+
+async function refresh() {
+  try { const res = await fetch("/api/status", { cache: "no-store" }); if (!res.ok) throw new Error("HTTP " + res.status); lastData = await res.json(); renderAll(); }
+  catch (err) { document.getElementById("foot-left").textContent = "Falha ao atualizar o painel: " + err.message; }
+}
+
+document.getElementById("search").addEventListener("input", e => { searchTerm = e.target.value.trim().toLowerCase(); renderAll(); });
+document.getElementById("filter").addEventListener("click", e => { const btn = e.target.closest("button"); if (!btn) return; filterMode = btn.dataset.f; document.querySelectorAll("#filter button").forEach(b => b.classList.toggle("active", b === btn)); renderAll(); });
+function tickClock() { document.getElementById("clock").textContent = new Date().toLocaleTimeString("pt-BR"); }
+setInterval(tickClock, 1000); tickClock(); refresh(); setInterval(refresh, POLL_MS);
+</script>
+</body>
+</html>
