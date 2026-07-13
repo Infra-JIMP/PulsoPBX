@@ -18,6 +18,8 @@ class IncidentStore:
         with self._lock:
             self._connection = sqlite3.connect(self._database_path, check_same_thread=False)
             self._connection.row_factory = sqlite3.Row
+            self._connection.execute("PRAGMA busy_timeout = 5000")
+            self._connection.execute("PRAGMA journal_mode = WAL")
             self._connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS incidents (

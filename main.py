@@ -5,6 +5,7 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 import mikopbx_api
+from alert_store import AlertStore
 from alerts import AlertDispatcher
 from ami_client import AmiClient
 from config import load_config
@@ -71,11 +72,20 @@ async def run() -> None:
         logger.exception("Historico persistente indisponivel; monitor seguira sem salvar incidentes")
         incidents = None
 
+    alert_store: AlertStore | None = AlertStore(config.incidents_db_path)
+    try:
+        await asyncio.to_thread(alert_store.initialize)
+        logger.info("Historico de entregas WhatsApp em %s", config.incidents_db_path)
+    except Exception:
+        logger.exception("Historico de alertas indisponivel; entregas seguirao apenas em memoria")
+        alert_store = None
+
     notifier: WhatsAppNotifier | None = None
     if config.whatsapp_enabled:
         notifier = WhatsAppNotifier(
             token=config.whatsapp_token,
             phone_number_id=config.whatsapp_phone_id,
+            graph_api_version=config.whatsapp_graph_api_version,
             template_name=config.whatsapp_template,
             use_template=config.whatsapp_use_template,
             recipients=config.whatsapp_recipients,
@@ -92,6 +102,8 @@ async def run() -> None:
             notifier,
             max_attempts=config.alert_max_attempts,
             retry_base_seconds=config.alert_retry_base_seconds,
+            store=alert_store,
+            test_cooldown_seconds=config.alert_test_cooldown_seconds,
         )
 
     async def on_snapshot(extension: str, online: bool) -> None:
@@ -137,7 +149,7 @@ async def run() -> None:
 
     tasks = [
         tick_loop(tracker, alerts, incidents),
-        run_dashboard(tracker, client, config, alerts, incidents),
+        run_dashboard(tracker, client, config, alerts, incidents, alert_store),
     ]
     if alerts is not None:
         tasks.append(alerts.run())
@@ -158,6 +170,8 @@ async def run() -> None:
             client.close()
         if incidents is not None:
             incidents.close()
+        if alert_store is not None:
+            alert_store.close()
 
 
 def main() -> None:

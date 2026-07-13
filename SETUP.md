@@ -39,9 +39,13 @@ Deve aparecer `[OK] Login AMI bem-sucedido` e a lista de ramais encontrados.
    - Idioma: Portugues (BR)
    - Corpo: `Alerta de ramal: o ramal {{1}} {{2}} em {{3}}.`
    - Envie para aprovacao (costuma sair em minutos a poucas horas).
-9. Preencha no `.env`: `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID`, `WHATSAPP_RECIPIENTS` (numeros com DDI, ex.: `5547999999999`, separados por virgula).
+9. Preencha no `.env`: `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID`, `WHATSAPP_RECIPIENTS` (numeros com DDI, ex.: `5547999999999`, separados por virgula). A versao da rota fica em `WHATSAPP_GRAPH_API_VERSION` e pode ser atualizada sem mudar o codigo.
 
 O monitor coloca cada alerta confirmado em uma fila separada por destinatario. Se a Meta ou a rede falhar, ele tenta novamente sem interromper o monitoramento da AMI. Por padrao sao 3 tentativas, com espera de 15s e 30s entre elas; ajuste `ALERT_MAX_ATTEMPTS` e `ALERT_RETRY_BASE_SECONDS` no `.env` se necessario.
+
+As entregas ficam registradas no SQLite local. Se o servico reiniciar durante um envio, somente os destinatarios ainda pendentes voltam para a fila; quem ja recebeu nao recebe a mesma mensagem novamente. Transicoes repetidas do mesmo ramal e estado tambem sao deduplicadas.
+
+Depois de configurar as credenciais, use **Enviar teste** na secao **Entregas WhatsApp** do painel. O teste passa pela mesma fila, template, destinatarios, retentativas e historico usados em uma queda real, mas a mensagem informa claramente que nenhum ramal caiu. O painel pede confirmacao e impede testes repetidos por 60 segundos (`ALERT_TEST_COOLDOWN_SECONDS`).
 
 **Enquanto o template nao for aprovado**: defina `WHATSAPP_USE_TEMPLATE=false` no `.env` para testar com mensagem de texto livre. Isso só funciona se o destinatário tiver mandado alguma mensagem para o número de teste nas últimas 24h (é uma regra do WhatsApp, não do nosso código). Depois que o template `ramal_alerta` for aprovado, mude para `WHATSAPP_USE_TEMPLATE=true` — assim o alerta funciona a qualquer momento, sem depender dessa janela de 24h.
 
@@ -71,6 +75,7 @@ http://172.20.171.206:8080/
 - Faixa de prioridade operacional, tabela com os offline no topo (linha destacada em vermelho), nome, setor, status de entrega do alerta e há quanto tempo está no estado atual.
 - Campo de busca (por número, nome ou setor) e filtros Todos / Atenção / Offline / Online.
 - Histórico de incidentes recentes: queda confirmada, retorno, duração e situação atual. Ele usa SQLite local (`data/pulsopbx.db`) e é preservado após reinícios; a pasta `data/` não é versionada nem sobrescrita no deploy.
+- Histórico de entregas do WhatsApp: fila, tentativas, sucesso ou falha por evento, também preservado no SQLite. O botão **Enviar teste** valida a integração sem simular a queda de um ramal.
 
 ### 3.2. Nomes dos ramais (automático via API do MikoPBX)
 

@@ -31,6 +31,7 @@ class Config:
 
     whatsapp_token: str | None
     whatsapp_phone_id: str | None
+    whatsapp_graph_api_version: str
     whatsapp_template: str
     whatsapp_use_template: bool
     whatsapp_recipients: list[str]
@@ -40,6 +41,7 @@ class Config:
     reconcile_seconds: float
     alert_max_attempts: int
     alert_retry_base_seconds: float
+    alert_test_cooldown_seconds: float
     incidents_db_path: Path
 
     dashboard_host: str
@@ -76,6 +78,7 @@ def load_config() -> Config:
         ami_enabled=bool(ami_user and ami_secret),
         whatsapp_token=whatsapp_token,
         whatsapp_phone_id=whatsapp_phone_id,
+        whatsapp_graph_api_version=os.environ.get("WHATSAPP_GRAPH_API_VERSION", "v25.0"),
         whatsapp_template=os.environ.get("WHATSAPP_TEMPLATE", "ramal_alerta"),
         whatsapp_use_template=_bool_env("WHATSAPP_USE_TEMPLATE", True),
         whatsapp_recipients=whatsapp_recipients,
@@ -84,6 +87,9 @@ def load_config() -> Config:
         reconcile_seconds=float(os.environ.get("RECONCILE_SECONDS", "60")),
         alert_max_attempts=max(1, int(os.environ.get("ALERT_MAX_ATTEMPTS", "3"))),
         alert_retry_base_seconds=max(1, float(os.environ.get("ALERT_RETRY_BASE_SECONDS", "15"))),
+        alert_test_cooldown_seconds=max(
+            10, float(os.environ.get("ALERT_TEST_COOLDOWN_SECONDS", "60"))
+        ),
         incidents_db_path=incidents_path,
         dashboard_host=os.environ.get("DASHBOARD_HOST", "0.0.0.0"),
         dashboard_port=int(os.environ.get("DASHBOARD_PORT", "8080")),

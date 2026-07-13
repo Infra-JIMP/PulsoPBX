@@ -100,12 +100,15 @@
   .table-wrap { overflow-x: auto; border: 1px solid var(--line-strong); border-radius: 15px; background: rgba(4, 12, 31, .78); box-shadow: 0 18px 34px rgba(0, 0, 0, .23), inset 0 1px rgba(255, 255, 255, .045); animation: rise-in .62s .2s cubic-bezier(.22, 1, .36, 1) both; } table { width: 100%; min-width: 900px; border-collapse: collapse; } thead th { padding: 13px 16px; border-bottom: 1px solid var(--line-strong); background: linear-gradient(180deg, rgba(18, 39, 88, .92), rgba(9, 22, 51, .94)); color: #b0c5ed; font-size: .67rem; font-weight: 800; letter-spacing: 1px; text-align: left; text-transform: uppercase; } tbody td { padding: 13px 16px; border-bottom: 1px solid rgba(139, 166, 230, .12); font-size: .88rem; vertical-align: middle; } tbody tr:last-child td { border-bottom: 0; } tbody tr { background: rgba(8, 19, 46, .68); transition: background .16s ease, box-shadow .16s ease; } tbody tr:hover { background: rgba(26, 51, 108, .44); } tbody tr.offline { background: linear-gradient(90deg, rgba(112, 25, 34, .42), rgba(61, 16, 29, .34)); box-shadow: inset 3px 0 var(--red); } tbody tr.pending-fall { background: linear-gradient(90deg, rgba(109, 74, 16, .35), rgba(59, 36, 8, .3)); box-shadow: inset 3px 0 var(--amber); } tbody tr.pending-recovery { box-shadow: inset 3px 0 var(--blue); }.col-ramal { color: #fff; font: 750 .93rem var(--mono); }.col-nome { color: #fff; font-weight: 600; }.col-setor, .col-tempo { color: var(--muted); }.col-tempo { font: .81rem var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }.st { display: inline-flex; align-items: center; gap: 8px; font-size: .82rem; font-weight: 800; white-space: nowrap; }.st .dot { width: 9px; height: 9px; border-radius: 50%; }.st.on { color: var(--green); }.st.on .dot { background: var(--green); box-shadow: 0 0 8px rgba(53, 207, 108, .4); }.st.off { color: var(--red); }.st.off .dot { background: var(--red); animation: status-pulse 1.5s ease-in-out infinite; }.st.pending { color: var(--amber); }.st.pending .dot { background: var(--amber); animation: status-pulse 1.5s ease-in-out infinite; }.st.recovery { color: var(--blue); }.st.recovery .dot { background: var(--blue); animation: status-pulse 1.5s ease-in-out infinite; }.alert-status { display: inline-flex; align-items: center; min-height: 25px; padding: 3px 8px; border: 1px solid var(--line); border-radius: 999px; background: rgba(3, 12, 31, .45); color: var(--muted); font-size: .73rem; white-space: nowrap; }.alert-status.sent { border-color: rgba(53, 207, 108, .42); background: var(--green-bg); color: var(--green); }.alert-status.queued, .alert-status.sending, .alert-status.retrying { border-color: rgba(243, 179, 59, .46); background: var(--amber-bg); color: var(--amber); }.alert-status.failed, .alert-status.partial_failure { border-color: rgba(255, 93, 87, .48); background: var(--red-bg); color: var(--red); }.empty { padding: 48px 16px; background: rgba(8, 19, 46, .72); color: var(--faint); text-align: center; }
 
   .activity { overflow: hidden; margin-top: 18px; border: 1px solid var(--line); border-radius: 15px; background: linear-gradient(145deg, rgba(13, 31, 70, .82), rgba(4, 12, 31, .84)); box-shadow: 0 15px 30px rgba(0, 0, 0, .2), inset 0 1px rgba(255, 255, 255, .045); animation: rise-in .65s .25s cubic-bezier(.22, 1, .36, 1) both; }.activity-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 13px 16px; border-bottom: 1px solid var(--line); background: linear-gradient(90deg, rgba(255, 119, 0, .1), rgba(8, 22, 52, .45)); }.activity-head h2 { margin: 0; color: white; font-size: .88rem; font-weight: 800; }.activity-head h2::before { content: ""; display: inline-block; width: 3px; height: 14px; margin-right: 8px; border-radius: 4px; background: var(--orange); vertical-align: -2px; }.activity-head span { color: var(--faint); font-size: .74rem; }.activity-list { display: grid; grid-template-columns: repeat(3, 1fr); }.activity-item { min-height: 71px; padding: 13px 16px; border-right: 1px solid var(--line); }.activity-item:last-child { border-right: 0; }.activity-main { color: var(--text); font-size: .83rem; font-weight: 700; }.activity-main.open { color: var(--red); }.activity-main.resolved { color: var(--green); }.activity-meta { margin-top: 5px; color: var(--muted); font-size: .76rem; }.activity-empty { padding: 19px 16px; color: var(--faint); font-size: .82rem; }
+  .activity-title { min-width: 0; }.activity-title > span { display: block; margin-top: 2px; }.activity-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }.test-feedback { min-height: 18px; color: var(--muted) !important; text-align: right; }.test-feedback.ok { color: var(--green) !important; }.test-feedback.error { color: var(--red) !important; }
+  .test-button { min-height: 34px; padding: 7px 12px; border: 1px solid rgba(255, 173, 102, .5); border-radius: 9px; background: linear-gradient(180deg, rgba(255, 138, 42, .98), rgba(200, 90, 0, .98)); box-shadow: inset 0 1px rgba(255, 255, 255, .26), 0 5px 14px rgba(0, 0, 0, .18); color: white; cursor: pointer; font: 750 .74rem inherit; transition: filter .18s ease, transform .18s ease, opacity .18s ease; }.test-button:hover:not(:disabled) { filter: brightness(1.08); transform: translateY(-1px); }.test-button:focus-visible { outline: 2px solid #ffcb9c; outline-offset: 2px; }.test-button:disabled { cursor: not-allowed; filter: saturate(.4); opacity: .5; }
+  .activity-main.test { color: var(--blue); }.activity-state { display: inline-flex; align-items: center; min-height: 21px; margin-left: 5px; padding: 2px 7px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: .67rem; font-weight: 750; vertical-align: 1px; }.activity-state.sent { border-color: rgba(53, 207, 108, .4); background: var(--green-bg); color: var(--green); }.activity-state.queued, .activity-state.sending, .activity-state.retrying { border-color: rgba(243, 179, 59, .42); background: var(--amber-bg); color: var(--amber); }.activity-state.failed, .activity-state.partial_failure { border-color: rgba(255, 93, 87, .45); background: var(--red-bg); color: var(--red); }
   footer { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-top: 16px; color: var(--faint); font-size: .76rem; }
 
   @keyframes rise-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
   @keyframes live-pulse { 0% { box-shadow: 0 0 0 0 rgba(53, 207, 108, .52); } 65%, 100% { box-shadow: 0 0 0 7px rgba(53, 207, 108, 0); } }
   @keyframes status-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .38; } }
-  @media (max-width: 930px) { .stats { grid-template-columns: repeat(2, 1fr); }.topbar { align-items: flex-start; }.status-pills { justify-content: flex-start; }.activity-list { grid-template-columns: 1fr; }.activity-item { border-right: 0; border-bottom: 1px solid var(--line); }.activity-item:last-child { border-bottom: 0; } }
+  @media (max-width: 930px) { .stats { grid-template-columns: repeat(2, 1fr); }.topbar { align-items: flex-start; }.status-pills { justify-content: flex-start; }.activity-list { grid-template-columns: 1fr; }.activity-item { border-right: 0; border-bottom: 1px solid var(--line); }.activity-item:last-child { border-bottom: 0; }.activity-head { align-items: flex-start; }.activity-actions { align-items: flex-end; flex-direction: column-reverse; } }
   @media (max-width: 580px) { .wrap { width: min(100% - 28px, 1440px); padding-top: 14px; }.topbar { padding: 13px; border-radius: 15px; }.brand-mark { width: 42px; height: 42px; border-radius: 12px; }.brand-mark img { width: 31px; height: 31px; }.brand h1 { font-size: 1.13rem; }.brand-subtitle { font-size: .71rem; }.status-pills { width: 100%; }.pill { padding: 6px 8px; font-size: .72rem; }.stats { gap: 8px; }.tile { padding: 14px; border-radius: 13px; }.tile .value { font-size: 1.72rem; }.operational { align-items: flex-start; }.operational-detail { display: block; margin-top: 3px; }.search { min-width: 100%; }.segmented { width: 100%; }.segmented button { flex: 1; padding: 8px 6px; font-size: .72rem; }.activity-head { align-items: flex-start; flex-direction: column; gap: 3px; } }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
 </style>
@@ -153,6 +156,14 @@
     <div id="empty" class="empty" style="display:none"></div>
   </div>
 
+  <section class="activity" aria-labelledby="alerts-title">
+    <div class="activity-head">
+      <div class="activity-title"><h2 id="alerts-title">Entregas WhatsApp</h2><span id="alerts-summary">Verificando configuração e histórico</span></div>
+      <div class="activity-actions"><span id="test-feedback" class="test-feedback" role="status" aria-live="polite"></span><button id="test-alert" class="test-button" type="button" disabled>Enviar teste</button></div>
+    </div>
+    <div id="recent-alerts" class="activity-list"></div>
+  </section>
+
   <section class="activity" aria-labelledby="activity-title">
     <div class="activity-head"><h2 id="activity-title">Incidentes recentes</h2><span>histórico preservado após reinícios</span></div>
     <div id="recent-incidents" class="activity-list"></div>
@@ -166,6 +177,7 @@ const POLL_MS = 3000;
 let lastData = null;
 let searchTerm = "";
 let filterMode = "all";
+let testInFlight = false;
 
 function humanDuration(seconds) {
   seconds = Math.max(0, Math.floor(seconds));
@@ -188,7 +200,11 @@ function renderPills(data) {
   else if (data.ami_status === "demo") { amiDot.classList.add("warn"); amiText.textContent = "Modo demonstração"; }
   else { amiText.textContent = "AMI não configurada"; }
   const waDot = document.getElementById("wa-dot"); const waText = document.getElementById("wa-text"); waDot.className = "dot";
-  if (data.whatsapp_enabled) { waDot.classList.add("ok"); waText.textContent = "WhatsApp ativo"; } else { waDot.classList.add("warn"); waText.textContent = "WhatsApp não configurado"; }
+  const waStatus = data.whatsapp || {}; const latest = waStatus.latest_status;
+  if (!data.whatsapp_enabled) { waDot.classList.add("warn"); waText.textContent = "WhatsApp não configurado"; }
+  else if (latest === "failed" || latest === "partial_failure") { waDot.classList.add("bad"); waText.textContent = "WhatsApp com falha"; }
+  else if (["queued", "sending", "retrying"].includes(latest)) { waDot.classList.add("warn"); waText.textContent = "WhatsApp enviando"; }
+  else { waDot.classList.add("ok"); waText.textContent = latest === "sent" ? "WhatsApp operacional" : "WhatsApp configurado"; }
 }
 
 function renderStats(data) {
@@ -225,9 +241,9 @@ function stateMarkup(ext, now) {
 
 function alertMarkup(alert) {
   if (!alert || alert.status === "not_configured") return '<span class="alert-status">WhatsApp indisponível</span>';
-  const labels = { queued: "Alerta na fila", sending: "Enviando alerta", retrying: "Nova tentativa", sent: "Alerta enviado", failed: "Falha no alerta", partial_failure: "Envio parcial" };
+  const labels = { idle: "Aguardando evento", queued: "Alerta na fila", sending: "Enviando alerta", retrying: "Nova tentativa", sent: "Alerta enviado", failed: "Falha no alerta", partial_failure: "Envio parcial" };
   const label = labels[alert.status] || "Sem alerta neste ciclo";
-  const suffix = alert.total_recipients ? " · " + alert.sent_count + "/" + alert.total_recipients : "";
+  const suffix = alert.status !== "idle" && alert.total_recipients ? " · " + alert.sent_count + "/" + alert.total_recipients : "";
   return '<span class="alert-status ' + escapeHtml(alert.status) + '" title="' + escapeHtml(alert.last_error || label) + '">' + label + suffix + '</span>';
 }
 
@@ -258,9 +274,35 @@ function renderIncidents(data) {
   }).join("");
 }
 
+function renderAlerts(data) {
+  const holder = document.getElementById("recent-alerts"); const summary = document.getElementById("alerts-summary"); const button = document.getElementById("test-alert");
+  const config = data.whatsapp || {}; const alerts = (data.recent_alerts || []).slice(0, 3);
+  button.disabled = !config.test_available || testInFlight;
+  button.textContent = testInFlight ? "Enviando…" : "Enviar teste";
+  button.title = config.test_available ? "Envia uma mensagem de teste aos destinatários configurados" : "Configure o WhatsApp no servidor para habilitar o teste";
+  if (config.configured) {
+    const recipients = config.recipient_count === 1 ? "1 destinatário configurado" : config.recipient_count + " destinatários configurados";
+    summary.textContent = recipients + " · histórico preservado após reinícios";
+  } else {
+    summary.textContent = "Integração ainda não configurada no servidor";
+  }
+  if (!alerts.length) {
+    holder.innerHTML = '<div class="activity-empty">Ainda não há entregas registradas. Use “Enviar teste” para validar a integração sem derrubar um ramal.</div>';
+    return;
+  }
+  const labels = { queued: "Na fila", sending: "Enviando", retrying: "Nova tentativa", sent: "Enviado", failed: "Falhou", partial_failure: "Envio parcial", not_configured: "Sem destinatários" };
+  holder.innerHTML = alerts.map(alert => {
+    const isTest = alert.kind === "test"; const subject = isTest ? "Teste manual" : (alert.change === "offline" ? "Queda do ramal " : "Retorno do ramal ") + escapeHtml(alert.extension);
+    const state = labels[alert.status] || alert.status; const delivery = alert.total_recipients ? alert.sent_count + "/" + alert.total_recipients + " entregue(s)" : "nenhum destinatário";
+    const attempts = alert.attempts ? " · " + alert.attempts + " tentativa(s)" : ""; const timing = "há " + humanDuration(Date.now() / 1000 - alert.created_at);
+    const error = alert.last_error ? " · " + escapeHtml(alert.last_error) : "";
+    return '<div class="activity-item" title="' + escapeHtml(alert.last_error || state) + '"><div class="activity-main ' + (isTest ? "test" : "") + '">' + subject + '<span class="activity-state ' + escapeHtml(alert.status) + '">' + escapeHtml(state) + '</span></div><div class="activity-meta">' + delivery + attempts + " · " + timing + error + '</div></div>';
+  }).join("");
+}
+
 function renderAll() {
   if (!lastData) return;
-  renderPills(lastData); renderStats(lastData); renderOperational(lastData); renderTable(lastData); renderIncidents(lastData);
+  renderPills(lastData); renderStats(lastData); renderOperational(lastData); renderTable(lastData); renderAlerts(lastData); renderIncidents(lastData);
   const shown = lastData.extensions.filter(passesFilter).length;
   document.getElementById("foot-left").textContent = "Exibindo " + shown + " de " + lastData.total + " ramais";
   document.getElementById("foot-right").textContent = lastData.generated_at ? "Dados recebidos às " + new Date(lastData.generated_at * 1000).toLocaleTimeString("pt-BR") : "";
@@ -271,8 +313,33 @@ async function refresh() {
   catch (err) { document.getElementById("foot-left").textContent = "Falha ao atualizar o painel: " + err.message; }
 }
 
+async function sendTestAlert() {
+  if (!lastData || !(lastData.whatsapp || {}).test_available || testInFlight) return;
+  if (!window.confirm("Enviar agora uma mensagem de teste para todos os destinatários configurados?")) return;
+  const feedback = document.getElementById("test-feedback");
+  testInFlight = true; feedback.className = "test-feedback"; feedback.textContent = "Colocando teste na fila…"; renderAlerts(lastData);
+  try {
+    const response = await fetch("/api/alerts/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-PulsoPBX-Action": "test-alert" },
+      body: JSON.stringify({ confirm: true })
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "HTTP " + response.status);
+    feedback.className = "test-feedback ok";
+    feedback.textContent = payload.deduplicated ? "Um teste recente já está registrado." : "Teste colocado na fila.";
+    await refresh();
+  } catch (error) {
+    feedback.className = "test-feedback error"; feedback.textContent = "Falha: " + error.message;
+  } finally {
+    testInFlight = false;
+    if (lastData) renderAlerts(lastData);
+  }
+}
+
 document.getElementById("search").addEventListener("input", e => { searchTerm = e.target.value.trim().toLowerCase(); renderAll(); });
 document.getElementById("filter").addEventListener("click", e => { const btn = e.target.closest("button"); if (!btn) return; filterMode = btn.dataset.f; document.querySelectorAll("#filter button").forEach(b => b.classList.toggle("active", b === btn)); renderAll(); });
+document.getElementById("test-alert").addEventListener("click", sendTestAlert);
 function tickClock() { document.getElementById("clock").textContent = new Date().toLocaleTimeString("pt-BR"); }
 setInterval(tickClock, 1000); tickClock(); refresh(); setInterval(refresh, POLL_MS);
 </script>

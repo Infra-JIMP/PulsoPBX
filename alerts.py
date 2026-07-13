@@ -1,9 +1,4 @@
-"""Fila de entrega de alertas WhatsApp.
-
-O monitor nunca espera pela rede da Meta para continuar consumindo eventos da AMI.
-Cada destinatário recebe sua própria tentativa, evitando reenvio duplicado a quem já
-recebeu a mensagem quando outro número falha.
-"""
+"""Fila resiliente de entrega de alertas WhatsApp."""
 import asyncio
 import logging
 import time
@@ -12,6 +7,7 @@ from collections import deque
 from dataclasses import dataclass
 from datetime import datetime
 
+from alert_store import AlertStore
 from notifier import WhatsAppNotifier
 
 logger = logging.getLogger(__name__)
@@ -24,28 +20,67 @@ class _DeliveryJob:
 
 
 class AlertDispatcher:
+    """Entrega alertas sem bloquear a AMI e preserva o estado no SQLite."""
+
     def __init__(
         self,
         notifier: WhatsAppNotifier,
         max_attempts: int = 3,
         retry_base_seconds: float = 15,
         history_limit: int = 200,
+        store: AlertStore | None = None,
+        test_cooldown_seconds: float = 60,
     ):
         self._notifier = notifier
         self._max_attempts = max_attempts
         self._retry_base_seconds = retry_base_seconds
+        self._history_limit = history_limit
+        self._store = store
+        self._test_cooldown_seconds = test_cooldown_seconds
         self._queue: asyncio.Queue[_DeliveryJob] = asyncio.Queue()
         self._events: deque[dict] = deque(maxlen=history_limit)
         self._events_by_id: dict[str, dict] = {}
         self._latest_by_extension: dict[str, dict] = {}
+        self._latest_test_event: dict | None = None
+        self._restore_history()
 
     def enqueue(self, extension: str, status: str, now: float | None = None) -> dict:
-        """Registra uma transição confirmada e agenda uma entrega por destinatário."""
+        """Agenda uma mudanca confirmada, ignorando repeticoes do mesmo estado."""
+        if status not in {"online", "offline"}:
+            raise ValueError(f"Status de ramal invalido: {status}")
         now = now if now is not None else time.time()
+        previous = self._latest_by_extension.get(extension)
+        if previous is not None and previous["change"] == status:
+            result = self._serialize(previous)
+            result["deduplicated"] = True
+            logger.info("Alerta duplicado do ramal %s (%s) ignorado", extension, status)
+            return result
+
+        event = self._create_event(extension, status, "status", now)
+        self._latest_by_extension[extension] = event
+        return self._serialize(event)
+
+    def enqueue_test(self, now: float | None = None) -> dict:
+        """Envia um teste pelo mesmo caminho usado pelos alertas reais."""
+        now = now if now is not None else time.time()
+        if (
+            self._latest_test_event is not None
+            and now - self._latest_test_event["created_at"] < self._test_cooldown_seconds
+        ):
+            result = self._serialize(self._latest_test_event)
+            result["deduplicated"] = True
+            return result
+
+        event = self._create_event("TESTE", "test", "test", now)
+        self._latest_test_event = event
+        return self._serialize(event)
+
+    def _create_event(self, extension: str, change: str, kind: str, now: float) -> dict:
         event = {
             "id": uuid.uuid4().hex,
             "extension": extension,
-            "status": status,
+            "change": change,
+            "kind": kind,
             "created_at": now,
             "updated_at": now,
             "deliveries": {
@@ -53,16 +88,17 @@ class AlertDispatcher:
                 for recipient in self._notifier.recipients
             },
         }
-        if len(self._events) == self._events.maxlen:
-            expired = self._events[-1]
-            self._events_by_id.pop(expired["id"], None)
-        self._events.appendleft(event)
-        self._events_by_id[event["id"]] = event
-        self._latest_by_extension[extension] = event
+        self._remember(event)
+        self._persist_event(event)
         for recipient in event["deliveries"]:
             self._queue.put_nowait(_DeliveryJob(event["id"], recipient))
-        logger.info("Alerta do ramal %s (%s) colocado na fila para %d destinatario(s)", extension, status, len(event["deliveries"]))
-        return self._serialize(event)
+        logger.info(
+            "Alerta %s (%s) colocado na fila para %d destinatario(s)",
+            extension,
+            change,
+            len(event["deliveries"]),
+        )
+        return event
 
     async def run(self) -> None:
         while True:
@@ -83,31 +119,41 @@ class AlertDispatcher:
         delivery["status"] = "sending"
         delivery["attempts"] += 1
         event["updated_at"] = time.time()
+        self._persist_delivery(event, job.recipient)
         timestamp = datetime.fromtimestamp(event["created_at"]).strftime("%d/%m/%Y %H:%M:%S")
         try:
             await asyncio.to_thread(
                 self._notifier.notify_recipient_change,
                 job.recipient,
                 event["extension"],
-                event["status"],
+                event["change"],
                 timestamp,
+                event["kind"] == "test",
             )
         except Exception as exc:
             delivery["last_error"] = str(exc)
             event["updated_at"] = time.time()
             if delivery["attempts"] >= self._max_attempts:
                 delivery["status"] = "failed"
+                self._persist_delivery(event, job.recipient)
                 logger.error(
-                    "Alerta do ramal %s para %s falhou apos %d tentativa(s): %s",
-                    event["extension"], job.recipient, delivery["attempts"], exc,
+                    "Alerta %s para %s falhou apos %d tentativa(s): %s",
+                    event["extension"],
+                    job.recipient,
+                    delivery["attempts"],
+                    exc,
                 )
                 return
 
             delivery["status"] = "retrying"
+            self._persist_delivery(event, job.recipient)
             delay = self._retry_base_seconds * (2 ** (delivery["attempts"] - 1))
             logger.warning(
-                "Alerta do ramal %s para %s falhou; nova tentativa em %.0fs: %s",
-                event["extension"], job.recipient, delay, exc,
+                "Alerta %s para %s falhou; nova tentativa em %.0fs: %s",
+                event["extension"],
+                job.recipient,
+                delay,
+                exc,
             )
             asyncio.create_task(self._requeue_after(job, delay))
             return
@@ -115,6 +161,7 @@ class AlertDispatcher:
         delivery["status"] = "sent"
         delivery["last_error"] = None
         event["updated_at"] = time.time()
+        self._persist_delivery(event, job.recipient)
 
     async def _requeue_after(self, job: _DeliveryJob, delay: float) -> None:
         await asyncio.sleep(delay)
@@ -123,14 +170,86 @@ class AlertDispatcher:
 
     def get_extension_status(self, extension: str, current_status: str) -> dict | None:
         event = self._latest_by_extension.get(extension)
-        if event is None or event["status"] != current_status:
+        if event is None or event["change"] != current_status:
             return None
         return self._serialize(event)
 
     def recent_events(self, limit: int = 12) -> list[dict]:
         return [self._serialize(event) for event in list(self._events)[:limit]]
 
-    def _serialize(self, event: dict) -> dict:
+    def _restore_history(self) -> None:
+        if self._store is None:
+            return
+        try:
+            stored = self._store.recent(self._history_limit)
+            latest = self._store.latest_status_by_extension()
+        except Exception:
+            logger.exception("Nao foi possivel restaurar o historico de alertas")
+            return
+
+        self._events.extend(stored)
+        self._events_by_id = {event["id"]: event for event in stored}
+        self._latest_by_extension = {
+            extension: self._events_by_id.get(event["id"], event)
+            for extension, event in latest.items()
+        }
+        self._latest_test_event = next((event for event in stored if event["kind"] == "test"), None)
+
+        recovered = 0
+        configured_recipients = set(self._notifier.recipients)
+        for event in reversed(stored):
+            for recipient, delivery in event["deliveries"].items():
+                if delivery["status"] in {"sent", "failed"}:
+                    continue
+                if recipient not in configured_recipients:
+                    delivery["status"] = "failed"
+                    delivery["last_error"] = "Destinatario removido da configuracao"
+                    event["updated_at"] = time.time()
+                    self._persist_delivery(event, recipient)
+                    continue
+                if delivery["attempts"] >= self._max_attempts:
+                    delivery["status"] = "failed"
+                    delivery["last_error"] = delivery["last_error"] or "Tentativas esgotadas antes do reinicio"
+                    event["updated_at"] = time.time()
+                    self._persist_delivery(event, recipient)
+                    continue
+                delivery["status"] = "queued"
+                event["updated_at"] = time.time()
+                self._persist_delivery(event, recipient)
+                self._queue.put_nowait(_DeliveryJob(event["id"], recipient))
+                recovered += 1
+        if recovered:
+            logger.warning("%d entrega(s) pendente(s) restaurada(s) do historico", recovered)
+
+    def _remember(self, event: dict) -> None:
+        if len(self._events) == self._events.maxlen:
+            expired = self._events[-1]
+            self._events_by_id.pop(expired["id"], None)
+        self._events.appendleft(event)
+        self._events_by_id[event["id"]] = event
+
+    def _persist_event(self, event: dict) -> None:
+        if self._store is None:
+            return
+        try:
+            self._store.create_event(event)
+        except Exception:
+            logger.exception("Falha ao persistir o alerta %s", event["id"])
+
+    def _persist_delivery(self, event: dict, recipient: str) -> None:
+        if self._store is None:
+            return
+        try:
+            self._store.update_delivery(event, recipient)
+        except Exception:
+            logger.exception("Falha ao persistir a entrega do alerta %s", event["id"])
+
+    @staticmethod
+    def serialize_event(event: dict) -> dict:
+        return AlertDispatcher._serialize(event)
+
+    @staticmethod
+    def _serialize(event: dict) -> dict:
         deliveries = list(event["deliveries"].values())
         total = len(deliveries)
         sent = sum(delivery["status"] == "sent" for delivery in deliveries)
@@ -153,8 +272,9 @@ class AlertDispatcher:
         return {
             "id": event["id"],
             "extension": event["extension"],
+            "kind": event["kind"],
             "status": status,
-            "change": event["status"],
+            "change": event["change"],
             "created_at": event["created_at"],
             "updated_at": event["updated_at"],
             "sent_count": sent,

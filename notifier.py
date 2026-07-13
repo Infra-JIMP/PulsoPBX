@@ -1,12 +1,12 @@
 """Envio de alertas via WhatsApp Cloud API (Meta Graph API)."""
 import logging
+import re
 from datetime import datetime
 
 import requests
 
 logger = logging.getLogger(__name__)
 
-GRAPH_API_VERSION = "v20.0"
 REQUEST_TIMEOUT_SECONDS = 10
 
 
@@ -19,12 +19,16 @@ class WhatsAppNotifier:
         self,
         token: str,
         phone_number_id: str,
+        graph_api_version: str,
         template_name: str,
         use_template: bool,
         recipients: list[str],
     ):
+        graph_api_version = graph_api_version.strip()
+        if not re.fullmatch(r"v\d+\.\d+", graph_api_version):
+            raise ValueError("WHATSAPP_GRAPH_API_VERSION deve seguir o formato v25.0")
         self._token = token
-        self._url = f"https://graph.facebook.com/{GRAPH_API_VERSION}/{phone_number_id}/messages"
+        self._url = f"https://graph.facebook.com/{graph_api_version}/{phone_number_id}/messages"
         self._template_name = template_name
         self._use_template = use_template
         self._recipients = recipients
@@ -79,8 +83,18 @@ class WhatsAppNotifier:
             }
         )
 
-    def notify_recipient_change(self, recipient: str, extension: str, status: str, timestamp: str) -> None:
-        status_text = "ficou indisponivel" if status == "offline" else "voltou a ficar disponivel"
+    def notify_recipient_change(
+        self,
+        recipient: str,
+        extension: str,
+        status: str,
+        timestamp: str,
+        is_test: bool = False,
+    ) -> None:
+        if is_test:
+            status_text = "foi usado em um teste manual do PulsoPBX; nenhum ramal caiu"
+        else:
+            status_text = "ficou indisponivel" if status == "offline" else "voltou a ficar disponivel"
         if self._use_template:
             self._send_template(recipient, extension, status_text, timestamp)
         else:

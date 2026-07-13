@@ -7,17 +7,25 @@ import asyncio
 import logging
 import time
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from aiohttp import web
 
 import demo
 import mikopbx_api
+from alerts import AlertDispatcher
 from names import load_names
 
 logger = logging.getLogger(__name__)
 
 INDEX_FILE = Path(__file__).parent / "static" / "index.html"
 FAVICON_FILE = Path(__file__).parent / "static" / "favicon.ico"
+TRACKER_KEY = web.AppKey("tracker", object)
+CLIENT_KEY = web.AppKey("client", object)
+CONFIG_KEY = web.AppKey("config", object)
+ALERTS_KEY = web.AppKey("alerts", object)
+INCIDENTS_KEY = web.AppKey("incidents", object)
+ALERT_STORE_KEY = web.AppKey("alert_store", object)
 
 
 async def _handle_index(request: web.Request) -> web.FileResponse:
@@ -29,11 +37,12 @@ async def _handle_favicon(request: web.Request) -> web.FileResponse:
 
 
 async def _handle_status(request: web.Request) -> web.Response:
-    tracker = request.app["tracker"]
-    client = request.app["client"]  # AmiClient | None, se AMI nao estiver configurada
-    config = request.app["config"]
-    alerts = request.app["alerts"]
-    incidents = request.app["incidents"]
+    tracker = request.app[TRACKER_KEY]
+    client = request.app[CLIENT_KEY]  # AmiClient | None, se AMI nao estiver configurada
+    config = request.app[CONFIG_KEY]
+    alerts = request.app[ALERTS_KEY]
+    incidents = request.app[INCIDENTS_KEY]
+    alert_store = request.app[ALERT_STORE_KEY]
 
     if config.demo_mode:
         ami_status = "demo"
@@ -64,16 +73,29 @@ async def _handle_status(request: web.Request) -> web.Response:
                 merged["setor"] = override["setor"]
 
     extensions = tracker.snapshot()
+    if alerts is not None:
+        recent_alerts = alerts.recent_events()
+    elif alert_store is not None:
+        stored_alerts = await asyncio.to_thread(alert_store.recent, 12)
+        recent_alerts = [AlertDispatcher.serialize_event(event) for event in stored_alerts]
+    else:
+        recent_alerts = []
+
     open_incidents = await asyncio.to_thread(incidents.open_by_extension) if incidents is not None else {}
     for ext in extensions:
         meta = names.get(ext["extension"], {})
         ext["nome"] = meta.get("nome", "")
         ext["setor"] = meta.get("setor", "")
-        ext["alert"] = (
-            alerts.get_extension_status(ext["extension"], "online" if ext["online"] else "offline")
-            if alerts is not None
-            else {"status": "not_configured", "sent_count": 0, "total_recipients": 0}
-        )
+        if alerts is None:
+            ext["alert"] = {"status": "not_configured", "sent_count": 0, "total_recipients": 0}
+        else:
+            ext["alert"] = alerts.get_extension_status(
+                ext["extension"], "online" if ext["online"] else "offline"
+            ) or {
+                "status": "idle",
+                "sent_count": 0,
+                "total_recipients": len(config.whatsapp_recipients),
+            }
         ext["incident"] = open_incidents.get(ext["extension"])
 
     online = sum(1 for e in extensions if e["online"])
@@ -94,6 +116,13 @@ async def _handle_status(request: web.Request) -> web.Response:
             "ami_status": ami_status,
             "last_reconcile_at": last_reconcile_at,
             "whatsapp_enabled": config.whatsapp_enabled,
+            "whatsapp": {
+                "configured": config.whatsapp_enabled,
+                "recipient_count": len(config.whatsapp_recipients),
+                "test_available": alerts is not None,
+                "test_cooldown_seconds": config.alert_test_cooldown_seconds,
+                "latest_status": recent_alerts[0]["status"] if recent_alerts else None,
+            },
             "generated_at": time.time(),
             "total": len(extensions),
             "online": online,
@@ -101,27 +130,63 @@ async def _handle_status(request: web.Request) -> web.Response:
             "confirming": confirming,
             "extensions": extensions,
             "recent_events": recent_events,
-            "recent_alerts": alerts.recent_events() if alerts is not None else [],
+            "recent_alerts": recent_alerts,
             "incidents": recent_incidents,
         }
     )
 
 
-def create_app(tracker, client, config, alerts=None, incidents=None) -> web.Application:
+async def _handle_test_alert(request: web.Request) -> web.Response:
+    """Coloca um teste na fila sem aceitar destinatario ou mensagem arbitrarios."""
+    alerts = request.app[ALERTS_KEY]
+    if alerts is None:
+        return web.json_response(
+            {"ok": False, "error": "WhatsApp nao configurado no servidor"}, status=409
+        )
+    if request.headers.get("X-PulsoPBX-Action") != "test-alert":
+        return web.json_response({"ok": False, "error": "Acao nao autorizada"}, status=403)
+    if request.content_type != "application/json":
+        return web.json_response({"ok": False, "error": "Conteudo invalido"}, status=415)
+
+    origin = request.headers.get("Origin")
+    if origin and urlsplit(origin).netloc.lower() != request.host.lower():
+        return web.json_response({"ok": False, "error": "Origem nao autorizada"}, status=403)
+    try:
+        body = await request.json()
+    except (ValueError, TypeError):
+        return web.json_response({"ok": False, "error": "JSON invalido"}, status=400)
+    if body.get("confirm") is not True:
+        return web.json_response({"ok": False, "error": "Confirmacao obrigatoria"}, status=400)
+
+    event = alerts.enqueue_test()
+    return web.json_response(
+        {
+            "ok": True,
+            "deduplicated": event.get("deduplicated", False),
+            "event": event,
+        },
+        status=202,
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+def create_app(tracker, client, config, alerts=None, incidents=None, alert_store=None) -> web.Application:
     app = web.Application()
-    app["tracker"] = tracker
-    app["client"] = client
-    app["config"] = config
-    app["alerts"] = alerts
-    app["incidents"] = incidents
+    app[TRACKER_KEY] = tracker
+    app[CLIENT_KEY] = client
+    app[CONFIG_KEY] = config
+    app[ALERTS_KEY] = alerts
+    app[INCIDENTS_KEY] = incidents
+    app[ALERT_STORE_KEY] = alert_store
     app.router.add_get("/", _handle_index)
     app.router.add_get("/favicon.ico", _handle_favicon)
     app.router.add_get("/api/status", _handle_status)
+    app.router.add_post("/api/alerts/test", _handle_test_alert)
     return app
 
 
-async def run_dashboard(tracker, client, config, alerts=None, incidents=None) -> None:
-    app = create_app(tracker, client, config, alerts, incidents)
+async def run_dashboard(tracker, client, config, alerts=None, incidents=None, alert_store=None) -> None:
+    app = create_app(tracker, client, config, alerts, incidents, alert_store)
     runner = web.AppRunner(app)
     await runner.setup()
     site = web.TCPSite(runner, config.dashboard_host, config.dashboard_port)
