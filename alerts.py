@@ -1,4 +1,4 @@
-"""Fila resiliente de entrega de alertas WhatsApp."""
+"""Fila resiliente de entrega de alertas por e-mail."""
 import asyncio
 import logging
 import time
@@ -8,8 +8,6 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from alert_store import AlertStore
-from notifier import WhatsAppNotifier
-
 logger = logging.getLogger(__name__)
 
 
@@ -24,7 +22,7 @@ class AlertDispatcher:
 
     def __init__(
         self,
-        notifier: WhatsAppNotifier,
+        notifier,
         max_attempts: int = 3,
         retry_base_seconds: float = 15,
         history_limit: int = 200,
@@ -197,11 +195,16 @@ class AlertDispatcher:
 
         recovered = 0
         configured_recipients = set(self._notifier.recipients)
+        can_deliver = getattr(
+            self._notifier,
+            "can_deliver_recipient",
+            configured_recipients.__contains__,
+        )
         for event in reversed(stored):
             for recipient, delivery in event["deliveries"].items():
                 if delivery["status"] in {"sent", "failed"}:
                     continue
-                if recipient not in configured_recipients:
+                if not can_deliver(recipient):
                     delivery["status"] = "failed"
                     delivery["last_error"] = "Destinatario removido da configuracao"
                     event["updated_at"] = time.time()

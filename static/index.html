@@ -3,26 +3,25 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#071338">
+<meta name="theme-color" content="#06112d">
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="apple-touch-icon" href="/assets/pulsopbx-logo.png">
 <title>PulsoPBX · Monitor de Ramais</title>
-<link rel="icon" href="/favicon.ico" sizes="any">
 <style>
   :root {
-    --night: #030817;
-    --navy: #071338;
-    --navy-bright: #0a1c79;
-    --navy-deep: #08154f;
-    --surface: rgba(8, 21, 57, .78);
-    --surface-strong: #0b1734;
-    --surface-raised: #101f42;
-    --line: rgba(139, 166, 230, .16);
-    --line-strong: rgba(165, 191, 252, .27);
+    color-scheme: dark;
+    --bg: #02060f;
+    --panel: rgba(255, 255, 255, .055);
+    --row-hover: rgba(50, 78, 145, .28);
+    --border: rgba(255, 255, 255, .10);
+    --border-strong: rgba(255, 255, 255, .17);
+    --glass-shadow: 0 18px 40px rgba(0, 0, 0, .38), inset 0 1px 0 rgba(255, 255, 255, .08);
+    --glass-blur: blur(28px) saturate(145%);
     --text: #f5f8ff;
-    --muted: #9aa9c9;
-    --faint: #6e80a6;
+    --muted: rgba(238, 244, 255, .72);
+    --faint: rgba(225, 235, 255, .48);
     --orange: #ff7700;
     --orange-light: #ffad66;
-    --orange-bg: rgba(255, 119, 0, .13);
     --green: #35cf6c;
     --green-bg: rgba(53, 207, 108, .12);
     --red: #ff5d57;
@@ -34,82 +33,157 @@
     --mono: "Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   }
   * { box-sizing: border-box; }
-  html { min-height: 100%; background: var(--night); }
+  html { min-height: 100%; background: var(--bg); }
   body {
     min-height: 100%; margin: 0; color: var(--text); background:
-      radial-gradient(circle at 11% -8%, rgba(255, 119, 0, .16), transparent 24rem),
-      radial-gradient(circle at 88% 10%, rgba(23, 78, 205, .22), transparent 29rem),
-      radial-gradient(circle at 48% 100%, rgba(255, 119, 0, .07), transparent 30rem),
-      linear-gradient(135deg, #071338 0%, #040a20 45%, #030817 100%);
-    font: 15px/1.45 "Segoe UI", Inter, Arial, sans-serif; -webkit-font-smoothing: antialiased;
+      radial-gradient(circle at 9% -7%, rgba(255, 119, 0, .19), transparent 25rem),
+      radial-gradient(circle at 88% 8%, rgba(46, 88, 205, .27), transparent 31rem),
+      radial-gradient(circle at 52% 112%, rgba(255, 119, 0, .08), transparent 31rem),
+      linear-gradient(145deg, #0a1838 0%, #060f28 40%, #02060f 100%);
+    font: 15px/1.45 "Segoe UI Variable", "Segoe UI", -apple-system, BlinkMacSystemFont, Inter, Arial, sans-serif; -webkit-font-smoothing: antialiased;
   }
-  body::before {
-    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: -1; opacity: .32;
-    background-image: radial-gradient(rgba(194, 215, 255, .18) .7px, transparent .7px);
-    background-size: 28px 28px; mask-image: linear-gradient(to bottom, black, transparent 78%);
-  }
+  body::before { content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .28; background-image: radial-gradient(rgba(214, 227, 255, .17) .65px, transparent .65px); background-size: 28px 28px; mask-image: linear-gradient(to bottom, black, transparent 76%); }
+  body::after { content: ""; position: fixed; width: 19rem; height: 19rem; right: -7rem; top: 31%; border-radius: 50%; pointer-events: none; background: rgba(47, 82, 181, .13); filter: blur(14px); }
+  ::selection { background: rgba(255, 119, 0, .34); color: white; }
   * { scrollbar-width: thin; scrollbar-color: #263b87 #040a22; }
   *::-webkit-scrollbar { width: 10px; height: 10px; }
   *::-webkit-scrollbar-track { background: #040a22; }
   *::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #263b87, #14245b); border: 2px solid #040a22; border-radius: 999px; }
-  *::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, #3a57bb, #1b3175); }
-
-  .wrap { width: min(1440px, calc(100% - 48px)); margin: 0 auto; padding: 28px 0 42px; position: relative; }
-  .topbar {
-    min-height: 82px; display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap;
-    padding: 14px 18px; margin-bottom: 18px; border: 1px solid rgba(255, 119, 0, .26); border-radius: 18px;
-    background: radial-gradient(circle at 22% 0%, rgba(255, 119, 0, .13), transparent 22rem), linear-gradient(135deg, rgba(10, 28, 121, .82), rgba(3, 8, 23, .9));
-    box-shadow: 0 16px 38px rgba(0, 0, 0, .28), inset 0 1px rgba(255, 255, 255, .07);
-    animation: rise-in .55s cubic-bezier(.22, 1, .36, 1) both;
-  }
+  *:focus-visible { outline: 2px solid #ffcb9c; outline-offset: 3px; }
+  .wrap { width: min(1440px, calc(100% - 48px)); margin: 0 auto; padding: 28px 0 42px; position: relative; z-index: 1; }
+  .topbar, .tile, .operational, .toolbar, .table-wrap, .activity { -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); }
+  .topbar { min-height: 86px; display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap; padding: 15px 18px; margin-bottom: 18px; border: 1px solid var(--border-strong); border-radius: 26px; background: radial-gradient(circle at 19% -20%, rgba(255, 119, 0, .17), transparent 22rem), linear-gradient(135deg, rgba(255, 255, 255, .09), rgba(8, 23, 60, .56) 48%, rgba(3, 9, 25, .66)); box-shadow: var(--glass-shadow); animation: rise-in .55s cubic-bezier(.22, 1, .36, 1) both; }
   .brand { min-width: 0; display: flex; align-items: center; gap: 13px; }
-  .brand-mark {
-    width: 48px; height: 48px; display: grid; place-items: center; flex: 0 0 auto; overflow: hidden; border-radius: 14px;
-    background: linear-gradient(145deg, rgba(255, 255, 255, .18), rgba(255, 119, 0, .18)); border: 1px solid rgba(255, 190, 132, .52);
-    box-shadow: 0 6px 18px rgba(0, 0, 0, .25), inset 0 1px rgba(255, 255, 255, .22);
-  }
-  .brand-mark img { width: 35px; height: 35px; object-fit: contain; filter: drop-shadow(0 2px 5px rgba(0, 0, 0, .35)); }
+  .brand-mark { position: relative; width: 50px; height: 50px; overflow: hidden; flex: 0 0 auto; border: 1px solid rgba(255, 177, 107, .4); border-radius: 16px; background: #182229; box-shadow: 0 10px 24px rgba(0, 0, 0, .28), inset 0 1px rgba(255, 255, 255, .16); }
+  .brand-mark img { position: absolute; width: 200%; max-width: none; left: 53%; top: 55%; transform: translate(-50%, -50%); filter: drop-shadow(0 2px 5px rgba(0, 0, 0, .35)); }
   .brand-copy { display: flex; min-width: 0; flex-direction: column; }
   .brand-eyebrow { margin: 0 0 1px; color: var(--orange-light); font-size: .65rem; font-weight: 750; letter-spacing: 1.45px; text-transform: uppercase; }
   .brand h1 { margin: 0; color: white; font-size: 1.32rem; font-weight: 800; letter-spacing: .15px; line-height: 1.08; }
   .brand-subtitle { color: rgba(239, 245, 255, .67); font-size: .78rem; font-weight: 600; letter-spacing: .35px; }
-  .live { display: inline-flex; align-items: center; gap: 6px; width: fit-content; margin-top: 5px; padding: 3px 8px; border: 1px solid rgba(53, 207, 108, .38); border-radius: 999px; background: rgba(4, 19, 20, .32); color: var(--green); font-size: .62rem; font-weight: 800; letter-spacing: .85px; text-transform: uppercase; }
-  .live .pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 0 rgba(53, 207, 108, .58); animation: live-pulse 1.9s ease-out infinite; }
   .status-pills { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
-  .pill { display: inline-flex; align-items: center; gap: 7px; min-height: 34px; padding: 7px 11px; border: 1px solid var(--line); border-radius: 10px; background: rgba(2, 9, 27, .46); color: var(--muted); font-size: .79rem; box-shadow: inset 0 1px rgba(255, 255, 255, .04); }
+  .pill { display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 7px 12px; border: 1px solid var(--border); border-radius: 999px; background: rgba(0, 0, 0, .22); color: var(--muted); font-size: .79rem; box-shadow: inset 0 1px rgba(255, 255, 255, .07); }
   .pill .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; background: var(--faint); }
   .pill .dot.ok { background: var(--green); box-shadow: 0 0 10px rgba(53, 207, 108, .45); }.pill .dot.bad { background: var(--red); }.pill .dot.warn { background: var(--amber); }
   .clock { color: rgba(239, 245, 255, .76); font: 700 .8rem var(--mono); font-variant-numeric: tabular-nums; }
 
   .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 14px; }
-  .tile { position: relative; overflow: hidden; min-width: 0; padding: 17px 18px; border: 1px solid var(--line); border-radius: 15px; background: linear-gradient(145deg, rgba(15, 34, 78, .88), rgba(5, 14, 38, .88)); box-shadow: 0 10px 22px rgba(0, 0, 0, .19), inset 0 1px rgba(255, 255, 255, .055); animation: rise-in .55s cubic-bezier(.22, 1, .36, 1) both; }
+  .tile { position: relative; overflow: hidden; min-width: 0; padding: 18px 19px; border: 1px solid var(--border); border-radius: 20px; background: linear-gradient(145deg, rgba(255, 255, 255, .075), rgba(7, 19, 48, .52)); box-shadow: 0 14px 30px rgba(0, 0, 0, .25), inset 0 1px rgba(255, 255, 255, .08); animation: rise-in .55s cubic-bezier(.22, 1, .36, 1) both; }
   .tile::before { content: ""; position: absolute; top: 0; right: 15px; left: 15px; height: 2px; border-radius: 999px; background: linear-gradient(90deg, transparent, rgba(255, 119, 0, .88), transparent); opacity: .78; }
   .tile:nth-child(2) { animation-delay: .06s; }.tile:nth-child(3) { animation-delay: .12s; }.tile:nth-child(4) { animation-delay: .18s; }
   .tile .label { color: var(--muted); font-size: .69rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
   .tile .value { margin-top: 4px; color: var(--text); font-size: 2.22rem; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; text-shadow: 0 3px 12px rgba(0, 0, 0, .28); }
-  .tile.online .value { color: var(--green); }.tile.offline .value, .tile.confirming .value { color: #b7c8e7; }
-  .tile.offline.alert { border-color: rgba(255, 93, 87, .7); background: linear-gradient(145deg, rgba(89, 23, 33, .82), rgba(33, 10, 21, .84)); }.tile.offline.alert::before { background: linear-gradient(90deg, transparent, var(--red), transparent); }.tile.offline.alert .value { color: var(--red); }
-  .tile.confirming.alert { border-color: rgba(243, 179, 59, .68); background: linear-gradient(145deg, rgba(80, 55, 21, .8), rgba(35, 24, 11, .84)); }.tile.confirming.alert::before { background: linear-gradient(90deg, transparent, var(--amber), transparent); }.tile.confirming.alert .value { color: var(--amber); }
+  .tile.online .value { color: var(--green); }
+  .tile.offline .value, .tile.confirming .value { color: #b7c8e7; }
+  .tile.offline.alert { border-color: rgba(255, 93, 87, .7); background: linear-gradient(145deg, rgba(89, 23, 33, .82), rgba(33, 10, 21, .84)); }
+  .tile.offline.alert::before { background: linear-gradient(90deg, transparent, var(--red), transparent); }
+  .tile.offline.alert .value { color: var(--red); }
+  .tile.confirming.alert { border-color: rgba(243, 179, 59, .68); background: linear-gradient(145deg, rgba(80, 55, 21, .8), rgba(35, 24, 11, .84)); }
+  .tile.confirming.alert::before { background: linear-gradient(90deg, transparent, var(--amber), transparent); }
+  .tile.confirming.alert .value { color: var(--amber); }
 
-  .operational { display: flex; align-items: center; gap: 11px; min-height: 48px; margin-bottom: 18px; padding: 11px 15px; border: 1px solid rgba(53, 207, 108, .28); border-radius: 13px; background: linear-gradient(90deg, rgba(53, 207, 108, .1), rgba(5, 21, 28, .36)); box-shadow: inset 0 1px rgba(255, 255, 255, .045); color: var(--muted); animation: rise-in .58s .12s cubic-bezier(.22, 1, .36, 1) both; }
-  .operational strong { color: var(--text); font-size: .89rem; }.operational .op-dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; background: var(--green); box-shadow: 0 0 12px rgba(53, 207, 108, .45); }.operational.alert { border-color: rgba(255, 93, 87, .65); background: linear-gradient(90deg, rgba(255, 93, 87, .13), rgba(47, 9, 20, .38)); }.operational.alert .op-dot { background: var(--red); box-shadow: 0 0 12px rgba(255, 93, 87, .45); }.operational.pending { border-color: rgba(243, 179, 59, .64); background: linear-gradient(90deg, rgba(243, 179, 59, .12), rgba(46, 30, 8, .38)); }.operational.pending .op-dot { background: var(--amber); box-shadow: 0 0 12px rgba(243, 179, 59, .42); }.operational-detail { color: var(--muted); font-size: .84rem; }
+  .operational { display: flex; align-items: center; gap: 11px; min-height: 50px; margin-bottom: 16px; padding: 12px 16px; border: 1px solid rgba(53, 207, 108, .27); border-radius: 18px; background: linear-gradient(100deg, rgba(53, 207, 108, .105), rgba(255, 255, 255, .045), rgba(4, 14, 31, .38)); box-shadow: inset 0 1px rgba(255, 255, 255, .07); color: var(--muted); animation: rise-in .58s .12s cubic-bezier(.22, 1, .36, 1) both; }
+  .operational strong { color: var(--text); font-size: .9rem; }
+  .operational .op-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--green); flex: 0 0 auto; box-shadow: 0 0 12px rgba(53, 207, 108, .45); }
+  .operational.alert { border-color: rgba(255, 93, 87, .65); background: linear-gradient(90deg, rgba(255, 93, 87, .13), rgba(47, 9, 20, .38)); }
+  .operational.alert .op-dot { background: var(--red); }
+  .operational.pending { border-color: rgba(243, 179, 59, .64); background: linear-gradient(90deg, rgba(243, 179, 59, .12), rgba(46, 30, 8, .38)); }
+  .operational.pending .op-dot { background: var(--amber); }
+  .operational-detail { color: var(--muted); font-size: .85rem; }
 
-  .toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 13px; animation: rise-in .6s .16s cubic-bezier(.22, 1, .36, 1) both; }.search { position: relative; flex: 1; min-width: 220px; }.search input { width: 100%; min-height: 43px; padding: 10px 13px 10px 38px; border: 1px solid var(--line); border-radius: 12px; outline: none; background: rgba(3, 11, 30, .7); box-shadow: inset 0 1px rgba(255, 255, 255, .035); color: var(--text); font: .88rem inherit; transition: border-color .2s ease, box-shadow .2s ease, background .2s ease; }.search input::placeholder { color: var(--faint); }.search input:focus { border-color: rgba(255, 119, 0, .72); background: rgba(4, 12, 33, .92); box-shadow: 0 0 0 3px rgba(255, 119, 0, .13), inset 0 1px rgba(255, 255, 255, .05); }.search .icon { position: absolute; top: 50%; left: 13px; color: var(--orange-light); font-size: 1rem; transform: translateY(-51%); }
-  .segmented { display: inline-flex; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: rgba(3, 11, 30, .7); }.segmented button { min-height: 43px; padding: 8px 14px; border: 0; border-left: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; font: 700 .79rem inherit; transition: color .18s ease, background .2s ease, transform .18s ease; }.segmented button:first-child { border-left: 0; }.segmented button:hover:not(.active) { color: var(--text); background: rgba(255, 255, 255, .05); }.segmented button.active { color: #fff; background: linear-gradient(180deg, #ff8a2a, #c85a00); box-shadow: inset 0 1px rgba(255, 255, 255, .3), inset 0 -2px rgba(0, 0, 0, .16); }.segmented button:focus-visible { position: relative; z-index: 1; outline: 2px solid #ffcb9c; outline-offset: -2px; }
+  .toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 13px; padding: 7px; border: 1px solid var(--border); border-radius: 19px; background: linear-gradient(135deg, rgba(255, 255, 255, .065), rgba(4, 14, 35, .47)); box-shadow: 0 12px 28px rgba(0, 0, 0, .24), inset 0 1px rgba(255, 255, 255, .07); animation: rise-in .6s .16s cubic-bezier(.22, 1, .36, 1) both; }
+  .search { position: relative; flex: 1; min-width: 220px; }
+  .search input { width: 100%; min-height: 48px; padding: 11px 14px 11px 40px; border: 1px solid var(--border); border-radius: 14px; outline: none; background: rgba(0, 0, 0, .28); box-shadow: inset 0 1px rgba(255, 255, 255, .055), inset 0 -1px rgba(0, 0, 0, .18); color: var(--text); font: 600 .88rem inherit; transition: border-color .2s ease, box-shadow .2s ease, background .2s ease; }
+  .search input:focus { border-color: rgba(255, 119, 0, .62); background: rgba(0, 0, 0, .37); box-shadow: 0 0 0 4px rgba(255, 119, 0, .12), inset 0 1px rgba(255, 255, 255, .07); }
+  .search input::placeholder { color: var(--faint); }
+  .search .icon { position: absolute; left: 13px; top: 50%; transform: translateY(-51%); color: var(--orange-light); font-size: 1rem; }
+  .segmented { display: inline-flex; gap: 3px; padding: 3px; border: 1px solid var(--border); border-radius: 14px; background: rgba(0, 0, 0, .24); box-shadow: inset 0 1px rgba(255, 255, 255, .05); }
+  .segmented button { min-height: 40px; padding: 8px 14px; border: 1px solid transparent; border-radius: 11px; background: transparent; color: var(--muted); cursor: pointer; font: 750 .79rem inherit; transition: color .18s ease, background .2s ease, border-color .2s ease, transform .13s cubic-bezier(.22, 1, .36, 1); }
+  .segmented button + button { border-left-color: transparent; }
+  .segmented button.active { color: white; border-color: rgba(255, 180, 113, .42); background: linear-gradient(180deg, #ff8d32, #c65700); box-shadow: 0 7px 16px rgba(121, 48, 0, .24), inset 0 1px rgba(255, 255, 255, .31), inset 0 -2px rgba(0, 0, 0, .14); }
+  .segmented button:hover:not(.active) { color: var(--text); background: rgba(255, 255, 255, .05); }
+  .segmented button:active { transform: scale(.965); }
+  .segmented button:focus-visible { position: relative; outline: 2px solid var(--blue); outline-offset: -2px; }
 
-  .table-wrap { overflow-x: auto; border: 1px solid var(--line-strong); border-radius: 15px; background: rgba(4, 12, 31, .78); box-shadow: 0 18px 34px rgba(0, 0, 0, .23), inset 0 1px rgba(255, 255, 255, .045); animation: rise-in .62s .2s cubic-bezier(.22, 1, .36, 1) both; } table { width: 100%; min-width: 900px; border-collapse: collapse; } thead th { padding: 13px 16px; border-bottom: 1px solid var(--line-strong); background: linear-gradient(180deg, rgba(18, 39, 88, .92), rgba(9, 22, 51, .94)); color: #b0c5ed; font-size: .67rem; font-weight: 800; letter-spacing: 1px; text-align: left; text-transform: uppercase; } tbody td { padding: 13px 16px; border-bottom: 1px solid rgba(139, 166, 230, .12); font-size: .88rem; vertical-align: middle; } tbody tr:last-child td { border-bottom: 0; } tbody tr { background: rgba(8, 19, 46, .68); transition: background .16s ease, box-shadow .16s ease; } tbody tr:hover { background: rgba(26, 51, 108, .44); } tbody tr.offline { background: linear-gradient(90deg, rgba(112, 25, 34, .42), rgba(61, 16, 29, .34)); box-shadow: inset 3px 0 var(--red); } tbody tr.pending-fall { background: linear-gradient(90deg, rgba(109, 74, 16, .35), rgba(59, 36, 8, .3)); box-shadow: inset 3px 0 var(--amber); } tbody tr.pending-recovery { box-shadow: inset 3px 0 var(--blue); }.col-ramal { color: #fff; font: 750 .93rem var(--mono); }.col-nome { color: #fff; font-weight: 600; }.col-setor, .col-tempo { color: var(--muted); }.col-tempo { font: .81rem var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }.st { display: inline-flex; align-items: center; gap: 8px; font-size: .82rem; font-weight: 800; white-space: nowrap; }.st .dot { width: 9px; height: 9px; border-radius: 50%; }.st.on { color: var(--green); }.st.on .dot { background: var(--green); box-shadow: 0 0 8px rgba(53, 207, 108, .4); }.st.off { color: var(--red); }.st.off .dot { background: var(--red); animation: status-pulse 1.5s ease-in-out infinite; }.st.pending { color: var(--amber); }.st.pending .dot { background: var(--amber); animation: status-pulse 1.5s ease-in-out infinite; }.st.recovery { color: var(--blue); }.st.recovery .dot { background: var(--blue); animation: status-pulse 1.5s ease-in-out infinite; }.alert-status { display: inline-flex; align-items: center; min-height: 25px; padding: 3px 8px; border: 1px solid var(--line); border-radius: 999px; background: rgba(3, 12, 31, .45); color: var(--muted); font-size: .73rem; white-space: nowrap; }.alert-status.sent { border-color: rgba(53, 207, 108, .42); background: var(--green-bg); color: var(--green); }.alert-status.queued, .alert-status.sending, .alert-status.retrying { border-color: rgba(243, 179, 59, .46); background: var(--amber-bg); color: var(--amber); }.alert-status.failed, .alert-status.partial_failure { border-color: rgba(255, 93, 87, .48); background: var(--red-bg); color: var(--red); }.empty { padding: 48px 16px; background: rgba(8, 19, 46, .72); color: var(--faint); text-align: center; }
+  .table-wrap { border: 1px solid var(--border-strong); border-radius: 22px; overflow-x: auto; background: linear-gradient(145deg, rgba(255, 255, 255, .055), rgba(3, 12, 31, .55)); box-shadow: var(--glass-shadow); animation: rise-in .62s .2s cubic-bezier(.22, 1, .36, 1) both; }
+  table { width: 100%; min-width: 900px; border-collapse: collapse; }
+  thead th { padding: 14px 16px; border-bottom: 1px solid var(--border-strong); background: linear-gradient(180deg, rgba(255, 255, 255, .065), rgba(7, 19, 47, .56)); color: rgba(218, 231, 255, .76); font-size: .67rem; font-weight: 800; letter-spacing: 1px; text-align: left; text-transform: uppercase; }
+  tbody td { padding: 13px 16px; border-bottom: 1px solid rgba(139, 166, 230, .12); font-size: .88rem; vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr { background: rgba(5, 15, 38, .39); transition: background .16s ease, box-shadow .16s ease; }
+  tbody tr:hover { background: var(--row-hover); }
+  tbody tr.offline { background: linear-gradient(90deg, rgba(112, 25, 34, .42), rgba(61, 16, 29, .34)); box-shadow: inset 3px 0 var(--red); }
+  tbody tr.pending-fall { background: linear-gradient(90deg, rgba(109, 74, 16, .35), rgba(59, 36, 8, .3)); box-shadow: inset 3px 0 var(--amber); }
+  tbody tr.pending-recovery { box-shadow: inset 3px 0 0 var(--blue); }
+  .col-ramal { color: white; font: 750 .93rem var(--mono); }
+  .col-nome { color: white; font-weight: 600; }
+  .col-setor, .col-tempo { color: var(--muted); }
+  .col-tempo { font-variant-numeric: tabular-nums; font-family: var(--mono); font-size: .83rem; white-space: nowrap; }
+  .st { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; font-size: .82rem; white-space: nowrap; }
+  .st .dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; }
+  .st.on { color: var(--green); }.st.on .dot { background: var(--green); box-shadow: 0 0 8px rgba(53, 207, 108, .4); }
+  .st.off { color: #ff6b66; }
+  .st.pending { color: var(--amber); }.st.pending .dot { background: var(--amber); box-shadow: 0 0 8px rgba(210, 153, 34, .28); }
+  .st.recovery { color: var(--blue); }.st.recovery .dot { background: var(--blue); box-shadow: 0 0 8px rgba(88, 166, 255, .26); }
+  .state-glyph { width: 22px; height: 22px; padding: 4px; flex: 0 0 auto; border: 1px solid rgba(255, 107, 102, .3); border-radius: 7px; background: linear-gradient(145deg, rgba(255, 107, 102, .17), rgba(255, 107, 102, .07)); box-shadow: inset 0 1px rgba(255, 255, 255, .08), 0 5px 12px rgba(38, 5, 12, .18); stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+  .alert-status { display: inline-flex; align-items: center; min-height: 25px; padding: 3px 8px; border: 1px solid var(--border); border-radius: 999px; background: rgba(3, 12, 31, .45); color: var(--muted); font-size: .73rem; white-space: nowrap; }
+  .alert-status.sent { color: var(--green); border-color: rgba(63,185,80,.45); background: var(--green-bg); }
+  .alert-status.queued, .alert-status.sending, .alert-status.retrying { color: var(--amber); border-color: rgba(210,153,34,.5); background: var(--amber-bg); }
+  .alert-status.failed, .alert-status.partial_failure { color: var(--red); border-color: rgba(248,81,73,.5); background: var(--red-bg); }
+  .empty { padding: 48px 16px; text-align: center; color: var(--faint); background: var(--panel); }
 
-  .activity { overflow: hidden; margin-top: 18px; border: 1px solid var(--line); border-radius: 15px; background: linear-gradient(145deg, rgba(13, 31, 70, .82), rgba(4, 12, 31, .84)); box-shadow: 0 15px 30px rgba(0, 0, 0, .2), inset 0 1px rgba(255, 255, 255, .045); animation: rise-in .65s .25s cubic-bezier(.22, 1, .36, 1) both; }.activity-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 13px 16px; border-bottom: 1px solid var(--line); background: linear-gradient(90deg, rgba(255, 119, 0, .1), rgba(8, 22, 52, .45)); }.activity-head h2 { margin: 0; color: white; font-size: .88rem; font-weight: 800; }.activity-head h2::before { content: ""; display: inline-block; width: 3px; height: 14px; margin-right: 8px; border-radius: 4px; background: var(--orange); vertical-align: -2px; }.activity-head span { color: var(--faint); font-size: .74rem; }.activity-list { display: grid; grid-template-columns: repeat(3, 1fr); }.activity-item { min-height: 71px; padding: 13px 16px; border-right: 1px solid var(--line); }.activity-item:last-child { border-right: 0; }.activity-main { color: var(--text); font-size: .83rem; font-weight: 700; }.activity-main.open { color: var(--red); }.activity-main.resolved { color: var(--green); }.activity-meta { margin-top: 5px; color: var(--muted); font-size: .76rem; }.activity-empty { padding: 19px 16px; color: var(--faint); font-size: .82rem; }
-  .activity-title { min-width: 0; }.activity-title > span { display: block; margin-top: 2px; }.activity-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }.test-feedback { min-height: 18px; color: var(--muted) !important; text-align: right; }.test-feedback.ok { color: var(--green) !important; }.test-feedback.error { color: var(--red) !important; }
-  .test-button { min-height: 34px; padding: 7px 12px; border: 1px solid rgba(255, 173, 102, .5); border-radius: 9px; background: linear-gradient(180deg, rgba(255, 138, 42, .98), rgba(200, 90, 0, .98)); box-shadow: inset 0 1px rgba(255, 255, 255, .26), 0 5px 14px rgba(0, 0, 0, .18); color: white; cursor: pointer; font: 750 .74rem inherit; transition: filter .18s ease, transform .18s ease, opacity .18s ease; }.test-button:hover:not(:disabled) { filter: brightness(1.08); transform: translateY(-1px); }.test-button:focus-visible { outline: 2px solid #ffcb9c; outline-offset: 2px; }.test-button:disabled { cursor: not-allowed; filter: saturate(.4); opacity: .5; }
-  .activity-main.test { color: var(--blue); }.activity-state { display: inline-flex; align-items: center; min-height: 21px; margin-left: 5px; padding: 2px 7px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: .67rem; font-weight: 750; vertical-align: 1px; }.activity-state.sent { border-color: rgba(53, 207, 108, .4); background: var(--green-bg); color: var(--green); }.activity-state.queued, .activity-state.sending, .activity-state.retrying { border-color: rgba(243, 179, 59, .42); background: var(--amber-bg); color: var(--amber); }.activity-state.failed, .activity-state.partial_failure { border-color: rgba(255, 93, 87, .45); background: var(--red-bg); color: var(--red); }
-  footer { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-top: 16px; color: var(--faint); font-size: .76rem; }
+  .activity { margin-top: 18px; border: 1px solid var(--border); border-radius: 22px; background: linear-gradient(145deg, rgba(255, 255, 255, .06), rgba(4, 14, 35, .5)); box-shadow: var(--glass-shadow); overflow: hidden; animation: rise-in .65s .25s cubic-bezier(.22, 1, .36, 1) both; }
+  .activity-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 14px 16px; background: linear-gradient(90deg, rgba(255, 119, 0, .095), rgba(255, 255, 255, .035), rgba(5, 16, 40, .24)); border-bottom: 1px solid var(--border); }
+  .activity-head h2 { color: white; font-size: .88rem; margin: 0; font-weight: 800; }
+  .activity-head h2::before { content: ""; display: inline-block; width: 3px; height: 14px; margin-right: 8px; border-radius: 4px; background: var(--orange); vertical-align: -2px; }
+  .activity-head span { color: var(--faint); font-size: .75rem; }
+  .activity-title { min-width: 0; }.activity-title > span { display: block; margin-top: 2px; }
+  .activity-actions { display: flex; align-items: center; gap: 10px; }
+  .activity-list { display: grid; grid-template-columns: repeat(3, 1fr); }
+  .activity-item { padding: 13px 16px; border-right: 1px solid var(--border); min-height: 71px; }
+  .activity-item:last-child { border-right: 0; }
+  .activity-main { font-size: .83rem; font-weight: 700; color: var(--text); }
+  .activity-main.offline { color: var(--red); }.activity-main.online { color: var(--green); }
+  .activity-main.test { color: var(--blue); }
+  .activity-meta { margin-top: 5px; color: var(--muted); font-size: .77rem; }
+  .activity-empty { padding: 18px 16px; color: var(--faint); font-size: .83rem; }
+  .activity-state { display: inline-flex; align-items: center; min-height: 21px; margin-left: 6px; padding: 2px 7px; border: 1px solid var(--border); border-radius: 999px; color: var(--muted); font-size: .68rem; vertical-align: 1px; }
+  .activity-state.sent { color: var(--green); border-color: rgba(63,185,80,.45); background: var(--green-bg); }
+  .activity-state.queued, .activity-state.sending, .activity-state.retrying { color: var(--amber); border-color: rgba(210,153,34,.5); background: var(--amber-bg); }
+  .activity-state.failed, .activity-state.partial_failure { color: var(--red); border-color: rgba(248,81,73,.5); background: var(--red-bg); }
+  .test-button { min-height: 42px; padding: 8px 14px; border: 1px solid rgba(255, 183, 119, .5); border-radius: 13px; background: linear-gradient(180deg, rgba(255, 142, 47, .98), rgba(195, 84, 0, .98)); box-shadow: inset 0 1px rgba(255, 255, 255, .3), 0 8px 18px rgba(107, 42, 0, .24); color: white; cursor: pointer; font: 800 .75rem inherit; transition: filter .18s ease, transform .13s cubic-bezier(.22, 1, .36, 1), opacity .18s ease; }
+  .test-button::before { content: "✉"; display: inline-block; margin-right: 7px; font-size: .9rem; vertical-align: -1px; }
+  .test-button:hover:not(:disabled) { filter: brightness(1.08); transform: translateY(-1px); }
+  .test-button:active:not(:disabled) { transform: scale(.965); }
+  .test-button:disabled { cursor: not-allowed; opacity: .45; }
+  .test-feedback.ok { color: var(--green); }.test-feedback.error { color: var(--red); }
+  footer { margin-top: 16px; color: var(--faint); font-size: .78rem; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+
+  .glass-dialog { width: min(430px, calc(100% - 32px)); max-width: none; padding: 0; border: 0; overflow: visible; color: var(--text); background: transparent; }
+  .glass-dialog::backdrop { background: rgba(0, 3, 12, .66); -webkit-backdrop-filter: blur(8px) saturate(115%); backdrop-filter: blur(8px) saturate(115%); }
+  .dialog-surface { position: relative; overflow: hidden; padding: 24px; border: 1px solid rgba(255, 255, 255, .17); border-radius: 26px; background: radial-gradient(circle at 12% -4%, rgba(255, 119, 0, .16), transparent 14rem), linear-gradient(145deg, rgba(255, 255, 255, .105), rgba(8, 20, 50, .72) 47%, rgba(2, 7, 19, .78)); -webkit-backdrop-filter: blur(34px) saturate(150%); backdrop-filter: blur(34px) saturate(150%); box-shadow: 0 28px 75px rgba(0, 0, 0, .55), inset 0 1px rgba(255, 255, 255, .11); animation: dialog-in .25s cubic-bezier(.22, 1, .36, 1) both; }
+  .dialog-icon { width: 52px; height: 52px; display: grid; place-items: center; margin-bottom: 18px; border: 1px solid rgba(255, 181, 115, .42); border-radius: 17px; background: linear-gradient(145deg, rgba(255, 255, 255, .17), rgba(255, 119, 0, .15)); color: var(--orange-light); box-shadow: inset 0 1px rgba(255, 255, 255, .18), 0 10px 24px rgba(0, 0, 0, .23); font-size: 1.35rem; }
+  .dialog-close { position: absolute; top: 15px; right: 15px; width: 38px; height: 38px; display: grid; place-items: center; padding: 0; border: 1px solid var(--border); border-radius: 999px; background: rgba(255, 255, 255, .055); color: var(--muted); cursor: pointer; font: 400 1.35rem/1 inherit; transition: background .18s ease, color .18s ease, transform .13s cubic-bezier(.22, 1, .36, 1); }
+  .dialog-close:hover { color: white; background: rgba(255, 255, 255, .1); }
+  .dialog-close:active { transform: scale(.94); }
+  .dialog-overline { margin: 0 0 5px; color: var(--orange-light); font-size: .67rem; font-weight: 850; letter-spacing: 1.5px; text-transform: uppercase; }
+  .dialog-surface h2 { margin: 0; color: white; font-size: 1.42rem; line-height: 1.18; letter-spacing: -.25px; }
+  .dialog-copy { margin: 9px 0 0; color: var(--muted); font-size: .88rem; line-height: 1.55; }
+  .dialog-field { margin-top: 18px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 15px; background: rgba(0, 0, 0, .29); box-shadow: inset 0 1px rgba(255, 255, 255, .055); }
+  .dialog-field span { display: block; color: var(--faint); font-size: .64rem; font-weight: 850; letter-spacing: 1px; text-transform: uppercase; }
+  .dialog-field strong { display: block; margin-top: 4px; color: var(--text); font-size: .84rem; line-height: 1.35; }
+  .dialog-actions { display: grid; grid-template-columns: .85fr 1.15fr; gap: 10px; margin-top: 20px; }
+  .ghost-button, .primary-button { min-height: 50px; padding: 10px 16px; border-radius: 15px; cursor: pointer; font: 800 .83rem inherit; transition: filter .18s ease, background .18s ease, transform .13s cubic-bezier(.22, 1, .36, 1); }
+  .ghost-button { border: 1px solid var(--border); background: rgba(255, 255, 255, .055); color: var(--text); box-shadow: inset 0 1px rgba(255, 255, 255, .06); }
+  .ghost-button:hover { background: rgba(255, 255, 255, .09); }
+  .primary-button { border: 1px solid rgba(255, 184, 120, .5); background: linear-gradient(180deg, #ff8e2f, #c35400); color: white; box-shadow: 0 9px 22px rgba(108, 42, 0, .28), inset 0 1px rgba(255, 255, 255, .3); }
+  .primary-button:hover { filter: brightness(1.08); }
+  .ghost-button:active, .primary-button:active { transform: scale(.965); }
 
   @keyframes rise-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-  @keyframes live-pulse { 0% { box-shadow: 0 0 0 0 rgba(53, 207, 108, .52); } 65%, 100% { box-shadow: 0 0 0 7px rgba(53, 207, 108, 0); } }
-  @keyframes status-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .38; } }
-  @media (max-width: 930px) { .stats { grid-template-columns: repeat(2, 1fr); }.topbar { align-items: flex-start; }.status-pills { justify-content: flex-start; }.activity-list { grid-template-columns: 1fr; }.activity-item { border-right: 0; border-bottom: 1px solid var(--line); }.activity-item:last-child { border-bottom: 0; }.activity-head { align-items: flex-start; }.activity-actions { align-items: flex-end; flex-direction: column-reverse; } }
-  @media (max-width: 580px) { .wrap { width: min(100% - 28px, 1440px); padding-top: 14px; }.topbar { padding: 13px; border-radius: 15px; }.brand-mark { width: 42px; height: 42px; border-radius: 12px; }.brand-mark img { width: 31px; height: 31px; }.brand h1 { font-size: 1.13rem; }.brand-subtitle { font-size: .71rem; }.status-pills { width: 100%; }.pill { padding: 6px 8px; font-size: .72rem; }.stats { gap: 8px; }.tile { padding: 14px; border-radius: 13px; }.tile .value { font-size: 1.72rem; }.operational { align-items: flex-start; }.operational-detail { display: block; margin-top: 3px; }.search { min-width: 100%; }.segmented { width: 100%; }.segmented button { flex: 1; padding: 8px 6px; font-size: .72rem; }.activity-head { align-items: flex-start; flex-direction: column; gap: 3px; } }
+  @keyframes dialog-in { from { opacity: 0; transform: translateY(12px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  @media (max-width: 930px) { .stats { grid-template-columns: repeat(2, 1fr); } .topbar { align-items: flex-start; } .status-pills { justify-content: flex-start; } .activity-list { grid-template-columns: 1fr; } .activity-item { border-right: 0; border-bottom: 1px solid var(--border); } .activity-item:last-child { border-bottom: 0; } .activity-head { align-items: flex-start; } .activity-actions { align-items: flex-end; flex-direction: column-reverse; } }
+  @media (max-width: 580px) { .wrap { width: min(100% - 28px, 1440px); padding-top: 14px; }.topbar { padding: 13px; border-radius: 20px; }.brand-mark { width: 42px; height: 42px; border-radius: 12px; }.brand h1 { font-size: 1.13rem; }.brand-subtitle { font-size: .71rem; }.status-pills { width: 100%; }.pill { padding: 6px 8px; font-size: .72rem; }.stats { gap: 8px; }.tile { padding: 14px; border-radius: 17px; }.tile .value { font-size: 1.72rem; }.operational { align-items: flex-start; }.operational-detail { display: block; margin-top: 3px; }.search { min-width: 100%; }.segmented { width: 100%; }.segmented button { flex: 1; padding: 8px 6px; font-size: .72rem; }.activity-head { align-items: flex-start; flex-direction: column; gap: 3px; }.activity-actions { width: 100%; align-items: stretch; }.test-button { width: 100%; }.dialog-surface { padding: 21px; border-radius: 23px; }.dialog-actions { grid-template-columns: 1fr; }.ghost-button { order: 2; } }
+  @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) { .topbar, .tile, .operational, .toolbar, .table-wrap, .activity, .dialog-surface { background-color: rgba(7, 18, 46, .96); } }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
 </style>
 </head>
@@ -117,17 +191,18 @@
 <main class="wrap">
   <header class="topbar">
     <div class="brand">
-      <span class="brand-mark"><img src="/favicon.ico" alt="Marca JIMP"></span>
+      <span class="brand-mark" aria-hidden="true">
+        <img src="/assets/pulsopbx-logo.png" alt="">
+      </span>
       <div class="brand-copy">
         <p class="brand-eyebrow">Infraestrutura · Operação de voz</p>
         <h1>PulsoPBX</h1>
         <span class="brand-subtitle">Monitor de Ramais</span>
-        <span class="live"><span class="pulse"></span>Ao vivo</span>
       </div>
     </div>
     <div class="status-pills">
       <span class="pill"><span id="ami-dot" class="dot"></span><span id="ami-text">carregando…</span></span>
-      <span class="pill"><span id="wa-dot" class="dot"></span><span id="wa-text">carregando…</span></span>
+      <span class="pill"><span id="notify-dot" class="dot"></span><span id="notify-text">carregando…</span></span>
       <span class="clock" id="clock">--:--:--</span>
     </div>
   </header>
@@ -144,7 +219,7 @@
   <div class="toolbar">
     <label class="search"><span class="icon" aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Buscar por ramal, nome ou setor…" autocomplete="off" aria-label="Buscar ramal, nome ou setor"></label>
     <div class="segmented" id="filter" role="group" aria-label="Filtrar ramais">
-      <button data-f="all" class="active">Todos</button><button data-f="attention">Atenção</button><button data-f="offline">Offline</button><button data-f="online">Online</button>
+      <button type="button" data-f="all" class="active" aria-pressed="true">Todos</button><button type="button" data-f="attention" aria-pressed="false">Atenção</button><button type="button" data-f="offline" aria-pressed="false">Offline</button><button type="button" data-f="online" aria-pressed="false">Online</button>
     </div>
   </div>
 
@@ -158,7 +233,7 @@
 
   <section class="activity" aria-labelledby="alerts-title">
     <div class="activity-head">
-      <div class="activity-title"><h2 id="alerts-title">Entregas WhatsApp</h2><span id="alerts-summary">Verificando configuração e histórico</span></div>
+      <div class="activity-title"><h2 id="alerts-title">Entregas por E-mail</h2><span id="alerts-summary">Verificando configuração e histórico</span></div>
       <div class="activity-actions"><span id="test-feedback" class="test-feedback" role="status" aria-live="polite"></span><button id="test-alert" class="test-button" type="button" disabled>Enviar teste</button></div>
     </div>
     <div id="recent-alerts" class="activity-list"></div>
@@ -171,6 +246,24 @@
 
   <footer><span id="foot-left">Aguardando dados…</span><span id="foot-right"></span></footer>
 </main>
+
+<dialog id="test-dialog" class="glass-dialog" aria-labelledby="test-dialog-title" aria-describedby="test-dialog-copy">
+  <div class="dialog-surface">
+    <button id="test-dialog-close" class="dialog-close" type="button" aria-label="Fechar confirmação">×</button>
+    <div class="dialog-icon" aria-hidden="true">✉</div>
+    <p class="dialog-overline">Teste de entrega</p>
+    <h2 id="test-dialog-title">Enviar E-mail de teste?</h2>
+    <p id="test-dialog-copy" class="dialog-copy">O PulsoPBX colocará uma mensagem de verificação na mesma fila segura usada pelos alertas de queda e retorno.</p>
+    <div class="dialog-field" aria-label="Destinatários do teste">
+      <span>Destino</span>
+      <strong id="test-dialog-targets">Todos os destinatários configurados</strong>
+    </div>
+    <div class="dialog-actions">
+      <button id="test-dialog-cancel" class="ghost-button" type="button">Cancelar</button>
+      <button id="test-dialog-confirm" class="primary-button" type="button">Enviar agora</button>
+    </div>
+  </div>
+</dialog>
 
 <script>
 const POLL_MS = 3000;
@@ -199,12 +292,12 @@ function renderPills(data) {
   else if (data.ami_status === "disconnected") { amiDot.classList.add("bad"); amiText.textContent = "AMI desconectada"; }
   else if (data.ami_status === "demo") { amiDot.classList.add("warn"); amiText.textContent = "Modo demonstração"; }
   else { amiText.textContent = "AMI não configurada"; }
-  const waDot = document.getElementById("wa-dot"); const waText = document.getElementById("wa-text"); waDot.className = "dot";
-  const waStatus = data.whatsapp || {}; const latest = waStatus.latest_status;
-  if (!data.whatsapp_enabled) { waDot.classList.add("warn"); waText.textContent = "WhatsApp não configurado"; }
-  else if (latest === "failed" || latest === "partial_failure") { waDot.classList.add("bad"); waText.textContent = "WhatsApp com falha"; }
-  else if (["queued", "sending", "retrying"].includes(latest)) { waDot.classList.add("warn"); waText.textContent = "WhatsApp enviando"; }
-  else { waDot.classList.add("ok"); waText.textContent = latest === "sent" ? "WhatsApp operacional" : "WhatsApp configurado"; }
+  const notifyDot = document.getElementById("notify-dot"); const notifyText = document.getElementById("notify-text"); notifyDot.className = "dot";
+  const notifications = data.notifications || {}; const latest = notifications.latest_status;
+  if (!notifications.configured) { notifyDot.classList.add("warn"); notifyText.textContent = "E-mail não configurado"; }
+  else if (latest === "failed" || latest === "partial_failure") { notifyDot.classList.add("bad"); notifyText.textContent = "E-mail com falha"; }
+  else if (["queued", "sending", "retrying"].includes(latest)) { notifyDot.classList.add("warn"); notifyText.textContent = "E-mail em envio"; }
+  else { notifyDot.classList.add("ok"); notifyText.textContent = latest === "sent" ? "E-mail operacional" : "E-mail configurado"; }
 }
 
 function renderStats(data) {
@@ -219,7 +312,10 @@ function renderStats(data) {
 function renderOperational(data) {
   const box = document.getElementById("operational"); const title = document.getElementById("operational-title"); const detail = document.getElementById("operational-detail");
   box.className = "operational";
-  if (data.offline > 0) { box.classList.add("alert"); title.textContent = data.offline + " ramal(is) exigem atenção"; detail.textContent = data.confirming ? " · " + data.confirming + " transição(ões) ainda em confirmação" : " · quedas já confirmadas pelo monitor"; }
+  if (data.ami_status === "disconnected" || data.data_freshness === "stale") { box.classList.add("alert"); title.textContent = "Monitoramento sem dados atuais"; detail.textContent = " · os últimos estados foram preservados, mas podem estar desatualizados"; }
+  else if (data.data_freshness === "syncing") { box.classList.add("pending"); title.textContent = "Sincronizando ramais"; detail.textContent = " · aguardando o primeiro inventário completo da AMI"; }
+  else if (data.ami_status === "not_configured") { box.classList.add("pending"); title.textContent = "AMI não configurada"; detail.textContent = " · o painel está disponível, mas ainda não recebe estados reais"; }
+  else if (data.offline > 0) { box.classList.add("alert"); title.textContent = data.offline + " ramal(is) exigem atenção"; detail.textContent = data.confirming ? " · " + data.confirming + " transição(ões) ainda em confirmação" : " · quedas já confirmadas pelo monitor"; }
   else if (data.confirming > 0) { box.classList.add("pending"); title.textContent = data.confirming + " ramal(is) em confirmação"; detail.textContent = " · o alerta só será disparado após o tempo configurado"; }
   else { title.textContent = "Operação estável"; detail.textContent = " · nenhum ramal offline confirmado"; }
 }
@@ -239,9 +335,14 @@ function stateMarkup(ext, now) {
   return ext.online ? { row: "", label: "Online", className: "on", duration: humanDuration(now - ext.since) } : { row: "offline", label: "Offline", className: "off", duration: humanDuration(now - ext.since) };
 }
 
+const offlineGlyph = '<svg class="state-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.7 3.8 9 3.2l2 4.9-1.7 1.5a15.5 15.5 0 0 0 5.1 5.1L16 13l4.9 2-.6 2.3a3 3 0 0 1-3.4 2.2C10.5 18.3 5.7 13.5 4.5 7.1a3 3 0 0 1 2.2-3.3Z"/><path d="m4 20 16-16"/></svg>';
+function stateIndicator(className) {
+  return className === "off" ? offlineGlyph : '<span class="dot" aria-hidden="true"></span>';
+}
+
 function alertMarkup(alert) {
-  if (!alert || alert.status === "not_configured") return '<span class="alert-status">WhatsApp indisponível</span>';
-  const labels = { idle: "Aguardando evento", queued: "Alerta na fila", sending: "Enviando alerta", retrying: "Nova tentativa", sent: "Alerta enviado", failed: "Falha no alerta", partial_failure: "Envio parcial" };
+  if (!alert || alert.status === "not_configured") return '<span class="alert-status">E-mail não configurado</span>';
+  const labels = { idle: "Aguardando evento", queued: "E-mail na fila", sending: "Enviando E-mail", retrying: "Nova tentativa", sent: "E-mail enviado", failed: "Falha no E-mail", partial_failure: "Envio parcial" };
   const label = labels[alert.status] || "Sem alerta neste ciclo";
   const suffix = alert.status !== "idle" && alert.total_recipients ? " · " + alert.sent_count + "/" + alert.total_recipients : "";
   return '<span class="alert-status ' + escapeHtml(alert.status) + '" title="' + escapeHtml(alert.last_error || label) + '">' + label + suffix + '</span>';
@@ -256,7 +357,7 @@ function renderTable(data) {
   empty.style.display = "none";
   tbody.innerHTML = rows.map(ext => {
     const state = stateMarkup(ext, now); const nome = ext.nome ? escapeHtml(ext.nome) : blank(); const setor = ext.setor ? escapeHtml(ext.setor) : blank();
-    return '<tr class="' + state.row + '"><td><span class="st ' + state.className + '"><span class="dot"></span>' + state.label + '</span></td><td class="col-ramal">' + escapeHtml(ext.extension) + '</td><td class="col-nome">' + nome + '</td><td class="col-setor">' + setor + '</td><td>' + alertMarkup(ext.alert) + '</td><td class="col-tempo">' + state.duration + '</td></tr>';
+    return '<tr class="' + state.row + '"><td><span class="st ' + state.className + '">' + stateIndicator(state.className) + state.label + '</span></td><td class="col-ramal">' + escapeHtml(ext.extension) + '</td><td class="col-nome">' + nome + '</td><td class="col-setor">' + setor + '</td><td>' + alertMarkup(ext.alert) + '</td><td class="col-tempo">' + state.duration + '</td></tr>';
   }).join("");
 }
 
@@ -264,39 +365,25 @@ function renderIncidents(data) {
   const holder = document.getElementById("recent-incidents"); const incidents = (data.incidents || []).slice(0, 3);
   if (!incidents.length) { holder.innerHTML = '<div class="activity-empty">Ainda não há incidentes persistidos. A primeira queda confirmada será registrada aqui.</div>'; return; }
   holder.innerHTML = incidents.map(incident => {
-    const name = incident.nome || (incident.setor ? incident.setor : "Ramal sem identificação");
-    const open = incident.status === "open";
-    const state = open ? "Em andamento" : "Resolvido";
-    const timing = open
-      ? "aberto há " + humanDuration(Date.now() / 1000 - incident.opened_at)
-      : "durou " + humanDuration(incident.duration_seconds) + " · resolvido há " + humanDuration(Date.now() / 1000 - incident.resolved_at);
-    return '<div class="activity-item"><div class="activity-main ' + (open ? "open" : "resolved") + '"><strong>' + escapeHtml(incident.extension) + '</strong> · ' + state + '</div><div class="activity-meta">' + escapeHtml(name) + ' · ' + timing + '</div></div>';
+    const name = incident.nome || (incident.setor ? incident.setor : "Ramal sem identificação"); const open = incident.status === "open";
+    const resolvedByRemoval = incident.resolution_reason === "removed";
+    const timing = open ? "aberto há " + humanDuration(Date.now() / 1000 - incident.opened_at) : "durou " + humanDuration(incident.duration_seconds) + (resolvedByRemoval ? " · encerrado porque saiu do monitoramento" : " · resolvido há " + humanDuration(Date.now() / 1000 - incident.resolved_at));
+    return '<div class="activity-item"><div class="activity-main ' + (open ? "offline" : "online") + '"><strong>' + escapeHtml(incident.extension) + '</strong> · ' + (open ? "Em andamento" : "Resolvido") + '</div><div class="activity-meta">' + escapeHtml(name) + ' · ' + timing + '</div></div>';
   }).join("");
 }
 
 function renderAlerts(data) {
   const holder = document.getElementById("recent-alerts"); const summary = document.getElementById("alerts-summary"); const button = document.getElementById("test-alert");
-  const config = data.whatsapp || {}; const alerts = (data.recent_alerts || []).slice(0, 3);
+  const config = data.notifications || {}; const alerts = (data.recent_alerts || []).slice(0, 3);
   button.disabled = !config.test_available || testInFlight;
   button.textContent = testInFlight ? "Enviando…" : "Enviar teste";
-  button.title = config.test_available ? "Envia uma mensagem de teste aos destinatários configurados" : "Configure o WhatsApp no servidor para habilitar o teste";
-  if (config.configured) {
-    const recipients = config.recipient_count === 1 ? "1 destinatário configurado" : config.recipient_count + " destinatários configurados";
-    summary.textContent = recipients + " · histórico preservado após reinícios";
-  } else {
-    summary.textContent = "Integração ainda não configurada no servidor";
-  }
-  if (!alerts.length) {
-    holder.innerHTML = '<div class="activity-empty">Ainda não há entregas registradas. Use “Enviar teste” para validar a integração sem derrubar um ramal.</div>';
-    return;
-  }
+  summary.textContent = config.configured ? config.target_count + " destinatário(s) · histórico persistente" : "E-mail ainda não configurado";
+  if (!alerts.length) { holder.innerHTML = '<div class="activity-empty">Ainda não há entregas registradas. Configure o E-mail para habilitar o envio de teste.</div>'; return; }
   const labels = { queued: "Na fila", sending: "Enviando", retrying: "Nova tentativa", sent: "Enviado", failed: "Falhou", partial_failure: "Envio parcial", not_configured: "Sem destinatários" };
   holder.innerHTML = alerts.map(alert => {
     const isTest = alert.kind === "test"; const subject = isTest ? "Teste manual" : (alert.change === "offline" ? "Queda do ramal " : "Retorno do ramal ") + escapeHtml(alert.extension);
     const state = labels[alert.status] || alert.status; const delivery = alert.total_recipients ? alert.sent_count + "/" + alert.total_recipients + " entregue(s)" : "nenhum destinatário";
-    const attempts = alert.attempts ? " · " + alert.attempts + " tentativa(s)" : ""; const timing = "há " + humanDuration(Date.now() / 1000 - alert.created_at);
-    const error = alert.last_error ? " · " + escapeHtml(alert.last_error) : "";
-    return '<div class="activity-item" title="' + escapeHtml(alert.last_error || state) + '"><div class="activity-main ' + (isTest ? "test" : "") + '">' + subject + '<span class="activity-state ' + escapeHtml(alert.status) + '">' + escapeHtml(state) + '</span></div><div class="activity-meta">' + delivery + attempts + " · " + timing + error + '</div></div>';
+    return '<div class="activity-item"><div class="activity-main ' + (isTest ? "test" : "") + '">' + subject + '<span class="activity-state ' + escapeHtml(alert.status) + '">' + escapeHtml(state) + '</span></div><div class="activity-meta">' + delivery + ' · há ' + humanDuration(Date.now() / 1000 - alert.created_at) + '</div></div>';
   }).join("");
 }
 
@@ -314,32 +401,35 @@ async function refresh() {
 }
 
 async function sendTestAlert() {
-  if (!lastData || !(lastData.whatsapp || {}).test_available || testInFlight) return;
-  if (!window.confirm("Enviar agora uma mensagem de teste para todos os destinatários configurados?")) return;
+  if (!lastData || !(lastData.notifications || {}).test_available || testInFlight) return;
   const feedback = document.getElementById("test-feedback");
   testInFlight = true; feedback.className = "test-feedback"; feedback.textContent = "Colocando teste na fila…"; renderAlerts(lastData);
   try {
-    const response = await fetch("/api/alerts/test", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-PulsoPBX-Action": "test-alert" },
-      body: JSON.stringify({ confirm: true })
-    });
+    const response = await fetch("/api/alerts/test", { method: "POST", headers: { "Content-Type": "application/json", "X-PulsoPBX-Action": "test-alert" }, body: JSON.stringify({ confirm: true }) });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.error || "HTTP " + response.status);
-    feedback.className = "test-feedback ok";
-    feedback.textContent = payload.deduplicated ? "Um teste recente já está registrado." : "Teste colocado na fila.";
+    feedback.className = "test-feedback ok"; feedback.textContent = payload.deduplicated ? "Um teste recente já está registrado." : "Teste colocado na fila.";
     await refresh();
   } catch (error) {
     feedback.className = "test-feedback error"; feedback.textContent = "Falha: " + error.message;
-  } finally {
-    testInFlight = false;
-    if (lastData) renderAlerts(lastData);
-  }
+  } finally { testInFlight = false; if (lastData) renderAlerts(lastData); }
 }
 
 document.getElementById("search").addEventListener("input", e => { searchTerm = e.target.value.trim().toLowerCase(); renderAll(); });
-document.getElementById("filter").addEventListener("click", e => { const btn = e.target.closest("button"); if (!btn) return; filterMode = btn.dataset.f; document.querySelectorAll("#filter button").forEach(b => b.classList.toggle("active", b === btn)); renderAll(); });
-document.getElementById("test-alert").addEventListener("click", sendTestAlert);
+document.getElementById("filter").addEventListener("click", e => { const btn = e.target.closest("button"); if (!btn) return; filterMode = btn.dataset.f; document.querySelectorAll("#filter button").forEach(b => { const selected = b === btn; b.classList.toggle("active", selected); b.setAttribute("aria-pressed", String(selected)); }); renderAll(); });
+const testDialog = document.getElementById("test-dialog");
+function closeTestDialog() { if (testDialog.open) testDialog.close(); }
+function openTestDialog() {
+  if (!lastData || !(lastData.notifications || {}).test_available || testInFlight) return;
+  const count = (lastData.notifications || {}).target_count || 0;
+  document.getElementById("test-dialog-targets").textContent = count + " destinatário(s) de E-mail configurado(s)";
+  testDialog.showModal();
+}
+document.getElementById("test-alert").addEventListener("click", openTestDialog);
+document.getElementById("test-dialog-close").addEventListener("click", closeTestDialog);
+document.getElementById("test-dialog-cancel").addEventListener("click", closeTestDialog);
+document.getElementById("test-dialog-confirm").addEventListener("click", () => { closeTestDialog(); sendTestAlert(); });
+testDialog.addEventListener("click", event => { if (event.target === testDialog) closeTestDialog(); });
 function tickClock() { document.getElementById("clock").textContent = new Date().toLocaleTimeString("pt-BR"); }
 setInterval(tickClock, 1000); tickClock(); refresh(); setInterval(refresh, POLL_MS);
 </script>

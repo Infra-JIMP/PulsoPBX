@@ -32,6 +32,16 @@ class StateTrackerTests(unittest.TestCase):
         self.assertEqual(events[0]["status"], "offline")
         self.assertEqual(events[0]["previous_status"], "online")
 
+    def test_retain_extensions_removes_states_outside_authoritative_list(self):
+        tracker = StateTracker(debounce_seconds=10)
+        tracker.update("1001", True, now=0)
+        tracker.update("fila-teste", False, now=0)
+
+        removed = tracker.retain_extensions({"1001"})
+
+        self.assertEqual(removed, ["fila-teste"])
+        self.assertEqual(tracker.known_extensions(), ["1001"])
+
 
 if __name__ == "__main__":
     unittest.main()

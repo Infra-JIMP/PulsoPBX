@@ -67,6 +67,14 @@ class StateTracker:
     def known_extensions(self) -> list[str]:
         return list(self._states.keys())
 
+    def retain_extensions(self, allowed_extensions) -> list[str]:
+        """Remove estados fora da lista autoritativa e devolve os ramais removidos."""
+        allowed = {str(extension) for extension in allowed_extensions}
+        removed = sorted(extension for extension in self._states if extension not in allowed)
+        for extension in removed:
+            self._states.pop(extension, None)
+        return removed
+
     def snapshot(self, now: float | None = None) -> list[dict]:
         """Retorna o estado confirmado e, quando houver, a transicao ainda em validacao."""
         now = now if now is not None else time.time()

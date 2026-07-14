@@ -8,7 +8,7 @@ from alerts import AlertDispatcher
 
 
 class _FakeNotifier:
-    recipients = ["5511999999999"]
+    recipients = ["email:ti@example.com"]
 
     def __init__(self, failures: int = 0):
         self.deliveries = []
@@ -95,6 +95,21 @@ class AlertDispatcherTests(unittest.IsolatedAsyncioTestCase):
             finally:
                 await self._stop_worker(worker)
                 restarted_store.close()
+
+    async def test_pending_delivery_for_removed_recipient_is_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = AlertStore(Path(directory) / "alerts.db")
+            store.initialize()
+            dispatcher = AlertDispatcher(_FakeNotifier(), store=store)
+            dispatcher.enqueue("1002", "offline", now=200)
+
+            removed = store.fail_pending_for_removed_recipients({"email:novo@example.com"})
+            event = AlertDispatcher.serialize_event(store.recent(1)[0])
+
+            self.assertEqual(removed, 1)
+            self.assertEqual(event["status"], "failed")
+            self.assertEqual(event["last_error"], "Destinatario removido da configuracao")
+            store.close()
 
     async def test_manual_test_uses_cooldown_and_is_identified_as_test(self):
         notifier = _FakeNotifier()

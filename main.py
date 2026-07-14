@@ -1,4 +1,4 @@
-"""Monitor de ramais MikoPBX -> alerta WhatsApp, com painel web de status. Ponto de entrada do servico."""
+"""Monitor de ramais MikoPBX, alertas por e-mail e painel web."""
 import asyncio
 import logging
 from logging.handlers import RotatingFileHandler
@@ -8,9 +8,9 @@ import mikopbx_api
 from alert_store import AlertStore
 from alerts import AlertDispatcher
 from ami_client import AmiClient
-from config import load_config
+from config import ConfigError, load_config
 from incidents import IncidentStore
-from notifier import WhatsAppNotifier
+from notifications import EmailNotifier, NotificationRouter
 from state import StateTracker
 from web import run_dashboard
 
@@ -18,11 +18,27 @@ LOG_DIR = Path(__file__).parent / "logs"
 TICK_INTERVAL_SECONDS = 5
 
 
-async def mikopbx_names_loop(config) -> None:
+async def _apply_employee_snapshot(
+    tracker: StateTracker, incidents: IncidentStore | None, names: dict[str, str]
+) -> None:
+    removed = tracker.retain_extensions(names)
+    if not removed:
+        return
+    logging.getLogger("main").info(
+        "%d ramal(is) removido(s) do monitoramento por nao constarem mais no MikoPBX",
+        len(removed),
+    )
+    if incidents is not None:
+        await asyncio.to_thread(incidents.resolve_removed_extensions, removed)
+
+
+async def mikopbx_names_loop(config, tracker: StateTracker, incidents: IncidentStore | None) -> None:
     while True:
-        await asyncio.to_thread(
+        names = await asyncio.to_thread(
             mikopbx_api.refresh, config.mikopbx_api_url, config.mikopbx_api_key, config.mikopbx_verify_tls
         )
+        if names is not None:
+            await _apply_employee_snapshot(tracker, incidents, names)
         await asyncio.sleep(config.mikopbx_names_refresh_seconds)
 
 
@@ -39,6 +55,25 @@ def setup_logging() -> None:
     console_handler.setFormatter(formatter)
 
     logging.basicConfig(level=logging.INFO, handlers=[file_handler, console_handler])
+
+
+def build_notification_router(config) -> NotificationRouter:
+    channels = []
+    if config.email_enabled:
+        channels.append(
+            EmailNotifier(
+                host=config.email_smtp_host,
+                port=config.email_smtp_port,
+                sender=config.email_sender,
+                recipients=config.email_recipients,
+                username=config.email_smtp_username,
+                password=config.email_smtp_password,
+                starttls=config.email_starttls,
+                use_ssl=config.email_use_ssl,
+                timeout_seconds=config.email_timeout_seconds,
+            )
+        )
+    return NotificationRouter(channels)
 
 
 async def tick_loop(
@@ -61,9 +96,19 @@ async def tick_loop(
 async def run() -> None:
     setup_logging()
     logger = logging.getLogger("main")
-    config = load_config()
+    try:
+        config = load_config()
+    except ConfigError as exc:
+        logger.critical("Configuracao invalida; servico nao iniciado: %s", exc)
+        return
+    if config.dashboard_host not in {"127.0.0.1", "::1", "localhost"} and not config.dashboard_auth_enabled:
+        logger.warning(
+            "Painel exposto em %s sem autenticacao; configure DASHBOARD_USERNAME e DASHBOARD_PASSWORD",
+            config.dashboard_host,
+        )
 
     tracker = StateTracker(debounce_seconds=config.debounce_seconds)
+
     incidents: IncidentStore | None = IncidentStore(config.incidents_db_path)
     try:
         await asyncio.to_thread(incidents.initialize)
@@ -75,29 +120,38 @@ async def run() -> None:
     alert_store: AlertStore | None = AlertStore(config.incidents_db_path)
     try:
         await asyncio.to_thread(alert_store.initialize)
-        logger.info("Historico de entregas WhatsApp em %s", config.incidents_db_path)
+        logger.info("Historico de entregas de alertas em %s", config.incidents_db_path)
     except Exception:
         logger.exception("Historico de alertas indisponivel; entregas seguirao apenas em memoria")
         alert_store = None
 
-    notifier: WhatsAppNotifier | None = None
-    if config.whatsapp_enabled:
-        notifier = WhatsAppNotifier(
-            token=config.whatsapp_token,
-            phone_number_id=config.whatsapp_phone_id,
-            graph_api_version=config.whatsapp_graph_api_version,
-            template_name=config.whatsapp_template,
-            use_template=config.whatsapp_use_template,
-            recipients=config.whatsapp_recipients,
+    notifier = build_notification_router(config)
+    if alert_store is not None:
+        try:
+            removed_deliveries = await asyncio.to_thread(
+                alert_store.fail_pending_for_removed_recipients,
+                set(notifier.recipients),
+            )
+            if removed_deliveries:
+                logger.warning(
+                    "%d entrega(s) pendente(s) encerrada(s) porque o destino foi removido",
+                    removed_deliveries,
+                )
+        except Exception:
+            logger.exception("Nao foi possivel reconciliar destinatarios removidos")
+    if notifier.recipients:
+        logger.info(
+            "Canais de alerta ativos: %s (%d destino(s))",
+            ", ".join(notifier.channel_names),
+            len(notifier.recipients),
         )
     else:
         logger.warning(
-            "WHATSAPP_TOKEN/WHATSAPP_PHONE_ID/WHATSAPP_RECIPIENTS ausentes no .env - "
-            "alertas por WhatsApp desativados por enquanto (painel continua funcionando)"
+            "Nenhum canal de alerta configurado; painel e monitoramento continuam funcionando"
         )
 
     alerts: AlertDispatcher | None = None
-    if notifier is not None:
+    if notifier.recipients:
         alerts = AlertDispatcher(
             notifier,
             max_attempts=config.alert_max_attempts,
@@ -112,7 +166,11 @@ async def run() -> None:
         # no MikoPBX. Se a lista de funcionarios ainda nao carregou (cache vazio),
         # nao filtra - rastreia tudo ate a lista chegar.
         known = mikopbx_api.get_cached_names()
-        if config.mikopbx_api_enabled and known and extension not in known:
+        if (
+            config.mikopbx_api_enabled
+            and mikopbx_api.is_cache_ready()
+            and extension not in known
+        ):
             return
         tracker.update(extension, online)
 
@@ -124,9 +182,11 @@ async def run() -> None:
     # Carrega a lista de funcionarios ANTES de conectar a AMI, para o filtro de
     # ramais ja estar pronto quando os primeiros eventos chegarem.
     if config.mikopbx_api_enabled and not config.demo_mode:
-        await asyncio.to_thread(
+        names = await asyncio.to_thread(
             mikopbx_api.refresh, config.mikopbx_api_url, config.mikopbx_api_key, config.mikopbx_verify_tls
         )
+        if names is not None:
+            await _apply_employee_snapshot(tracker, incidents, names)
 
     client: AmiClient | None = None
     # Demonstracao precisa ser totalmente isolada: mesmo que o .env local tenha
@@ -156,7 +216,7 @@ async def run() -> None:
     if client is not None:
         tasks.append(client.periodic_reconcile(config.reconcile_seconds))
     if config.mikopbx_api_enabled and not config.demo_mode:
-        tasks.append(mikopbx_names_loop(config))
+        tasks.append(mikopbx_names_loop(config, tracker, incidents))
     elif not config.demo_mode:
         logger.warning(
             "MIKOPBX_API_KEY ausente no .env - nomes dos ramais nao serao buscados "

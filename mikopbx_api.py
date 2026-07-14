@@ -4,6 +4,7 @@ falhar (rede, chave invalida, etc.), mantem o ultimo resultado valido em vez de 
 os nomes ja exibidos no painel.
 """
 import logging
+import threading
 
 import requests
 
@@ -12,11 +13,20 @@ logger = logging.getLogger(__name__)
 REQUEST_TIMEOUT_SECONDS = 10
 
 _cache: dict[str, str] = {}
+_cache_ready = False
+_cache_lock = threading.Lock()
 
 
 def get_cached_names() -> dict[str, str]:
     """Retorna {ramal: nome_do_funcionario}, conforme a ultima busca bem-sucedida."""
-    return dict(_cache)
+    with _cache_lock:
+        return dict(_cache)
+
+
+def is_cache_ready() -> bool:
+    """Indica se ao menos uma consulta valida ja definiu a lista autoritativa."""
+    with _cache_lock:
+        return _cache_ready
 
 
 def _fetch(base_url: str, api_key: str, verify_tls: bool) -> dict[str, str]:
@@ -39,12 +49,16 @@ def _fetch(base_url: str, api_key: str, verify_tls: bool) -> dict[str, str]:
     }
 
 
-def refresh(base_url: str, api_key: str, verify_tls: bool = False) -> None:
-    """Busca a lista atual de funcionarios e atualiza o cache em memoria."""
+def refresh(base_url: str, api_key: str, verify_tls: bool = False) -> dict[str, str] | None:
+    """Atualiza o cache atomicamente e retorna a lista; em falha, retorna None."""
+    global _cache, _cache_ready
     try:
         names = _fetch(base_url, api_key, verify_tls)
-        _cache.clear()
-        _cache.update(names)
+        with _cache_lock:
+            _cache = dict(names)
+            _cache_ready = True
         logger.info("Nomes de %d ramais atualizados via API do MikoPBX", len(names))
+        return dict(names)
     except Exception:
         logger.exception("Falha ao buscar funcionarios na API do MikoPBX - mantendo cache anterior")
+        return None

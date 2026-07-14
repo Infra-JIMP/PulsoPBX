@@ -1,6 +1,7 @@
 """Persistencia local do historico de entregas de alertas."""
 import sqlite3
 import threading
+import time
 from pathlib import Path
 
 
@@ -131,6 +132,41 @@ class AlertStore:
             ).fetchall()
             events = self._hydrate(connection, rows)
         return {event["extension"]: event for event in events}
+
+    def fail_pending_for_removed_recipients(self, active_recipients: set[str]) -> int:
+        """Encerra entregas pendentes de integrações que saíram da configuração."""
+        connection = self._require_connection()
+        now = time.time()
+        active = sorted(active_recipients)
+        if active:
+            placeholders = ",".join("?" for _ in active)
+            predicate = f"recipient NOT IN ({placeholders})"
+            parameters: tuple = tuple(active)
+        else:
+            predicate = "1 = 1"
+            parameters = ()
+        with self._lock:
+            event_rows = connection.execute(
+                "SELECT DISTINCT event_id FROM alert_deliveries "
+                f"WHERE status NOT IN ('sent', 'failed') AND {predicate}",
+                parameters,
+            ).fetchall()
+            event_ids = [row["event_id"] for row in event_rows]
+            if not event_ids:
+                return 0
+            result = connection.execute(
+                "UPDATE alert_deliveries SET status = 'failed', "
+                "last_error = 'Destinatario removido da configuracao', updated_at = ? "
+                f"WHERE status NOT IN ('sent', 'failed') AND {predicate}",
+                (now, *parameters),
+            )
+            event_placeholders = ",".join("?" for _ in event_ids)
+            connection.execute(
+                f"UPDATE alert_events SET updated_at = ? WHERE id IN ({event_placeholders})",
+                (now, *event_ids),
+            )
+            connection.commit()
+            return result.rowcount
 
     def close(self) -> None:
         with self._lock:

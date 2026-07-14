@@ -42,3 +42,18 @@ class IncidentStoreTests(unittest.TestCase):
                 self.assertEqual(len(store.open_by_extension(now=110)), 1)
             finally:
                 store.close()
+
+    def test_removed_extension_closes_open_incident_with_reason(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = IncidentStore(Path(directory) / "incidents.db")
+            store.initialize()
+            try:
+                store.record_transition("1001", "offline", now=100)
+                changed = store.resolve_removed_extensions({"1001"}, now=125)
+                incident = store.recent(now=125)[0]
+                self.assertEqual(changed, 1)
+                self.assertEqual(incident["status"], "resolved")
+                self.assertEqual(incident["resolution_reason"], "removed")
+                self.assertEqual(incident["duration_seconds"], 25)
+            finally:
+                store.close()

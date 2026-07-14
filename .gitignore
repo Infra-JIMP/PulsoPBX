@@ -6,3 +6,4 @@ logs/
 output/
 .playwright-cli/
 data/
+ramais_nomes.json

@@ -22,43 +22,42 @@ Depois disso, rode para validar:
 
 Deve aparecer `[OK] Login AMI bem-sucedido` e a lista de ramais encontrados.
 
-## 2. Criar app WhatsApp Cloud API (Meta for Developers)
+## 2. Configurar alertas por E-mail
 
-1. Acesse https://developers.facebook.com/ e crie/entre com uma conta.
-2. Crie um App do tipo **Business**.
-3. Dentro do app, adicione o produto **WhatsApp**.
-4. Em **WhatsApp -> Introducao/API Setup**, a Meta ja fornece um numero de teste gratuito e um token temporario (validade 24h) - use-os para os primeiros testes.
-5. Ainda nessa tela, em "To" (destinatarios de teste), adicione seu numero (e de quem mais deva receber alerta) e confirme o codigo recebido por WhatsApp.
-6. Anote o **Phone Number ID** exibido na tela de API Setup.
-7. Para nao depender de um token que expira em 24h:
-   - Va em **Business Settings -> Usuarios -> Usuarios do sistema** e crie um System User.
-   - Gere um token permanente para esse System User com a permissao `whatsapp_business_messaging`.
-8. Crie um **Message Template** (em WhatsApp Manager -> Modelos de mensagem):
-   - Nome: `ramal_alerta`
-   - Categoria: Utilidade/Utility
-   - Idioma: Portugues (BR)
-   - Corpo: `Alerta de ramal: o ramal {{1}} {{2}} em {{3}}.`
-   - Envie para aprovacao (costuma sair em minutos a poucas horas).
-9. Preencha no `.env`: `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID`, `WHATSAPP_RECIPIENTS` (numeros com DDI, ex.: `5547999999999`, separados por virgula). A versao da rota fica em `WHATSAPP_GRAPH_API_VERSION` e pode ser atualizada sem mudar o codigo.
+Preencha `EMAIL_SMTP_HOST`, `EMAIL_SMTP_PORT`, `EMAIL_FROM` e `EMAIL_RECIPIENTS`. Se o servidor exigir autenticação, configure também `EMAIL_SMTP_USERNAME` e `EMAIL_SMTP_PASSWORD`. Use `EMAIL_SMTP_STARTTLS=true` para a porta 587 ou `EMAIL_SMTP_SSL=true` para SSL direto, normalmente na porta 465; não ative os dois ao mesmo tempo.
 
-O monitor coloca cada alerta confirmado em uma fila separada por destinatario. Se a Meta ou a rede falhar, ele tenta novamente sem interromper o monitoramento da AMI. Por padrao sao 3 tentativas, com espera de 15s e 30s entre elas; ajuste `ALERT_MAX_ATTEMPTS` e `ALERT_RETRY_BASE_SECONDS` no `.env` se necessario.
+O monitor coloca cada alerta confirmado em uma fila separada por destinatário. Se o SMTP ou a rede falhar, ele tenta novamente sem interromper o monitoramento da AMI. Por padrão são 3 tentativas, com espera de 15s e 30s entre elas; ajuste `ALERT_MAX_ATTEMPTS` e `ALERT_RETRY_BASE_SECONDS` no `.env` se necessário.
 
 As entregas ficam registradas no SQLite local. Se o servico reiniciar durante um envio, somente os destinatarios ainda pendentes voltam para a fila; quem ja recebeu nao recebe a mesma mensagem novamente. Transicoes repetidas do mesmo ramal e estado tambem sao deduplicadas.
 
-Depois de configurar as credenciais, use **Enviar teste** na secao **Entregas WhatsApp** do painel. O teste passa pela mesma fila, template, destinatarios, retentativas e historico usados em uma queda real, mas a mensagem informa claramente que nenhum ramal caiu. O painel pede confirmacao e impede testes repetidos por 60 segundos (`ALERT_TEST_COOLDOWN_SECONDS`).
-
-**Enquanto o template nao for aprovado**: defina `WHATSAPP_USE_TEMPLATE=false` no `.env` para testar com mensagem de texto livre. Isso só funciona se o destinatário tiver mandado alguma mensagem para o número de teste nas últimas 24h (é uma regra do WhatsApp, não do nosso código). Depois que o template `ramal_alerta` for aprovado, mude para `WHATSAPP_USE_TEMPLATE=true` — assim o alerta funciona a qualquer momento, sem depender dessa janela de 24h.
-
 ## 3. Rodar o monitor manualmente (antes de virar tarefa agendada)
 
+Para o uso cotidiano, há dois atalhos na raiz do projeto:
+
+- Dê duplo clique em `iniciar_demo.cmd` para iniciar uma demonstração isolada na porta `18080`; o navegador abre automaticamente e `Ctrl+C` encerra o processo.
+- Dê duplo clique em `abrir_painel.cmd` para abrir o painel oficial em `http://172.20.171.206:8080/`, sem iniciar outro monitor.
+
+Os mesmos atalhos também podem ser executados pelo terminal:
+
+```powershell
+.\iniciar_demo.cmd
+.\abrir_painel.cmd
 ```
-cd C:\Users\eduardo.p\Desktop\Ramais\ramais_monitor
+
+Para validar os atalhos sem iniciar serviço nem abrir o navegador, acrescente `--check`.
+
+O comando manual completo continua disponível:
+
+```
+cd \\10.5.0.5\Alma\TI\Ramais\ramais_monitor
 .venv\Scripts\python.exe main.py
 ```
 
 Acompanhe `logs/monitor.log`. Pressione Ctrl+C para parar.
 
-AMI e WhatsApp são opcionais: se `AMI_USER`/`AMI_SECRET` ou as variáveis do WhatsApp ainda não estiverem no `.env`, o programa sobe assim mesmo (só loga um aviso) - dá pra ver o painel funcionando antes mesmo de terminar a configuração externa.
+AMI e E-mail são opcionais: sem credenciais o painel ainda sobe e informa o que falta configurar.
+
+Valores inválidos no `.env` são informados nominalmente em `logs/monitor.log` e impedem a inicialização. Intervalos de reconciliação/atualização precisam ser positivos e portas devem estar entre 1 e 65535.
 
 ## 3.1. Painel web de status
 
@@ -71,11 +70,12 @@ http://172.20.171.206:8080/
 (esse é o IP da `DKS-FG-006` na rede interna; `DASHBOARD_PORT` no `.env` muda a porta se precisar). O painel (estilo NOC, tabela densa) atualiza sozinho a cada 3s e mostra:
 - Contadores no topo: total de ramais, online e offline (o bloco "Offline" fica vermelho quando há algum fora).
 - Um quarto contador, **Em confirmação**, mostra leituras ainda dentro do debounce. Uma queda só vira "Offline confirmado" e pode gerar alerta depois desse tempo, evitando falsos positivos.
-- Selos de saúde da AMI (conectada / desconectada / não configurada / demonstração) e do WhatsApp (ativo / não configurado).
+- Selos de saúde da AMI e da entrega de alertas por E-mail.
 - Faixa de prioridade operacional, tabela com os offline no topo (linha destacada em vermelho), nome, setor, status de entrega do alerta e há quanto tempo está no estado atual.
 - Campo de busca (por número, nome ou setor) e filtros Todos / Atenção / Offline / Online.
-- Histórico de incidentes recentes: queda confirmada, retorno, duração e situação atual. Ele usa SQLite local (`data/pulsopbx.db`) e é preservado após reinícios; a pasta `data/` não é versionada nem sobrescrita no deploy.
-- Histórico de entregas do WhatsApp: fila, tentativas, sucesso ou falha por evento, também preservado no SQLite. O botão **Enviar teste** valida a integração sem simular a queda de um ramal.
+- Histórico persistente de incidentes: queda confirmada, retorno, duração e situação atual. Ele usa SQLite local (`data/pulsopbx.db`), que não é versionado.
+
+Quando o painel estiver acessível pela rede, configure `DASHBOARD_USERNAME` e `DASHBOARD_PASSWORD`. O acesso usa HTTP Basic; portanto, mantenha-o restrito à rede interna/VPN. Para exposição fora dessa rede, use um proxy HTTPS e não abra a porta diretamente para a Internet. O endpoint `/api/health` não exige autenticação e retorna apenas prontidão e situação da AMI, sem nomes ou ramais.
 
 ### 3.2. Nomes dos ramais (automático via API do MikoPBX)
 
@@ -108,24 +108,30 @@ Para conferir o visual com ramais de exemplo, rode com `DEMO_MODE=true` no `.env
 
 ## 4. Deploy 24/7 (JA CONFIGURADO)
 
-Para robustez, o servico roda de uma **copia local** em `C:\Users\eduardo.p\ramais_monitor` na `DKS-FG-006`. O repositório em `C:\Users\eduardo.p\Desktop\Ramais\ramais_monitor` é a cópia de desenvolvimento/fonte versionada no GitHub.
+Para robustez, o servico roda de uma **copia local** em `C:\Users\eduardo.p\ramais_monitor` na `DKS-FG-006` (nao direto do compartilhamento de rede - assim um reboot do servidor de arquivos `10.5.0.5` nao derruba o monitor). O compartilhamento (`\\10.5.0.5\Alma\TI\Ramais\ramais_monitor`) e a copia de **desenvolvimento/fonte**.
 
 ### Como esta rodando hoje
-- Tarefa agendada **`RamaisMonitor`** (criada por `install_task.ps1`): inicia no **logon** do usuario e reinicia sozinha se cair. Funciona sem admin, mas **so roda enquanto o usuario estiver logado** na `DKS-FG-006`.
-- Painel: `http://localhost:8080/` na propria maquina.
+- Tarefa agendada **`RamaisMonitor`** executada como **SYSTEM**, iniciada no boot e configurada para reiniciar sozinha se cair.
+- Painel: `http://172.20.171.206:8080/`, liberado no firewall somente para a sub-rede local.
 
-### Upgrade recomendado para servico 24/7 de verdade (precisa de admin, 1 vez)
-Para o monitor rodar mesmo apos reboot **sem ninguem logado**, e para liberar o painel a **outros PCs da rede**, rode como administrador:
+Para reinstalar a tarefa e a regra de firewall, rode como administrador:
 ```
 powershell -ExecutionPolicy Bypass -File C:\Users\eduardo.p\ramais_monitor\install_system_task.ps1
 ```
-Isso troca a tarefa para rodar como **SYSTEM** iniciando junto com o Windows, e abre a porta 8080 no firewall. Depois disso o painel fica acessivel em `http://172.20.171.206:8080/` de qualquer PC da rede.
+Isso registra novamente a tarefa como **SYSTEM** e abre no firewall a porta definida em `DASHBOARD_PORT`, restrita à sub-rede local em qualquer perfil de rede ativo.
 
 ### Scripts de gerenciamento (na pasta local e no compartilhamento)
-- `install_task.ps1` - registra a tarefa de logon (sem admin). **Ja executado.**
 - `install_system_task.ps1` - upgrade para servico SYSTEM + firewall (rodar como admin).
 - `uninstall_task.ps1` - remove a tarefa e para o servico.
-- `deploy_local.ps1` (na raiz do repositório) - depois de editar o código versionado, rode isto na `DKS-FG-006` para sincronizar a cópia local e reiniciar o serviço. **NÃO** copia `.env`/`.venv`/`logs`/`data` (esses ficam só na cópia local).
+- `deploy_local.ps1` (no compartilhamento) - valida, cria staging e backup, sincroniza a cópia local e reinicia o serviço. Não copia `.env`, `.venv`, `logs`, `data` ou artefatos locais; se a validação pós-cópia falhar, restaura automaticamente o backup.
+
+Para validar sem copiar nem reiniciar:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\deploy_local.ps1 -ValidateOnly
+```
+
+Para reproduzir exatamente o ambiente validado ao criar uma nova `.venv`, use `python -m pip install -r requirements.lock.txt`. O `requirements.txt` declara somente as dependências diretas.
 
 ### Comandos uteis
 - Ver estado: `Get-ScheduledTask -TaskName RamaisMonitor`

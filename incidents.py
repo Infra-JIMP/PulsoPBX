@@ -32,6 +32,13 @@ class IncidentStore:
                 )
                 """
             )
+            columns = {
+                row["name"] for row in self._connection.execute("PRAGMA table_info(incidents)")
+            }
+            if "resolution_reason" not in columns:
+                self._connection.execute(
+                    "ALTER TABLE incidents ADD COLUMN resolution_reason TEXT"
+                )
             self._connection.execute(
                 "CREATE INDEX IF NOT EXISTS idx_incidents_extension_status ON incidents(extension, status)"
             )
@@ -46,7 +53,7 @@ class IncidentStore:
 
         with self._lock:
             open_row = connection.execute(
-                "SELECT id, extension, status, opened_at, resolved_at, duration_seconds "
+                "SELECT id, extension, status, opened_at, resolved_at, duration_seconds, resolution_reason "
                 "FROM incidents WHERE extension = ? AND status = 'open' ORDER BY id DESC LIMIT 1",
                 (extension,),
             ).fetchone()
@@ -59,7 +66,7 @@ class IncidentStore:
                 )
                 connection.commit()
                 row = connection.execute(
-                    "SELECT id, extension, status, opened_at, resolved_at, duration_seconds FROM incidents WHERE id = ?",
+                    "SELECT id, extension, status, opened_at, resolved_at, duration_seconds, resolution_reason FROM incidents WHERE id = ?",
                     (cursor.lastrowid,),
                 ).fetchone()
                 return self._serialize(row, now)
@@ -68,12 +75,12 @@ class IncidentStore:
                 return None
             duration = max(0, now - open_row["opened_at"])
             connection.execute(
-                "UPDATE incidents SET status = 'resolved', resolved_at = ?, duration_seconds = ? WHERE id = ?",
+                "UPDATE incidents SET status = 'resolved', resolved_at = ?, duration_seconds = ?, resolution_reason = 'online' WHERE id = ?",
                 (now, duration, open_row["id"]),
             )
             connection.commit()
             row = connection.execute(
-                "SELECT id, extension, status, opened_at, resolved_at, duration_seconds FROM incidents WHERE id = ?",
+                "SELECT id, extension, status, opened_at, resolved_at, duration_seconds, resolution_reason FROM incidents WHERE id = ?",
                 (open_row["id"],),
             ).fetchone()
             return self._serialize(row, now)
@@ -85,7 +92,7 @@ class IncidentStore:
         with self._lock:
             rows = connection.execute(
                 """
-                SELECT id, extension, status, opened_at, resolved_at, duration_seconds
+                SELECT id, extension, status, opened_at, resolved_at, duration_seconds, resolution_reason
                 FROM incidents
                 ORDER BY CASE status WHEN 'open' THEN 0 ELSE 1 END,
                          COALESCE(resolved_at, opened_at) DESC
@@ -100,10 +107,30 @@ class IncidentStore:
         connection = self._require_connection()
         with self._lock:
             rows = connection.execute(
-                "SELECT id, extension, status, opened_at, resolved_at, duration_seconds "
+                "SELECT id, extension, status, opened_at, resolved_at, duration_seconds, resolution_reason "
                 "FROM incidents WHERE status = 'open'"
             ).fetchall()
         return {row["extension"]: self._serialize(row, now) for row in rows}
+
+    def resolve_removed_extensions(
+        self, extensions, now: float | None = None
+    ) -> int:
+        """Encerra incidentes que sairam da lista autoritativa sem gerar alerta de retorno."""
+        extension_list = sorted({str(extension) for extension in extensions})
+        if not extension_list:
+            return 0
+        now = now if now is not None else time.time()
+        connection = self._require_connection()
+        placeholders = ",".join("?" for _ in extension_list)
+        with self._lock:
+            cursor = connection.execute(
+                "UPDATE incidents SET status = 'resolved', resolved_at = ?, "
+                "duration_seconds = MAX(0, ? - opened_at), resolution_reason = 'removed' "
+                f"WHERE status = 'open' AND extension IN ({placeholders})",
+                (now, now, *extension_list),
+            )
+            connection.commit()
+            return cursor.rowcount
 
     def close(self) -> None:
         with self._lock:
@@ -128,4 +155,5 @@ class IncidentStore:
             "opened_at": row["opened_at"],
             "resolved_at": row["resolved_at"],
             "duration_seconds": duration,
+            "resolution_reason": row["resolution_reason"],
         }
