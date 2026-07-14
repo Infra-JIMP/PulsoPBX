@@ -20,9 +20,10 @@ class StateTracker:
         self._states: dict[str, _ExtensionState] = {}
         self._history: deque[dict] = deque(maxlen=history_limit)
 
-    def update(self, extension: str, online: bool, now: float | None = None) -> None:
+    def update(self, extension: str, online: bool, now: float | None = None) -> bool:
         """Registra a leitura mais recente (evento ou reconciliacao). Nao dispara alerta
-        diretamente - isso e feito por tick(), depois que o debounce confirmar a mudanca."""
+        diretamente - isso e feito por tick(), depois que o debounce confirmar a mudanca.
+        Retorna True somente quando o ramal acabou de ganhar seu estado de baseline."""
         now = now if now is not None else time.time()
         state = self._states.get(extension)
         if state is None:
@@ -34,11 +35,12 @@ class StateTracker:
                 pending_since=now,
                 last_seen_at=now,
             )
-            return
+            return True
         state.last_seen_at = now
         if state.pending_online != online:
             state.pending_online = online
             state.pending_since = now
+        return False
 
     def tick(self, now: float | None = None) -> list[tuple[str, str]]:
         """Confirma mudancas que ja passaram do tempo de debounce. Retorna lista de

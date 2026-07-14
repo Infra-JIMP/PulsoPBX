@@ -14,7 +14,9 @@ class _FakeNotifier:
         self.deliveries = []
         self.failures = failures
 
-    def notify_recipient_change(self, recipient, extension, status, timestamp, is_test=False):
+    def notify_recipient_change(
+        self, recipient, extension, status, timestamp, is_test=False, context=None
+    ):
         if self.failures:
             self.failures -= 1
             raise RuntimeError("falha simulada")
@@ -128,6 +130,38 @@ class AlertDispatcherTests(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(all(delivery[-1] for delivery in notifier.deliveries))
         finally:
             await self._stop_worker(worker)
+
+    async def test_dynamic_recipient_and_context_survive_restart(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "alerts.db"
+            store = AlertStore(path)
+            store.initialize()
+            notifier = _FakeNotifier()
+            notifier.recipients = []
+            notifier.can_deliver_recipient = lambda recipient: recipient.startswith("email:")
+            dispatcher = AlertDispatcher(notifier, store=store)
+
+            queued = dispatcher.enqueue(
+                "1001",
+                "offline",
+                now=100,
+                recipients=["email:ana@example.com"],
+                context={"incident_id": 7, "nome": "Ana"},
+            )
+            stored = store.get(queued["id"])
+
+            self.assertEqual(stored["context"]["incident_id"], 7)
+            self.assertIn("email:ana@example.com", stored["deliveries"])
+            store.close()
+
+    async def test_same_status_is_allowed_for_a_new_incident(self):
+        notifier = _FakeNotifier()
+        dispatcher = AlertDispatcher(notifier)
+
+        first = dispatcher.enqueue("1001", "offline", now=100, context={"incident_id": 1})
+        second = dispatcher.enqueue("1001", "offline", now=200, context={"incident_id": 2})
+
+        self.assertNotEqual(first["id"], second["id"])
 
 
 if __name__ == "__main__":

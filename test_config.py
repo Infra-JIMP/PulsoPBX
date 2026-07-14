@@ -51,6 +51,18 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(config.enabled_notification_channels, ["email"])
         self.assertEqual(config.notification_target_count, 1)
 
+    def test_email_channel_can_use_only_responsible_addresses_from_mikopbx(self):
+        values = {
+            "EMAIL_SMTP_HOST": "smtp.example.com",
+            "EMAIL_FROM": "monitor@example.com",
+        }
+        with patch.dict(os.environ, values, clear=True):
+            config = load_config()
+        self.assertTrue(config.email_enabled)
+        self.assertEqual(config.email_recipients, [])
+        self.assertEqual(config.responsible_alert_delay_seconds, 120)
+        self.assertEqual(config.mass_outage_threshold, 5)
+
     def test_partial_email_configuration_is_rejected(self):
         with patch.dict(os.environ, {"EMAIL_SMTP_HOST": "smtp.example.com"}, clear=True):
             with self.assertRaisesRegex(ConfigError, "EMAIL_FROM"):

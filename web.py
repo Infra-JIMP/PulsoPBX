@@ -14,9 +14,8 @@ from urllib.parse import urlsplit
 from aiohttp import web
 
 import demo
-import mikopbx_api
 from alerts import AlertDispatcher
-from names import load_names
+from profiles import load_profiles
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +29,8 @@ CONFIG_KEY = web.AppKey("config", object)
 ALERTS_KEY = web.AppKey("alerts", object)
 INCIDENTS_KEY = web.AppKey("incidents", object)
 ALERT_STORE_KEY = web.AppKey("alert_store", object)
+AVAILABILITY_KEY = web.AppKey("availability", object)
+CALENDAR_KEY = web.AppKey("calendar", object)
 
 
 def _unauthorized() -> web.Response:
@@ -103,6 +104,8 @@ async def _handle_status(request: web.Request) -> web.Response:
     alerts = request.app[ALERTS_KEY]
     incidents = request.app[INCIDENTS_KEY]
     alert_store = request.app[ALERT_STORE_KEY]
+    availability = request.app[AVAILABILITY_KEY]
+    calendar = request.app[CALENDAR_KEY]
 
     if config.demo_mode:
         ami_status = "demo"
@@ -133,19 +136,12 @@ async def _handle_status(request: web.Request) -> web.Response:
         data_freshness = "fresh"
 
     if config.demo_mode:
-        names = demo.DEMO_NAMES
+        profiles = {
+            extension: {**profile, "email": "", "notificar": True}
+            for extension, profile in demo.DEMO_NAMES.items()
+        }
     else:
-        # A API do MikoPBX e a fonte primaria do nome (ela nao tem conceito de "setor" -
-        # o setor, quando existe, ja vem embutido no proprio nome, ex.: "Engenharia - Edson").
-        # O ramais_nomes.json manual so complementa: pode sobrescrever o nome ou adicionar
-        # um setor separado, ramal a ramal.
-        names = {ext: {"nome": nome, "setor": ""} for ext, nome in mikopbx_api.get_cached_names().items()}
-        for ext, override in load_names().items():
-            merged = names.setdefault(ext, {"nome": "", "setor": ""})
-            if override.get("nome"):
-                merged["nome"] = override["nome"]
-            if override.get("setor"):
-                merged["setor"] = override["setor"]
+        profiles = load_profiles()
 
     extensions = tracker.snapshot()
     if alerts is not None:
@@ -158,9 +154,10 @@ async def _handle_status(request: web.Request) -> web.Response:
 
     open_incidents = await asyncio.to_thread(incidents.open_by_extension) if incidents is not None else {}
     for ext in extensions:
-        meta = names.get(ext["extension"], {})
+        meta = profiles.get(ext["extension"], {})
         ext["nome"] = meta.get("nome", "")
         ext["setor"] = meta.get("setor", "")
+        ext["responsible_email_configured"] = bool(meta.get("email"))
         if alerts is None:
             ext["alert"] = {"status": "not_configured", "sent_count": 0, "total_recipients": 0}
         else:
@@ -169,7 +166,7 @@ async def _handle_status(request: web.Request) -> web.Response:
             ) or {
                 "status": "idle",
                 "sent_count": 0,
-                "total_recipients": config.notification_target_count,
+                "total_recipients": int(bool(meta.get("email") and config.email_enabled)),
             }
         ext["incident"] = open_incidents.get(ext["extension"])
 
@@ -177,14 +174,25 @@ async def _handle_status(request: web.Request) -> web.Response:
     confirming = sum(1 for e in extensions if e["pending_status"] is not None)
     recent_events = tracker.recent_events()
     for event in recent_events:
-        meta = names.get(event["extension"], {})
+        meta = profiles.get(event["extension"], {})
         event["nome"] = meta.get("nome", "")
         event["setor"] = meta.get("setor", "")
     recent_incidents = await asyncio.to_thread(incidents.recent) if incidents is not None else []
     for incident in recent_incidents:
-        meta = names.get(incident["extension"], {})
+        meta = profiles.get(incident["extension"], {})
         incident["nome"] = meta.get("nome", "")
         incident["setor"] = meta.get("setor", "")
+
+    monitored_extensions = {item["extension"] for item in extensions}
+    responsible_email_count = sum(
+        bool(profiles.get(extension, {}).get("email"))
+        for extension in monitored_extensions
+    )
+    job_summary = (
+        await asyncio.to_thread(availability.notification_summary)
+        if availability is not None
+        else {"pending": 0, "sent": 0, "suppressed": 0, "total": 0}
+    )
 
     return web.json_response(
         {
@@ -194,10 +202,16 @@ async def _handle_status(request: web.Request) -> web.Response:
             "data_freshness": data_freshness,
             "notifications": {
                 "configured": config.notifications_enabled,
-                "target_count": config.notification_target_count,
-                "test_available": alerts is not None,
+                "target_count": responsible_email_count,
+                "missing_target_count": max(0, len(monitored_extensions) - responsible_email_count),
+                "test_target_count": config.notification_target_count,
+                "test_available": alerts is not None and bool(config.email_recipients),
                 "test_cooldown_seconds": config.alert_test_cooldown_seconds,
+                "responsible_alert_delay_seconds": config.responsible_alert_delay_seconds,
+                "mass_outage_threshold": config.mass_outage_threshold,
                 "latest_status": recent_alerts[0]["status"] if recent_alerts else None,
+                "jobs": job_summary,
+                "calendar": calendar.summary() if calendar is not None else {"configured": False},
                 "channels": [
                     {
                         "id": "email",
@@ -223,7 +237,7 @@ async def _handle_status(request: web.Request) -> web.Response:
 async def _handle_test_alert(request: web.Request) -> web.Response:
     """Coloca um teste na fila sem aceitar destinatario ou mensagem arbitrarios."""
     alerts = request.app[ALERTS_KEY]
-    if alerts is None:
+    if alerts is None or not getattr(alerts, "can_send_test", True):
         return web.json_response(
             {"ok": False, "error": "Canal de alerta nao configurado no servidor"}, status=409
         )
@@ -254,7 +268,52 @@ async def _handle_test_alert(request: web.Request) -> web.Response:
     )
 
 
-def create_app(tracker, client, config, alerts=None, incidents=None, alert_store=None) -> web.Application:
+async def _handle_availability_report(request: web.Request) -> web.Response:
+    availability = request.app[AVAILABILITY_KEY]
+    calendar = request.app[CALENDAR_KEY]
+    config = request.app[CONFIG_KEY]
+    if availability is None or calendar is None:
+        return web.json_response(
+            {"ok": False, "error": "Historico de disponibilidade indisponivel"},
+            status=503,
+        )
+    try:
+        days = int(request.query.get("days", "30"))
+    except ValueError:
+        return web.json_response({"ok": False, "error": "Periodo invalido"}, status=400)
+    if not 1 <= days <= 366:
+        return web.json_response(
+            {"ok": False, "error": "O periodo deve ficar entre 1 e 366 dias"},
+            status=400,
+        )
+    if config.demo_mode:
+        profiles = {
+            extension: {**profile, "email": "", "notificar": True}
+            for extension, profile in demo.DEMO_NAMES.items()
+        }
+    else:
+        profiles = load_profiles()
+    report = await asyncio.to_thread(
+        availability.build_report,
+        profiles,
+        calendar,
+        days,
+        None,
+        config.report_minimum_workdays,
+    )
+    return web.json_response(report, headers={"Cache-Control": "no-store"})
+
+
+def create_app(
+    tracker,
+    client,
+    config,
+    alerts=None,
+    incidents=None,
+    alert_store=None,
+    availability=None,
+    calendar=None,
+) -> web.Application:
     app = web.Application(middlewares=[_dashboard_auth_middleware])
     app[TRACKER_KEY] = tracker
     app[CLIENT_KEY] = client
@@ -262,17 +321,38 @@ def create_app(tracker, client, config, alerts=None, incidents=None, alert_store
     app[ALERTS_KEY] = alerts
     app[INCIDENTS_KEY] = incidents
     app[ALERT_STORE_KEY] = alert_store
+    app[AVAILABILITY_KEY] = availability
+    app[CALENDAR_KEY] = calendar
     app.router.add_get("/", _handle_index)
     app.router.add_get("/assets/pulsopbx-logo.png", _handle_brand_logo)
     app.router.add_get("/favicon.ico", _handle_favicon)
     app.router.add_get("/api/health", _handle_health)
     app.router.add_get("/api/status", _handle_status)
+    app.router.add_get("/api/reports/availability", _handle_availability_report)
     app.router.add_post("/api/alerts/test", _handle_test_alert)
     return app
 
 
-async def run_dashboard(tracker, client, config, alerts=None, incidents=None, alert_store=None) -> None:
-    app = create_app(tracker, client, config, alerts, incidents, alert_store)
+async def run_dashboard(
+    tracker,
+    client,
+    config,
+    alerts=None,
+    incidents=None,
+    alert_store=None,
+    availability=None,
+    calendar=None,
+) -> None:
+    app = create_app(
+        tracker,
+        client,
+        config,
+        alerts,
+        incidents,
+        alert_store,
+        availability,
+        calendar,
+    )
     runner = web.AppRunner(app, access_log=None)
     await runner.setup()
     site = web.TCPSite(runner, config.dashboard_host, config.dashboard_port)

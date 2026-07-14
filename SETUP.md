@@ -24,11 +24,32 @@ Deve aparecer `[OK] Login AMI bem-sucedido` e a lista de ramais encontrados.
 
 ## 2. Configurar alertas por E-mail
 
-Preencha `EMAIL_SMTP_HOST`, `EMAIL_SMTP_PORT`, `EMAIL_FROM` e `EMAIL_RECIPIENTS`. Se o servidor exigir autenticação, configure também `EMAIL_SMTP_USERNAME` e `EMAIL_SMTP_PASSWORD`. Use `EMAIL_SMTP_STARTTLS=true` para a porta 587 ou `EMAIL_SMTP_SSL=true` para SSL direto, normalmente na porta 465; não ative os dois ao mesmo tempo.
+Preencha `EMAIL_SMTP_HOST`, `EMAIL_SMTP_PORT` e `EMAIL_FROM`. Se o servidor exigir autenticação, configure também `EMAIL_SMTP_USERNAME` e `EMAIL_SMTP_PASSWORD`. Use `EMAIL_SMTP_STARTTLS=true` para a porta 587 ou `EMAIL_SMTP_SSL=true` para SSL direto, normalmente na porta 465; não ative os dois ao mesmo tempo.
 
-O monitor coloca cada alerta confirmado em uma fila separada por destinatário. Se o SMTP ou a rede falhar, ele tenta novamente sem interromper o monitoramento da AMI. Por padrão são 3 tentativas, com espera de 15s e 30s entre elas; ajuste `ALERT_MAX_ATTEMPTS` e `ALERT_RETRY_BASE_SECONDS` no `.env` se necessário.
+`EMAIL_RECIPIENTS` é opcional e serve apenas para o botão **Enviar teste** do painel. Os avisos reais usam o e-mail individual do funcionário vinculado ao ramal no MikoPBX. O endereço nunca é devolvido pelas APIs públicas do painel; somente a informação “configurado/não configurado” é exibida. Como exceção pontual, `ramais_nomes.json` também aceita `email` e `notificar: false`.
 
-As entregas ficam registradas no SQLite local. Se o servico reiniciar durante um envio, somente os destinatarios ainda pendentes voltam para a fila; quem ja recebeu nao recebe a mesma mensagem novamente. Transicoes repetidas do mesmo ramal e estado tambem sao deduplicadas.
+O fluxo é: 30 segundos para confirmar a mudança de estado, mais 2 minutos de tolerância (`RESPONSIBLE_ALERT_DELAY_SECONDS=120`). Se o ramal reconectar nesse período, o e-mail é cancelado. Se continuar offline, estiver dentro do expediente e não fizer parte de uma queda coletiva, um único aviso amigável pede para verificar MicroSIP, internet e registro do ramal. O retorno só é avisado se o e-mail de queda realmente tiver sido entregue.
+
+O monitor coloca cada entrega em uma fila separada. Se o SMTP ou a rede falhar, ele tenta novamente sem interromper a AMI. Por padrão são 3 tentativas, com espera de 15s e 30s; ajuste `ALERT_MAX_ATTEMPTS` e `ALERT_RETRY_BASE_SECONDS` se necessário. Eventos, tentativas e jobs pendentes ficam no SQLite local e sobrevivem a reinícios. Cinco quedas na mesma janela de 60 segundos são tratadas como indisponibilidade coletiva (`MASS_OUTAGE_THRESHOLD` / `MASS_OUTAGE_WINDOW_SECONDS`) e não geram uma sequência de e-mails individuais.
+
+### 2.1. Configurar expediente, feriados e folgas
+
+Copie `work_calendar.example.json` para `work_calendar.json` e substitua os horários de exemplo pelos horários oficiais. O arquivo não é versionado e é recarregado automaticamente, sem reiniciar o serviço.
+
+Cada dia da semana pode ter um ou mais intervalos, permitindo representar almoço. Em `exceptions`, use a data no formato `AAAA-MM-DD`:
+
+```json
+"2026-12-25": {
+  "label": "Natal",
+  "intervals": []
+},
+"2026-12-19": {
+  "label": "Expediente excepcional",
+  "intervals": [["08:00", "12:00"]]
+}
+```
+
+Uma lista vazia marca feriado, folga ou dia atípico sem expediente; uma lista preenchida substitui o horário normal somente naquela data. Se o arquivo estiver ausente ou inválido, o histórico continua sendo coletado, mas os e-mails individuais ficam suspensos por segurança.
 
 ## 3. Rodar o monitor manualmente (antes de virar tarefa agendada)
 
@@ -87,7 +108,7 @@ O painel busca o nome do funcionário de cada ramal direto do MikoPBX, via API R
    - Filtro de rede: restrinja se o painel oferecer essa opção; se só houver "qualquer endereço" ou "somente locais", use "qualquer endereço" mesmo (a chave de 64 caracteres já protege o acesso, e o escopo é só leitura de 2 dados de baixa sensibilidade).
    - Salve e copie a chave gerada (ela some depois, então copie na hora).
 2. Preencha no `.env`: `MIKOPBX_API_KEY` (a chave copiada). `MIKOPBX_API_URL` já vem certo por padrão.
-3. Pronto — o nome de cada ramal aparece sozinho no painel, atualizado a cada 5 minutos (`MIKOPBX_NAMES_REFRESH_SECONDS`).
+3. Pronto — nome e e-mail responsável de cada ramal passam a ser atualizados a cada 5 minutos (`MIKOPBX_NAMES_REFRESH_SECONDS`). O painel não mostra o endereço; apenas a cobertura de cadastro.
 
 Por padrão, a consulta aceita o certificado interno/autoassinado comum no MikoPBX (`MIKOPBX_VERIFY_TLS=false`). Só altere para `true` depois que o PBX apresentar um certificado válido e confiável para a máquina do monitor.
 
@@ -105,6 +126,19 @@ O MikoPBX não tem campo de "setor" separado (o setor, quando existe, já vem de
 ### 3.3. Ver o painel antes da AMI estar pronta (modo demonstração)
 
 Para conferir o visual com ramais de exemplo, rode com `DEMO_MODE=true` no `.env` (ou como variável de ambiente). Nesse modo o monitor não se conecta à AMI real, mesmo que as credenciais estejam preenchidas. Lembre de voltar para `false` em produção.
+
+### 3.4. Disponibilidade operacional e histórico
+
+A seção **Disponibilidade operacional** oferece períodos de 7, 30 e 90 dias e três recortes: geral, setores e ramais. Ela registra e calcula:
+
+- primeira conexão e última desconexão observadas em cada dia;
+- horários habituais por dia da semana;
+- disponibilidade somente dentro do expediente;
+- quantidade, média, mediana, maior queda e tempo até reconexão;
+- visão geral, por setor e individual;
+- finais de semana e exceções do calendário.
+
+O histórico cronológico fica em `data/pulsopbx.db`, junto dos incidentes e entregas, e começa a ser alimentado assim que a versão entra em operação. Incidentes antigos já existentes são aproveitados no primeiro início. Até acumular pelo menos 20 dias úteis com cobertura suficiente, o painel identifica os números como **base em formação**. Essas métricas representam disponibilidade técnica do ramal, não produtividade do colaborador. Exportações CSV/PDF permanecem como evolução futura.
 
 ## 4. Deploy 24/7 (JA CONFIGURADO)
 

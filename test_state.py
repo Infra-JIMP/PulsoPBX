@@ -6,8 +6,8 @@ from state import StateTracker
 class StateTrackerTests(unittest.TestCase):
     def test_transition_is_only_confirmed_after_debounce(self):
         tracker = StateTracker(debounce_seconds=30)
-        tracker.update("1001", True, now=100)
-        tracker.update("1001", False, now=110)
+        self.assertTrue(tracker.update("1001", True, now=100))
+        self.assertFalse(tracker.update("1001", False, now=110))
 
         pending = tracker.snapshot(now=120)[0]
         self.assertTrue(pending["online"])

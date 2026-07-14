@@ -7,3 +7,4 @@ output/
 .playwright-cli/
 data/
 ramais_nomes.json
+work_calendar.json

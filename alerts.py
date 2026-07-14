@@ -42,19 +42,41 @@ class AlertDispatcher:
         self._latest_test_event: dict | None = None
         self._restore_history()
 
-    def enqueue(self, extension: str, status: str, now: float | None = None) -> dict:
+    @property
+    def can_send_test(self) -> bool:
+        return bool(self._notifier.recipients)
+
+    def enqueue(
+        self,
+        extension: str,
+        status: str,
+        now: float | None = None,
+        recipients: list[str] | None = None,
+        context: dict | None = None,
+    ) -> dict:
         """Agenda uma mudanca confirmada, ignorando repeticoes do mesmo estado."""
         if status not in {"online", "offline"}:
             raise ValueError(f"Status de ramal invalido: {status}")
         now = now if now is not None else time.time()
+        context = dict(context or {})
         previous = self._latest_by_extension.get(extension)
-        if previous is not None and previous["change"] == status:
+        previous_incident = (previous or {}).get("context", {}).get("incident_id")
+        current_incident = context.get("incident_id")
+        same_incident = current_incident is None or previous_incident == current_incident
+        if previous is not None and previous["change"] == status and same_incident:
             result = self._serialize(previous)
             result["deduplicated"] = True
             logger.info("Alerta duplicado do ramal %s (%s) ignorado", extension, status)
             return result
 
-        event = self._create_event(extension, status, "status", now)
+        event = self._create_event(
+            extension,
+            status,
+            "status",
+            now,
+            recipients=recipients,
+            context=context,
+        )
         self._latest_by_extension[extension] = event
         return self._serialize(event)
 
@@ -73,17 +95,42 @@ class AlertDispatcher:
         self._latest_test_event = event
         return self._serialize(event)
 
-    def _create_event(self, extension: str, change: str, kind: str, now: float) -> dict:
+    def _create_event(
+        self,
+        extension: str,
+        change: str,
+        kind: str,
+        now: float,
+        recipients: list[str] | None = None,
+        context: dict | None = None,
+    ) -> dict:
+        selected_recipients = list(
+            dict.fromkeys(self._notifier.recipients if recipients is None else recipients)
+        )
+        configured_recipients = set(self._notifier.recipients)
+        can_deliver = getattr(
+            self._notifier,
+            "can_deliver_recipient",
+            configured_recipients.__contains__,
+        )
+        invalid = [
+            recipient
+            for recipient in selected_recipients
+            if not can_deliver(recipient)
+        ]
+        if invalid:
+            raise ValueError(f"Destino(s) de notificacao invalido(s): {', '.join(invalid)}")
         event = {
             "id": uuid.uuid4().hex,
             "extension": extension,
             "change": change,
             "kind": kind,
+            "context": dict(context or {}),
             "created_at": now,
             "updated_at": now,
             "deliveries": {
                 recipient: {"status": "queued", "attempts": 0, "last_error": None}
-                for recipient in self._notifier.recipients
+                for recipient in selected_recipients
             },
         }
         self._remember(event)
@@ -118,7 +165,10 @@ class AlertDispatcher:
         delivery["attempts"] += 1
         event["updated_at"] = time.time()
         self._persist_delivery(event, job.recipient)
-        timestamp = datetime.fromtimestamp(event["created_at"]).strftime("%d/%m/%Y %H:%M:%S")
+        message_timestamp = event["created_at"]
+        if event["change"] == "offline":
+            message_timestamp = event.get("context", {}).get("offline_at", message_timestamp)
+        timestamp = datetime.fromtimestamp(message_timestamp).strftime("%d/%m/%Y %H:%M:%S")
         try:
             await asyncio.to_thread(
                 self._notifier.notify_recipient_change,
@@ -127,6 +177,7 @@ class AlertDispatcher:
                 event["change"],
                 timestamp,
                 event["kind"] == "test",
+                event.get("context") or {},
             )
         except Exception as exc:
             delivery["last_error"] = str(exc)
@@ -174,6 +225,35 @@ class AlertDispatcher:
 
     def recent_events(self, limit: int = 12) -> list[dict]:
         return [self._serialize(event) for event in list(self._events)[:limit]]
+
+    def get_event(self, event_id: str | None) -> dict | None:
+        if not event_id:
+            return None
+        event = self._events_by_id.get(event_id)
+        if event is None and self._store is not None:
+            try:
+                event = self._store.get(event_id)
+            except Exception:
+                logger.exception("Nao foi possivel consultar o alerta %s", event_id)
+        return self._serialize(event) if event is not None else None
+
+    def cancel_event(self, event_id: str, reason: str) -> dict | None:
+        """Cancela entregas ainda nao iniciadas; uma entrega em curso termina normalmente."""
+        event = self._events_by_id.get(event_id)
+        if event is None:
+            return self.get_event(event_id)
+        changed = False
+        for recipient, delivery in event["deliveries"].items():
+            if delivery["status"] not in {"queued", "retrying"}:
+                continue
+            delivery["status"] = "failed"
+            delivery["last_error"] = reason
+            event["updated_at"] = time.time()
+            self._persist_delivery(event, recipient)
+            changed = True
+        if changed:
+            logger.info("Alerta %s cancelado: %s", event_id, reason)
+        return self._serialize(event)
 
     def _restore_history(self) -> None:
         if self._store is None:

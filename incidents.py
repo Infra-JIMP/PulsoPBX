@@ -112,6 +112,18 @@ class IncidentStore:
             ).fetchall()
         return {row["extension"]: self._serialize(row, now) for row in rows}
 
+    def get_open(self, extension: str, now: float | None = None) -> dict | None:
+        now = now if now is not None else time.time()
+        connection = self._require_connection()
+        with self._lock:
+            row = connection.execute(
+                "SELECT id, extension, status, opened_at, resolved_at, duration_seconds, resolution_reason "
+                "FROM incidents WHERE extension = ? AND status = 'open' "
+                "ORDER BY id DESC LIMIT 1",
+                (str(extension),),
+            ).fetchone()
+        return self._serialize(row, now) if row is not None else None
+
     def resolve_removed_extensions(
         self, extensions, now: float | None = None
     ) -> int:

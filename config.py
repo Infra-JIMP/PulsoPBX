@@ -89,7 +89,12 @@ class Config:
     alert_max_attempts: int
     alert_retry_base_seconds: float
     alert_test_cooldown_seconds: float
+    responsible_alert_delay_seconds: float
+    mass_outage_threshold: int
+    mass_outage_window_seconds: float
     incidents_db_path: Path
+    work_calendar_path: Path
+    report_minimum_workdays: int
 
     dashboard_host: str
     dashboard_port: int
@@ -143,14 +148,17 @@ def load_config() -> Config:
         raise ConfigError("EMAIL_SMTP_STARTTLS e EMAIL_SMTP_SSL nao podem estar ativos juntos")
     if bool(email_smtp_username) != bool(email_smtp_password):
         raise ConfigError("EMAIL_SMTP_USERNAME e EMAIL_SMTP_PASSWORD devem ser configurados juntos")
-    email_parts = {
+    email_required_parts = {
         "EMAIL_SMTP_HOST": email_smtp_host,
         "EMAIL_FROM": email_sender,
-        "EMAIL_RECIPIENTS": email_recipients,
     }
-    email_requested = any(email_parts.values()) or bool(email_smtp_username or email_smtp_password)
-    if email_requested and not all(email_parts.values()):
-        missing = ", ".join(name for name, value in email_parts.items() if not value)
+    email_requested = any(email_required_parts.values()) or bool(
+        email_smtp_username or email_smtp_password or email_recipients
+    )
+    if email_requested and not all(email_required_parts.values()):
+        missing = ", ".join(
+            name for name, value in email_required_parts.items() if not value
+        )
         raise ConfigError(f"Configuracao parcial de E-mail; faltando: {missing}")
 
     mikopbx_api_key = _optional_env("MIKOPBX_API_KEY")
@@ -163,6 +171,9 @@ def load_config() -> Config:
     incidents_path = Path(_env_text("INCIDENTS_DB_PATH", "data/pulsopbx.db"))
     if not incidents_path.is_absolute():
         incidents_path = PROJECT_DIR / incidents_path
+    work_calendar_path = Path(_env_text("WORK_CALENDAR_PATH", "work_calendar.json"))
+    if not work_calendar_path.is_absolute():
+        work_calendar_path = PROJECT_DIR / work_calendar_path
 
     return Config(
         ami_host=ami_host,
@@ -181,13 +192,24 @@ def load_config() -> Config:
         email_use_ssl=email_use_ssl,
         email_timeout_seconds=_float_env("EMAIL_SMTP_TIMEOUT_SECONDS", 10, 1, 120),
         email_recipients=email_recipients,
-        email_enabled=bool(email_smtp_host and email_sender and email_recipients),
+        # Os destinatarios globais sao opcionais: alertas reais usam o e-mail
+        # individual trazido pelo perfil do ramal no MikoPBX.
+        email_enabled=bool(email_smtp_host and email_sender),
         debounce_seconds=_float_env("DEBOUNCE_SECONDS", 30, 0, 86_400),
         reconcile_seconds=_float_env("RECONCILE_SECONDS", 60, 1, 86_400),
         alert_max_attempts=_int_env("ALERT_MAX_ATTEMPTS", 3, 1, 20),
         alert_retry_base_seconds=_float_env("ALERT_RETRY_BASE_SECONDS", 15, 1, 3_600),
         alert_test_cooldown_seconds=_float_env("ALERT_TEST_COOLDOWN_SECONDS", 60, 10, 3_600),
+        responsible_alert_delay_seconds=_float_env(
+            "RESPONSIBLE_ALERT_DELAY_SECONDS", 120, 30, 3_600
+        ),
+        mass_outage_threshold=_int_env("MASS_OUTAGE_THRESHOLD", 5, 2, 10_000),
+        mass_outage_window_seconds=_float_env(
+            "MASS_OUTAGE_WINDOW_SECONDS", 60, 10, 3_600
+        ),
         incidents_db_path=incidents_path,
+        work_calendar_path=work_calendar_path,
+        report_minimum_workdays=_int_env("REPORT_MINIMUM_WORKDAYS", 20, 1, 366),
         dashboard_host=dashboard_host,
         dashboard_port=_int_env("DASHBOARD_PORT", 8080, 1, 65535),
         dashboard_username=dashboard_username,

@@ -51,7 +51,7 @@
   *::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #263b87, #14245b); border: 2px solid #040a22; border-radius: 999px; }
   *:focus-visible { outline: 2px solid #ffcb9c; outline-offset: 3px; }
   .wrap { width: min(1440px, calc(100% - 48px)); margin: 0 auto; padding: 28px 0 42px; position: relative; z-index: 1; }
-  .topbar, .tile, .operational, .toolbar, .table-wrap, .activity { -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); }
+  .topbar, .tile, .operational, .toolbar, .table-wrap, .activity, .availability-report { -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); }
   .topbar { min-height: 86px; display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap; padding: 15px 18px; margin-bottom: 18px; border: 1px solid var(--border-strong); border-radius: 26px; background: radial-gradient(circle at 19% -20%, rgba(255, 119, 0, .17), transparent 22rem), linear-gradient(135deg, rgba(255, 255, 255, .09), rgba(8, 23, 60, .56) 48%, rgba(3, 9, 25, .66)); box-shadow: var(--glass-shadow); animation: rise-in .55s cubic-bezier(.22, 1, .36, 1) both; }
   .brand { min-width: 0; display: flex; align-items: center; gap: 13px; }
   .brand-mark { position: relative; width: 50px; height: 50px; overflow: hidden; flex: 0 0 auto; border: 1px solid rgba(255, 177, 107, .4); border-radius: 16px; background: #182229; box-shadow: 0 10px 24px rgba(0, 0, 0, .28), inset 0 1px rgba(255, 255, 255, .16); }
@@ -160,6 +160,53 @@
   .alert-status.failed, .alert-status.partial_failure { color: var(--red); border-color: rgba(248,81,73,.5); background: var(--red-bg); }
   .empty { padding: 48px 16px; text-align: center; color: var(--faint); background: var(--panel); }
 
+  .availability-report { margin-top: 18px; overflow: hidden; border: 1px solid var(--border-strong); border-radius: 24px; background: radial-gradient(circle at 88% -20%, rgba(48, 99, 219, .16), transparent 25rem), linear-gradient(145deg, rgba(255, 255, 255, .07), rgba(3, 12, 31, .58)); box-shadow: var(--glass-shadow); animation: rise-in .64s .22s cubic-bezier(.22, 1, .36, 1) both; }
+  .report-head { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 17px 18px; border-bottom: 1px solid var(--border); background: linear-gradient(90deg, rgba(255, 119, 0, .09), rgba(255, 255, 255, .03), rgba(5, 16, 40, .23)); }
+  .report-title { min-width: 0; }
+  .report-overline { margin: 0 0 2px; color: var(--orange-light); font-size: .63rem; font-weight: 850; letter-spacing: 1.25px; text-transform: uppercase; }
+  .report-title h2 { margin: 0; color: white; font-size: 1rem; line-height: 1.25; }
+  .report-title p { margin: 3px 0 0; color: var(--faint); font-size: .75rem; }
+  .report-period { display: inline-flex; flex: 0 0 auto; gap: 3px; padding: 3px; border: 1px solid var(--border); border-radius: 13px; background: rgba(0, 0, 0, .24); }
+  .report-period button, .report-tabs button { border: 1px solid transparent; background: transparent; color: var(--muted); cursor: pointer; font: 750 .73rem inherit; transition: color .18s ease, background .18s ease, border-color .18s ease, transform .13s ease; }
+  .report-period button { min-height: 36px; padding: 7px 11px; border-radius: 10px; }
+  .report-period button.active, .report-tabs button.active { color: white; border-color: rgba(255, 180, 113, .4); background: linear-gradient(180deg, rgba(255, 137, 43, .94), rgba(177, 68, 0, .94)); box-shadow: inset 0 1px rgba(255, 255, 255, .25); }
+  .report-period button:active, .report-tabs button:active { transform: scale(.965); }
+  .report-banner { display: flex; align-items: flex-start; gap: 10px; margin: 14px 16px 0; padding: 11px 13px; border: 1px solid rgba(243, 179, 59, .38); border-radius: 14px; background: rgba(243, 179, 59, .09); color: var(--muted); font-size: .78rem; }
+  .report-banner::before { content: ""; width: 8px; height: 8px; margin-top: 4px; border-radius: 50%; flex: 0 0 auto; background: var(--amber); box-shadow: 0 0 9px rgba(243, 179, 59, .35); }
+  .report-banner.ready { border-color: rgba(53, 207, 108, .3); background: rgba(53, 207, 108, .075); }
+  .report-banner.ready::before { background: var(--green); }
+  .report-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; padding: 14px 16px 0; }
+  .report-card { min-width: 0; padding: 13px 14px; border: 1px solid var(--border); border-radius: 16px; background: rgba(4, 13, 34, .46); box-shadow: inset 0 1px rgba(255, 255, 255, .055); }
+  .report-card span { display: block; color: var(--faint); font-size: .62rem; font-weight: 800; letter-spacing: .8px; text-transform: uppercase; }
+  .report-card strong { display: block; margin-top: 5px; color: white; font-size: 1.35rem; line-height: 1; font-variant-numeric: tabular-nums; }
+  .report-card small { display: block; margin-top: 5px; overflow: hidden; color: var(--muted); font-size: .68rem; text-overflow: ellipsis; white-space: nowrap; }
+  .report-layout { display: grid; grid-template-columns: minmax(320px, .8fr) minmax(460px, 1.2fr); gap: 12px; padding: 12px 16px 16px; }
+  .report-panel { min-width: 0; overflow: hidden; border: 1px solid var(--border); border-radius: 17px; background: rgba(2, 9, 26, .4); }
+  .report-panel-head { min-height: 47px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  .report-panel-head h3 { margin: 0; color: white; font-size: .78rem; }
+  .report-panel-head span { color: var(--faint); font-size: .66rem; }
+  .weekday-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 7px; min-height: 176px; align-items: end; padding: 16px 12px 12px; }
+  .weekday-item { min-width: 0; text-align: center; }
+  .weekday-value { min-height: 18px; color: var(--muted); font: 700 .65rem var(--mono); }
+  .weekday-track { height: 105px; display: flex; align-items: flex-end; margin: 5px auto 7px; overflow: hidden; border: 1px solid var(--border); border-radius: 9px; background: rgba(255, 255, 255, .035); }
+  .weekday-fill { width: 100%; min-height: 3px; border-radius: 8px; background: linear-gradient(180deg, #51dc83, #168b48); box-shadow: 0 -5px 18px rgba(53, 207, 108, .18), inset 0 1px rgba(255, 255, 255, .2); transition: height .45s cubic-bezier(.22, 1, .36, 1); }
+  .weekday-label { color: var(--faint); font-size: .65rem; font-weight: 800; text-transform: uppercase; }
+  .report-tabs { display: flex; gap: 3px; padding: 3px; border: 1px solid var(--border); border-radius: 11px; background: rgba(0, 0, 0, .2); }
+  .report-tabs button { min-height: 31px; padding: 5px 9px; border-radius: 8px; }
+  .report-content { max-height: 240px; min-height: 176px; overflow: auto; }
+  .report-general { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; padding: 12px; }
+  .report-fact { padding: 10px 11px; border: 1px solid rgba(255, 255, 255, .075); border-radius: 12px; background: rgba(255, 255, 255, .025); }
+  .report-fact span { display: block; color: var(--faint); font-size: .63rem; font-weight: 800; letter-spacing: .55px; text-transform: uppercase; }
+  .report-fact strong { display: block; margin-top: 4px; color: var(--text); font-size: .82rem; }
+  .report-row { display: grid; grid-template-columns: minmax(170px, 1.4fr) minmax(90px, .7fr) minmax(90px, .7fr) minmax(90px, .7fr); gap: 10px; align-items: center; min-height: 46px; padding: 8px 12px; border-bottom: 1px solid rgba(139, 166, 230, .1); }
+  .report-row:last-child { border-bottom: 0; }
+  .report-row:hover { background: rgba(50, 78, 145, .15); }
+  .report-row strong { min-width: 0; overflow: hidden; color: var(--text); font-size: .76rem; text-overflow: ellipsis; white-space: nowrap; }
+  .report-row strong small { display: block; margin-top: 1px; overflow: hidden; color: var(--faint); font-size: .64rem; font-weight: 600; text-overflow: ellipsis; }
+  .report-cell { color: var(--muted); font: 700 .69rem var(--mono); text-align: right; }
+  .report-cell em { display: block; color: var(--faint); font: 600 .58rem inherit; font-style: normal; text-transform: uppercase; }
+  .report-empty { display: grid; min-height: 176px; place-items: center; padding: 24px; color: var(--faint); font-size: .76rem; text-align: center; }
+
   .activity { margin-top: 18px; border: 1px solid var(--border); border-radius: 22px; background: linear-gradient(145deg, rgba(255, 255, 255, .06), rgba(4, 14, 35, .5)); box-shadow: var(--glass-shadow); overflow: hidden; animation: rise-in .65s .25s cubic-bezier(.22, 1, .36, 1) both; }
   .activity-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 14px 16px; background: linear-gradient(90deg, rgba(255, 119, 0, .095), rgba(255, 255, 255, .035), rgba(5, 16, 40, .24)); border-bottom: 1px solid var(--border); }
   .activity-head h2 { color: white; font-size: .88rem; margin: 0; font-weight: 800; }
@@ -211,9 +258,9 @@
   @keyframes rise-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
   @keyframes column-menu-drop { from { opacity: 0; transform: translateY(-10px) scale(.975); } to { opacity: 1; transform: translateY(0) scale(1); } }
   @keyframes dialog-in { from { opacity: 0; transform: translateY(12px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
-  @media (max-width: 930px) { .stats { grid-template-columns: repeat(2, 1fr); } .topbar { align-items: flex-start; } .status-pills { justify-content: flex-start; } .activity-list { grid-template-columns: 1fr; } .activity-item { border-right: 0; border-bottom: 1px solid var(--border); } .activity-item:last-child { border-bottom: 0; } .activity-head { align-items: flex-start; } .activity-actions { align-items: flex-end; flex-direction: column-reverse; } }
-  @media (max-width: 580px) { .wrap { width: min(100% - 28px, 1440px); padding-top: 14px; }.topbar { padding: 13px; border-radius: 20px; }.brand-mark { width: 42px; height: 42px; border-radius: 12px; }.brand h1 { font-size: 1.13rem; }.brand-subtitle { font-size: .71rem; }.status-pills { width: 100%; }.pill { padding: 6px 8px; font-size: .72rem; }.stats { gap: 8px; }.tile { padding: 14px; border-radius: 17px; }.tile .value { font-size: 1.72rem; }.operational { align-items: flex-start; }.operational-detail { display: block; margin-top: 3px; }.search { min-width: 100%; }.segmented { width: 100%; }.segmented button { flex: 1; padding: 8px 6px; font-size: .72rem; }.activity-head { align-items: flex-start; flex-direction: column; gap: 3px; }.activity-actions { width: 100%; align-items: stretch; }.test-button { width: 100%; }.dialog-surface { padding: 21px; border-radius: 23px; }.dialog-actions { grid-template-columns: 1fr; }.ghost-button { order: 2; } }
-  @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) { .topbar, .tile, .operational, .toolbar, .table-wrap, .activity, .dialog-surface { background-color: rgba(7, 18, 46, .96); } }
+  @media (max-width: 930px) { .stats, .report-cards { grid-template-columns: repeat(2, 1fr); } .topbar { align-items: flex-start; } .status-pills { justify-content: flex-start; } .report-layout { grid-template-columns: 1fr; }.activity-list { grid-template-columns: 1fr; } .activity-item { border-right: 0; border-bottom: 1px solid var(--border); } .activity-item:last-child { border-bottom: 0; } .activity-head { align-items: flex-start; } .activity-actions { align-items: flex-end; flex-direction: column-reverse; } }
+  @media (max-width: 580px) { .wrap { width: min(100% - 28px, 1440px); padding-top: 14px; }.topbar { padding: 13px; border-radius: 20px; }.brand-mark { width: 42px; height: 42px; border-radius: 12px; }.brand h1 { font-size: 1.13rem; }.brand-subtitle { font-size: .71rem; }.status-pills { width: 100%; }.pill { padding: 6px 8px; font-size: .72rem; }.stats { gap: 8px; }.tile { padding: 14px; border-radius: 17px; }.tile .value { font-size: 1.72rem; }.operational { align-items: flex-start; }.operational-detail { display: block; margin-top: 3px; }.search { min-width: 100%; }.segmented { width: 100%; }.segmented button { flex: 1; padding: 8px 6px; font-size: .72rem; }.report-head { align-items: flex-start; flex-direction: column; }.report-period { width: 100%; }.report-period button { flex: 1; }.report-cards { grid-template-columns: 1fr 1fr; }.report-layout { grid-template-columns: minmax(0, 1fr); padding: 10px; }.weekday-grid { gap: 4px; padding-inline: 8px; }.report-panel-head { align-items: flex-start; flex-direction: column; }.report-tabs { width: 100%; }.report-tabs button { flex: 1; }.report-general { grid-template-columns: 1fr; }.report-row { grid-template-columns: minmax(130px, 1.3fr) minmax(80px, .7fr); }.report-row .report-cell:nth-child(n+3) { display: none; }.activity-head { align-items: flex-start; flex-direction: column; gap: 3px; }.activity-actions { width: 100%; align-items: stretch; }.test-button { width: 100%; }.dialog-surface { padding: 21px; border-radius: 23px; }.dialog-actions { grid-template-columns: 1fr; }.ghost-button { order: 2; } }
+  @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) { .topbar, .tile, .operational, .toolbar, .table-wrap, .activity, .availability-report, .dialog-surface { background-color: rgba(7, 18, 46, .96); } }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
 </style>
 </head>
@@ -270,6 +317,45 @@
     <div id="empty" class="empty" style="display:none"></div>
   </div>
 
+  <section class="availability-report" aria-labelledby="report-title">
+    <div class="report-head">
+      <div class="report-title">
+        <p class="report-overline">Histórico e comportamento</p>
+        <h2 id="report-title">Disponibilidade operacional</h2>
+        <p>Leitura técnica de conexão dos ramais durante o expediente — não mede produtividade individual.</p>
+      </div>
+      <div class="report-period" id="report-period" role="group" aria-label="Período do relatório">
+        <button type="button" data-days="7" aria-pressed="false">7 dias</button>
+        <button type="button" data-days="30" class="active" aria-pressed="true">30 dias</button>
+        <button type="button" data-days="90" aria-pressed="false">90 dias</button>
+      </div>
+    </div>
+    <div id="report-banner" class="report-banner" role="status">Preparando o histórico de disponibilidade…</div>
+    <div class="report-cards" aria-label="Resumo de disponibilidade">
+      <div class="report-card"><span>Disponibilidade</span><strong id="report-availability">—</strong><small id="report-coverage">Base ainda em formação</small></div>
+      <div class="report-card"><span>Tempo indisponível</span><strong id="report-offline">—</strong><small>somente dentro do expediente</small></div>
+      <div class="report-card"><span>Quedas registradas</span><strong id="report-incidents">—</strong><small id="report-events">histórico cronológico</small></div>
+      <div class="report-card"><span>Maior queda</span><strong id="report-longest">—</strong><small>tempo até a reconexão</small></div>
+    </div>
+    <div class="report-layout">
+      <div class="report-panel">
+        <div class="report-panel-head"><h3>Disponibilidade por dia da semana</h3><span>dentro da agenda oficial</span></div>
+        <div id="weekday-grid" class="weekday-grid"></div>
+      </div>
+      <div class="report-panel">
+        <div class="report-panel-head">
+          <h3>Detalhamento controlado</h3>
+          <div class="report-tabs" id="report-tabs" role="group" aria-label="Nível do relatório">
+            <button type="button" data-view="general" class="active" aria-pressed="true">Geral</button>
+            <button type="button" data-view="sector" aria-pressed="false">Setores</button>
+            <button type="button" data-view="individual" aria-pressed="false">Ramais</button>
+          </div>
+        </div>
+        <div id="report-content" class="report-content"><div class="report-empty">Carregando métricas…</div></div>
+      </div>
+    </div>
+  </section>
+
   <section class="activity" aria-labelledby="alerts-title">
     <div class="activity-head">
       <div class="activity-title"><h2 id="alerts-title">Entregas por E-mail</h2><span id="alerts-summary">Verificando configuração e histórico</span></div>
@@ -314,6 +400,10 @@ let activeSort = { column: null, direction: null };
 let openColumnMenu = null;
 let menuDraft = null;
 let testInFlight = false;
+let reportData = null;
+let reportDays = 30;
+let reportView = "general";
+let reportLoading = false;
 
 const columnConfigs = {
   status: { label: "Situação", search: "Buscar situação", sort: [["asc", "Online primeiro"], ["desc", "Offline primeiro"]], values: true },
@@ -349,7 +439,8 @@ function renderPills(data) {
   if (!notifications.configured) { notifyDot.classList.add("warn"); notifyText.textContent = "E-mail não configurado"; }
   else if (latest === "failed" || latest === "partial_failure") { notifyDot.classList.add("bad"); notifyText.textContent = "E-mail com falha"; }
   else if (["queued", "sending", "retrying"].includes(latest)) { notifyDot.classList.add("warn"); notifyText.textContent = "E-mail em envio"; }
-  else { notifyDot.classList.add("ok"); notifyText.textContent = latest === "sent" ? "E-mail operacional" : "E-mail configurado"; }
+  else if (notifications.missing_target_count) { notifyDot.classList.add("warn"); notifyText.textContent = notifications.target_count + "/" + data.total + " responsáveis com e-mail"; }
+  else { notifyDot.classList.add("ok"); notifyText.textContent = latest === "sent" ? "E-mail operacional" : "Responsáveis configurados"; }
 }
 
 function renderStats(data) {
@@ -378,7 +469,8 @@ function statusLabel(ext) {
   if (ext.pending_status === "online") return "Confirmando retorno";
   return ext.online ? "Online" : "Offline";
 }
-function alertLabel(alert) {
+function alertLabel(alert, emailConfigured = true) {
+  if (!emailConfigured) return "Responsável sem e-mail";
   if (!alert || alert.status === "not_configured") return "E-mail não configurado";
   const labels = { idle: "Aguardando evento", queued: "E-mail na fila", sending: "Enviando E-mail", retrying: "Nova tentativa", sent: "E-mail enviado", failed: "Falha no E-mail", partial_failure: "Envio parcial" };
   return labels[alert.status] || "Sem alerta neste ciclo";
@@ -388,7 +480,7 @@ function columnValue(ext, column) {
   if (column === "extension") return String(ext.extension || "");
   if (column === "nome") return String(ext.nome || "");
   if (column === "setor") return String(ext.setor || "");
-  if (column === "alert") return alertLabel(ext.alert);
+  if (column === "alert") return alertLabel(ext.alert, ext.responsible_email_configured);
   if (column === "duration") return ext.pending_status ? Number(ext.confirmation_remaining_seconds || 0) : Math.max(0, Date.now() / 1000 - Number(ext.since || 0));
   return "";
 }
@@ -506,7 +598,8 @@ function stateIndicator(className) {
   return className === "off" ? offlineGlyph : '<span class="dot" aria-hidden="true"></span>';
 }
 
-function alertMarkup(alert) {
+function alertMarkup(alert, emailConfigured = true) {
+  if (!emailConfigured) return '<span class="alert-status">Responsável sem e-mail</span>';
   if (!alert || alert.status === "not_configured") return '<span class="alert-status">E-mail não configurado</span>';
   const labels = { idle: "Aguardando evento", queued: "E-mail na fila", sending: "Enviando E-mail", retrying: "Nova tentativa", sent: "E-mail enviado", failed: "Falha no E-mail", partial_failure: "Envio parcial" };
   const label = labels[alert.status] || "Sem alerta neste ciclo";
@@ -523,7 +616,7 @@ function renderTable(data) {
   empty.style.display = "none";
   tbody.innerHTML = rows.map(ext => {
     const state = stateMarkup(ext, now); const nome = ext.nome ? escapeHtml(ext.nome) : blank(); const setor = ext.setor ? escapeHtml(ext.setor) : blank();
-    return '<tr class="' + state.row + '"><td><span class="st ' + state.className + '">' + stateIndicator(state.className) + state.label + '</span></td><td class="col-ramal">' + escapeHtml(ext.extension) + '</td><td class="col-nome">' + nome + '</td><td class="col-setor">' + setor + '</td><td>' + alertMarkup(ext.alert) + '</td><td class="col-tempo">' + state.duration + '</td></tr>';
+    return '<tr class="' + state.row + '"><td><span class="st ' + state.className + '">' + stateIndicator(state.className) + state.label + '</span></td><td class="col-ramal">' + escapeHtml(ext.extension) + '</td><td class="col-nome">' + nome + '</td><td class="col-setor">' + setor + '</td><td>' + alertMarkup(ext.alert, ext.responsible_email_configured) + '</td><td class="col-tempo">' + state.duration + '</td></tr>';
   }).join("");
 }
 
@@ -538,12 +631,105 @@ function renderIncidents(data) {
   }).join("");
 }
 
+function reportPercent(value) {
+  return value === null || value === undefined ? "—" : Number(value).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + "%";
+}
+
+function renderWeekdayReport(report) {
+  const values = report.weekday_availability || [];
+  document.getElementById("weekday-grid").innerHTML = values.map(item => {
+    const available = item.availability_percent;
+    const height = available === null || available === undefined ? 3 : Math.max(3, Math.min(100, Number(available)));
+    return '<div class="weekday-item"><div class="weekday-value">' + reportPercent(available) + '</div><div class="weekday-track"><div class="weekday-fill" style="height:' + height + '%"></div></div><div class="weekday-label">' + escapeHtml(item.weekday) + '</div></div>';
+  }).join("");
+}
+
+function renderReportDetail(report) {
+  const content = document.getElementById("report-content");
+  const overall = report.overall || {};
+  if (reportView === "general") {
+    const calendar = report.calendar || {};
+    const facts = [
+      ["Dias úteis observados", (calendar.working_days || 0) + " de " + (calendar.minimum_workdays || 20)],
+      ["Cobertura do histórico", reportPercent(overall.coverage_percent)],
+      ["Exceções no período", String(calendar.exception_count || 0)],
+      ["Responsáveis com e-mail", (overall.email_configured_count || 0) + " de " + (overall.extension_count || 0)],
+      ["Média para reconexão", overall.average_reconnect_seconds ? humanDuration(overall.average_reconnect_seconds) : "—"],
+      ["Mediana para reconexão", overall.median_outage_seconds ? humanDuration(overall.median_outage_seconds) : "—"],
+    ];
+    content.innerHTML = '<div class="report-general">' + facts.map(fact => '<div class="report-fact"><span>' + escapeHtml(fact[0]) + '</span><strong>' + escapeHtml(fact[1]) + '</strong></div>').join("") + '</div>';
+    return;
+  }
+  if (reportView === "sector") {
+    const sectors = [...(report.sectors || [])].sort((a, b) => {
+      const left = a.availability_percent === null ? 101 : a.availability_percent;
+      const right = b.availability_percent === null ? 101 : b.availability_percent;
+      return left - right || String(a.sector).localeCompare(String(b.sector), "pt-BR");
+    });
+    if (!sectors.length) { content.innerHTML = '<div class="report-empty">Ainda não há setores suficientes para compor este recorte.</div>'; return; }
+    content.innerHTML = sectors.map(item => '<div class="report-row"><strong>' + escapeHtml(item.sector || "Sem setor") + '<small>' + item.extension_count + ' ramal(is)</small></strong><span class="report-cell">' + reportPercent(item.availability_percent) + '<em>disponível</em></span><span class="report-cell">' + item.incident_count + '<em>quedas</em></span><span class="report-cell">' + humanDuration(item.offline_seconds || 0) + '<em>indisponível</em></span></div>').join("");
+    return;
+  }
+  const extensions = [...(report.individual || [])].sort((a, b) => {
+    const left = a.availability_percent === null ? 101 : a.availability_percent;
+    const right = b.availability_percent === null ? 101 : b.availability_percent;
+    return left - right || String(a.extension).localeCompare(String(b.extension), "pt-BR", { numeric: true });
+  });
+  if (!extensions.length) { content.innerHTML = '<div class="report-empty">O histórico individual começará a aparecer após o primeiro snapshot da AMI.</div>'; return; }
+  content.innerHTML = extensions.map(item => {
+    const identity = item.name || "Ramal " + item.extension;
+    const habitual = item.typical_connection || item.typical_disconnection ? (item.typical_connection || "—") + "–" + (item.typical_disconnection || "—") : "—";
+    const meta = item.extension + (item.sector ? " · " + item.sector : "");
+    return '<div class="report-row"><strong>' + escapeHtml(identity) + '<small>' + escapeHtml(meta) + '</small></strong><span class="report-cell">' + reportPercent(item.availability_percent) + '<em>disponível</em></span><span class="report-cell">' + item.incident_count + '<em>quedas</em></span><span class="report-cell">' + escapeHtml(habitual) + '<em>horário habitual</em></span></div>';
+  }).join("");
+}
+
+function renderReport() {
+  if (!reportData) return;
+  const report = reportData; const overall = report.overall || {}; const calendar = report.calendar || {};
+  const banner = document.getElementById("report-banner");
+  banner.className = "report-banner";
+  if (!calendar.configured) {
+    banner.textContent = "Calendário aguardando os horários oficiais. O histórico já está sendo coletado, mas nenhum e-mail individual será enviado até a agenda ser configurada.";
+  } else if (!overall.data_sufficient) {
+    banner.textContent = "Base em formação: " + (calendar.working_days || 0) + " de " + (calendar.minimum_workdays || 20) + " dias úteis. As métricas são preliminares até atingir cobertura suficiente.";
+  } else {
+    banner.classList.add("ready");
+    banner.textContent = "Base consolidada para o período selecionado, considerando expediente, finais de semana e exceções cadastradas.";
+  }
+  document.getElementById("report-availability").textContent = reportPercent(overall.availability_percent);
+  document.getElementById("report-coverage").textContent = reportPercent(overall.coverage_percent) + " de cobertura do período";
+  document.getElementById("report-offline").textContent = overall.offline_seconds ? humanDuration(overall.offline_seconds) : "—";
+  document.getElementById("report-incidents").textContent = overall.incident_count || 0;
+  document.getElementById("report-events").textContent = (report.event_count || 0) + " eventos preservados";
+  document.getElementById("report-longest").textContent = overall.longest_outage_seconds ? humanDuration(overall.longest_outage_seconds) : "—";
+  renderWeekdayReport(report);
+  renderReportDetail(report);
+}
+
+async function refreshReport() {
+  if (reportLoading) return;
+  reportLoading = true;
+  try {
+    const response = await fetch("/api/reports/availability?days=" + reportDays, { cache: "no-store" });
+    if (!response.ok) throw new Error("HTTP " + response.status);
+    reportData = await response.json();
+    renderReport();
+  } catch (error) {
+    document.getElementById("report-banner").textContent = "Não foi possível carregar o relatório agora: " + error.message;
+    document.getElementById("report-content").innerHTML = '<div class="report-empty">O monitoramento principal continua ativo. Tente novamente em instantes.</div>';
+  } finally {
+    reportLoading = false;
+  }
+}
+
 function renderAlerts(data) {
   const holder = document.getElementById("recent-alerts"); const summary = document.getElementById("alerts-summary"); const button = document.getElementById("test-alert");
   const config = data.notifications || {}; const alerts = (data.recent_alerts || []).slice(0, 3);
   button.disabled = !config.test_available || testInFlight;
   button.textContent = testInFlight ? "Enviando…" : "Enviar teste";
-  summary.textContent = config.configured ? config.target_count + " destinatário(s) · histórico persistente" : "E-mail ainda não configurado";
+  const totalResponsible = Number(config.target_count || 0) + Number(config.missing_target_count || 0);
+  summary.textContent = config.configured ? config.target_count + "/" + totalResponsible + " responsável(is) com e-mail · tolerância de " + humanDuration(config.responsible_alert_delay_seconds || 120) : "E-mail ainda não configurado";
   if (!alerts.length) { holder.innerHTML = '<div class="activity-empty">Ainda não há entregas registradas. Configure o E-mail para habilitar o envio de teste.</div>'; return; }
   const labels = { queued: "Na fila", sending: "Enviando", retrying: "Nova tentativa", sent: "Enviado", failed: "Falhou", partial_failure: "Envio parcial", not_configured: "Sem destinatários" };
   holder.innerHTML = alerts.map(alert => {
@@ -606,11 +792,26 @@ document.addEventListener("click", e => {
   if (openColumnMenu && !e.target.closest(".column-menu") && !e.target.closest(".column-menu-trigger")) closeColumnMenu();
 });
 document.addEventListener("keydown", e => { if (e.key === "Escape") closeColumnMenu(); });
+document.getElementById("report-period").addEventListener("click", event => {
+  const button = event.target.closest("button[data-days]");
+  if (!button) return;
+  reportDays = Number(button.dataset.days);
+  document.querySelectorAll("#report-period button").forEach(item => { const active = item === button; item.classList.toggle("active", active); item.setAttribute("aria-pressed", String(active)); });
+  document.getElementById("report-banner").textContent = "Atualizando o período selecionado…";
+  refreshReport();
+});
+document.getElementById("report-tabs").addEventListener("click", event => {
+  const button = event.target.closest("button[data-view]");
+  if (!button) return;
+  reportView = button.dataset.view;
+  document.querySelectorAll("#report-tabs button").forEach(item => { const active = item === button; item.classList.toggle("active", active); item.setAttribute("aria-pressed", String(active)); });
+  if (reportData) renderReportDetail(reportData);
+});
 const testDialog = document.getElementById("test-dialog");
 function closeTestDialog() { if (testDialog.open) testDialog.close(); }
 function openTestDialog() {
   if (!lastData || !(lastData.notifications || {}).test_available || testInFlight) return;
-  const count = (lastData.notifications || {}).target_count || 0;
+  const count = (lastData.notifications || {}).test_target_count || 0;
   document.getElementById("test-dialog-targets").textContent = count + " destinatário(s) de E-mail configurado(s)";
   testDialog.showModal();
 }
@@ -620,7 +821,7 @@ document.getElementById("test-dialog-cancel").addEventListener("click", closeTes
 document.getElementById("test-dialog-confirm").addEventListener("click", () => { closeTestDialog(); sendTestAlert(); });
 testDialog.addEventListener("click", event => { if (event.target === testDialog) closeTestDialog(); });
 function tickClock() { document.getElementById("clock").textContent = new Date().toLocaleTimeString("pt-BR"); }
-setInterval(tickClock, 1000); tickClock(); refresh(); setInterval(refresh, POLL_MS);
+setInterval(tickClock, 1000); tickClock(); refresh(); refreshReport(); setInterval(refresh, POLL_MS); setInterval(refreshReport, 60000);
 </script>
 </body>
 </html>

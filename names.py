@@ -1,14 +1,20 @@
-"""Carrega o mapeamento ramal -> nome/setor de ramais_nomes.json.
+"""Carrega excecoes locais de nome, setor e notificacao por ramal.
 
 Formato aceito (cada valor pode ser uma string ou um objeto):
 
     {
       "1001": "Recepção",
-      "1002": {"nome": "João Silva", "setor": "Vendas"}
+      "1002": {
+        "nome": "João Silva",
+        "setor": "Vendas",
+        "email": "joao@empresa.com.br",
+        "notificar": true
+      }
     }
 
 O arquivo e recarregado automaticamente quando muda (cache por mtime), entao da
-para editar os nomes sem reiniciar o servico.
+para editar os dados sem reiniciar o servico. O MikoPBX continua sendo a fonte
+principal; este arquivo serve apenas para sobrescritas pontuais.
 """
 import json
 import logging
@@ -25,11 +31,18 @@ def _normalize(raw: dict) -> dict:
     data = {}
     for extension, value in raw.items():
         if isinstance(value, str):
-            data[str(extension)] = {"nome": value, "setor": ""}
+            data[str(extension)] = {
+                "nome": value,
+                "setor": "",
+                "email": "",
+                "notificar": True,
+            }
         elif isinstance(value, dict):
             data[str(extension)] = {
                 "nome": value.get("nome", ""),
                 "setor": value.get("setor", ""),
+                "email": str(value.get("email", "") or "").strip().lower(),
+                "notificar": value.get("notificar", True) is not False,
             }
     return data
 
