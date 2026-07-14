@@ -106,7 +106,36 @@
 
   .table-wrap { border: 1px solid var(--border-strong); border-radius: 22px; overflow-x: auto; background: linear-gradient(145deg, rgba(255, 255, 255, .055), rgba(3, 12, 31, .55)); box-shadow: var(--glass-shadow); animation: rise-in .62s .2s cubic-bezier(.22, 1, .36, 1) both; }
   table { width: 100%; min-width: 900px; border-collapse: collapse; }
-  thead th { padding: 14px 16px; border-bottom: 1px solid var(--border-strong); background: linear-gradient(180deg, rgba(255, 255, 255, .065), rgba(7, 19, 47, .56)); color: rgba(218, 231, 255, .76); font-size: .67rem; font-weight: 800; letter-spacing: 1px; text-align: left; text-transform: uppercase; }
+  thead { position: relative; z-index: 12; }
+  thead th { position: relative; padding: 7px 9px; border-bottom: 1px solid var(--border-strong); background: linear-gradient(180deg, rgba(255, 255, 255, .065), rgba(7, 19, 47, .56)); color: rgba(218, 231, 255, .76); font-size: .67rem; font-weight: 800; letter-spacing: 1px; text-align: left; text-transform: uppercase; overflow: visible; }
+  .column-menu-trigger { width: 100%; min-height: 32px; display: flex; align-items: center; justify-content: flex-start; gap: 8px; padding: 6px 8px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: inherit; cursor: pointer; font: inherit; letter-spacing: inherit; text-align: left; text-transform: inherit; transition: color .18s ease, border-color .18s ease, background .18s ease, box-shadow .18s ease; }
+  .column-menu-trigger:hover { color: white; background: rgba(255, 255, 255, .045); }
+  .column-menu-trigger.open, .column-menu-trigger.filtered { color: white; border-color: rgba(255, 140, 45, .34); background: rgba(255, 119, 0, .08); }
+  .column-menu-trigger.open { box-shadow: 0 0 0 3px rgba(255, 119, 0, .08); }
+  .column-menu-trigger.filtered::after { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--orange); box-shadow: 0 0 8px rgba(255, 119, 0, .5); }
+  .column-chevron { width: 7px; height: 7px; margin-left: auto; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: translateY(-2px) rotate(45deg); transform-origin: 58% 58%; opacity: .72; transition: transform .28s cubic-bezier(.22, 1, .36, 1), opacity .18s ease; }
+  .column-menu-trigger.open .column-chevron { transform: translateY(2px) rotate(225deg); opacity: 1; }
+  .column-menu { position: absolute; z-index: 60; top: calc(100% + 8px); left: 9px; width: 300px; padding: 12px; border: 1px solid rgba(255, 132, 31, .38); border-radius: 17px; background: radial-gradient(circle at 100% 0, rgba(255, 119, 0, .1), transparent 11rem), linear-gradient(155deg, rgba(17, 31, 69, .98), rgba(4, 10, 29, .985)); box-shadow: 0 22px 48px rgba(0, 0, 0, .48), inset 0 1px rgba(255, 255, 255, .09); -webkit-backdrop-filter: blur(26px) saturate(145%); backdrop-filter: blur(26px) saturate(145%); color: var(--text); font-size: .78rem; font-weight: 600; letter-spacing: 0; text-transform: none; animation: column-menu-drop .26s cubic-bezier(.22, 1, .36, 1) both; }
+  th:nth-child(5) .column-menu, th:nth-child(6) .column-menu { right: 9px; left: auto; }
+  .column-menu[hidden] { display: none !important; }
+  .column-menu-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+  .column-menu-head strong { color: white; font-size: .83rem; }
+  .column-menu-head span { color: var(--faint); font-size: .61rem; font-weight: 850; letter-spacing: .7px; text-transform: uppercase; }
+  .column-sort-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin-bottom: 9px; }
+  .column-sort-button { min-height: 36px; padding: 7px 8px; border: 1px solid var(--border); border-radius: 10px; background: rgba(255, 255, 255, .035); color: var(--muted); cursor: pointer; font: 750 .7rem inherit; transition: color .18s ease, border-color .18s ease, background .18s ease; }
+  .column-sort-button:hover, .column-sort-button.active { color: white; border-color: rgba(255, 139, 44, .4); background: rgba(255, 119, 0, .1); }
+  .column-menu-search { display: block; margin-bottom: 9px; }
+  .column-menu-search input { width: 100%; min-height: 38px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; outline: none; background: rgba(0, 0, 0, .27); color: white; font: 650 .75rem inherit; }
+  .column-menu-search input:focus { border-color: rgba(255, 119, 0, .58); box-shadow: 0 0 0 3px rgba(255, 119, 0, .1); }
+  .column-option-list { max-height: 190px; padding: 2px 4px 2px 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(255, 119, 0, .55) rgba(0, 0, 0, .18); }
+  .column-option { min-height: 34px; display: flex; align-items: center; gap: 9px; padding: 7px 8px; border-radius: 9px; color: var(--text); cursor: pointer; transition: background .15s ease; }
+  .column-option:hover { background: rgba(255, 255, 255, .055); }
+  .column-option input { width: 15px; height: 15px; flex: 0 0 auto; accent-color: var(--orange); }
+  .column-option-empty { padding: 20px 8px; color: var(--faint); line-height: 1.45; text-align: center; }
+  .column-menu-actions { display: flex; justify-content: space-between; gap: 9px; margin-top: 11px; padding-top: 10px; border-top: 1px solid var(--border); }
+  .column-menu-action { min-height: 36px; padding: 7px 12px; border-radius: 10px; cursor: pointer; font: 800 .71rem inherit; }
+  .column-menu-action.clear { border: 1px solid var(--border); background: rgba(255, 255, 255, .045); color: var(--muted); }
+  .column-menu-action.apply { margin-left: auto; border: 1px solid rgba(255, 178, 109, .48); background: linear-gradient(180deg, rgba(255, 140, 45, .98), rgba(178, 70, 0, .98)); box-shadow: inset 0 1px rgba(255, 255, 255, .23); color: white; }
   tbody td { padding: 13px 16px; border-bottom: 1px solid rgba(139, 166, 230, .12); font-size: .88rem; vertical-align: middle; }
   tbody tr:last-child td { border-bottom: none; }
   tbody tr { background: rgba(5, 15, 38, .39); transition: background .16s ease, box-shadow .16s ease; }
@@ -180,6 +209,7 @@
   .ghost-button:active, .primary-button:active { transform: scale(.965); }
 
   @keyframes rise-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes column-menu-drop { from { opacity: 0; transform: translateY(-10px) scale(.975); } to { opacity: 1; transform: translateY(0) scale(1); } }
   @keyframes dialog-in { from { opacity: 0; transform: translateY(12px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
   @media (max-width: 930px) { .stats { grid-template-columns: repeat(2, 1fr); } .topbar { align-items: flex-start; } .status-pills { justify-content: flex-start; } .activity-list { grid-template-columns: 1fr; } .activity-item { border-right: 0; border-bottom: 1px solid var(--border); } .activity-item:last-child { border-bottom: 0; } .activity-head { align-items: flex-start; } .activity-actions { align-items: flex-end; flex-direction: column-reverse; } }
   @media (max-width: 580px) { .wrap { width: min(100% - 28px, 1440px); padding-top: 14px; }.topbar { padding: 13px; border-radius: 20px; }.brand-mark { width: 42px; height: 42px; border-radius: 12px; }.brand h1 { font-size: 1.13rem; }.brand-subtitle { font-size: .71rem; }.status-pills { width: 100%; }.pill { padding: 6px 8px; font-size: .72rem; }.stats { gap: 8px; }.tile { padding: 14px; border-radius: 17px; }.tile .value { font-size: 1.72rem; }.operational { align-items: flex-start; }.operational-detail { display: block; margin-top: 3px; }.search { min-width: 100%; }.segmented { width: 100%; }.segmented button { flex: 1; padding: 8px 6px; font-size: .72rem; }.activity-head { align-items: flex-start; flex-direction: column; gap: 3px; }.activity-actions { width: 100%; align-items: stretch; }.test-button { width: 100%; }.dialog-surface { padding: 21px; border-radius: 23px; }.dialog-actions { grid-template-columns: 1fr; }.ghost-button { order: 2; } }
@@ -225,7 +255,16 @@
 
   <div class="table-wrap">
     <table>
-      <thead><tr><th style="width:165px">Situação</th><th style="width:100px">Ramal</th><th>Nome</th><th>Setor</th><th style="width:185px">Alerta</th><th style="width:165px">Estado atual</th></tr></thead>
+      <thead>
+        <tr>
+          <th style="width:165px"><button class="column-menu-trigger" type="button" data-column="status" aria-expanded="false"><span>Situação</span><span class="column-chevron" aria-hidden="true"></span></button><div class="column-menu" data-menu="status" hidden></div></th>
+          <th style="width:120px"><button class="column-menu-trigger" type="button" data-column="extension" aria-expanded="false"><span>Ramal</span><span class="column-chevron" aria-hidden="true"></span></button><div class="column-menu" data-menu="extension" hidden></div></th>
+          <th><button class="column-menu-trigger" type="button" data-column="nome" aria-expanded="false"><span>Nome</span><span class="column-chevron" aria-hidden="true"></span></button><div class="column-menu" data-menu="nome" hidden></div></th>
+          <th><button class="column-menu-trigger" type="button" data-column="setor" aria-expanded="false"><span>Setor</span><span class="column-chevron" aria-hidden="true"></span></button><div class="column-menu" data-menu="setor" hidden></div></th>
+          <th style="width:185px"><button class="column-menu-trigger" type="button" data-column="alert" aria-expanded="false"><span>Alerta</span><span class="column-chevron" aria-hidden="true"></span></button><div class="column-menu" data-menu="alert" hidden></div></th>
+          <th style="width:165px"><button class="column-menu-trigger" type="button" data-column="duration" aria-expanded="false"><span>Estado atual</span><span class="column-chevron" aria-hidden="true"></span></button><div class="column-menu" data-menu="duration" hidden></div></th>
+        </tr>
+      </thead>
       <tbody id="tbody"></tbody>
     </table>
     <div id="empty" class="empty" style="display:none"></div>
@@ -270,7 +309,20 @@ const POLL_MS = 3000;
 let lastData = null;
 let searchTerm = "";
 let filterMode = "all";
+const columnFilters = { status: new Set(), extension: new Set(), nome: new Set(), setor: new Set(), alert: new Set() };
+let activeSort = { column: null, direction: null };
+let openColumnMenu = null;
+let menuDraft = null;
 let testInFlight = false;
+
+const columnConfigs = {
+  status: { label: "Situação", search: "Buscar situação", sort: [["asc", "Online primeiro"], ["desc", "Offline primeiro"]], values: true },
+  extension: { label: "Ramal", search: "Buscar ramal", sort: [["asc", "Menor ramal"], ["desc", "Maior ramal"]], values: true },
+  nome: { label: "Nome", search: "Buscar nome", sort: [["asc", "A–Z"], ["desc", "Z–A"]], values: true },
+  setor: { label: "Setor", search: "Buscar setor", sort: [["asc", "A–Z"], ["desc", "Z–A"]], values: true },
+  alert: { label: "Alerta", search: "Buscar alerta", sort: [["asc", "A–Z"], ["desc", "Z–A"]], values: true },
+  duration: { label: "Estado atual", search: "", sort: [["asc", "Menor duração"], ["desc", "Maior duração"]], values: false },
+};
 
 function humanDuration(seconds) {
   seconds = Math.max(0, Math.floor(seconds));
@@ -321,12 +373,126 @@ function renderOperational(data) {
 }
 
 function priority(ext) { if (ext.pending_status === "offline") return 0; if (!ext.online) return 1; if (ext.pending_status === "online") return 2; return 3; }
+function statusLabel(ext) {
+  if (ext.pending_status === "offline") return "Confirmando queda";
+  if (ext.pending_status === "online") return "Confirmando retorno";
+  return ext.online ? "Online" : "Offline";
+}
+function alertLabel(alert) {
+  if (!alert || alert.status === "not_configured") return "E-mail não configurado";
+  const labels = { idle: "Aguardando evento", queued: "E-mail na fila", sending: "Enviando E-mail", retrying: "Nova tentativa", sent: "E-mail enviado", failed: "Falha no E-mail", partial_failure: "Envio parcial" };
+  return labels[alert.status] || "Sem alerta neste ciclo";
+}
+function columnValue(ext, column) {
+  if (column === "status") return statusLabel(ext);
+  if (column === "extension") return String(ext.extension || "");
+  if (column === "nome") return String(ext.nome || "");
+  if (column === "setor") return String(ext.setor || "");
+  if (column === "alert") return alertLabel(ext.alert);
+  if (column === "duration") return ext.pending_status ? Number(ext.confirmation_remaining_seconds || 0) : Math.max(0, Date.now() / 1000 - Number(ext.since || 0));
+  return "";
+}
 function passesFilter(ext) {
   if (filterMode === "attention" && ext.online && !ext.pending_status) return false;
   if (filterMode === "offline" && ext.online) return false;
   if (filterMode === "online" && !ext.online) return false;
   if (searchTerm) { const hay = (ext.extension + " " + (ext.nome || "") + " " + (ext.setor || "")).toLowerCase(); if (!hay.includes(searchTerm)) return false; }
+  for (const [column, selected] of Object.entries(columnFilters)) {
+    if (selected.size && !selected.has(columnValue(ext, column))) return false;
+  }
   return true;
+}
+
+function compareRows(a, b) {
+  if (activeSort.column) {
+    let result = 0;
+    if (activeSort.column === "status") {
+      result = Number(!a.online) - Number(!b.online);
+    } else if (activeSort.column === "duration") {
+      result = columnValue(a, "duration") - columnValue(b, "duration");
+    } else {
+      result = String(columnValue(a, activeSort.column)).localeCompare(String(columnValue(b, activeSort.column)), "pt-BR", { numeric: true, sensitivity: "base" });
+    }
+    if (result) return activeSort.direction === "desc" ? -result : result;
+  }
+  return priority(a) - priority(b) || String(a.extension).localeCompare(String(b.extension), "pt-BR", { numeric: true });
+}
+
+function availableColumnValues(column) {
+  if (!lastData || !columnConfigs[column].values) return [];
+  return [...new Set(lastData.extensions.map(ext => String(columnValue(ext, column)).trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" }));
+}
+
+function renderColumnMenuOptions(column, query = "") {
+  const menu = document.querySelector('[data-menu="' + column + '"]');
+  const holder = menu && menu.querySelector('[data-role="options"]');
+  if (!holder || !menuDraft) return;
+  const values = availableColumnValues(column).filter(value => value.toLocaleLowerCase("pt-BR").includes(query.toLocaleLowerCase("pt-BR")));
+  if (!values.length) {
+    const message = column === "setor" && !availableColumnValues(column).length ? "Nenhum setor informado pela API." : "Nenhum valor encontrado.";
+    holder.innerHTML = '<div class="column-option-empty">' + message + '</div>';
+    return;
+  }
+  holder.innerHTML = values.map(value => '<label class="column-option"><input type="checkbox" data-option-value="' + escapeHtml(value) + '"' + (menuDraft.selected.has(value) ? " checked" : "") + '><span>' + escapeHtml(value) + '</span></label>').join("");
+}
+
+function renderColumnMenu(column) {
+  const config = columnConfigs[column];
+  const menu = document.querySelector('[data-menu="' + column + '"]');
+  if (!menu || !menuDraft) return;
+  const active = columnFilters[column] ? columnFilters[column].size > 0 : false;
+  const sorted = activeSort.column === column;
+  const sortButtons = config.sort.map(([direction, label]) => '<button class="column-sort-button' + (menuDraft.sort === direction ? " active" : "") + '" type="button" data-action="sort" data-direction="' + direction + '">' + label + '</button>').join("");
+  const valuesMarkup = config.values ? '<label class="column-menu-search"><input type="search" data-action="search" placeholder="' + config.search + '" autocomplete="off" aria-label="' + config.search + '"></label><div class="column-option-list" data-role="options"></div>' : '<div class="column-option-empty">Escolha como ordenar o tempo no estado atual.</div>';
+  menu.innerHTML = '<div class="column-menu-head"><strong>' + config.label + '</strong><span>' + (active || sorted ? "Filtro ativo" : "Sem filtro") + '</span></div><div class="column-sort-row">' + sortButtons + '</div>' + valuesMarkup + '<div class="column-menu-actions"><button class="column-menu-action clear" type="button" data-action="clear">Limpar</button><button class="column-menu-action apply" type="button" data-action="apply">Aplicar</button></div>';
+  if (config.values) renderColumnMenuOptions(column);
+}
+
+function closeColumnMenu() {
+  if (!openColumnMenu) return;
+  const menu = document.querySelector('[data-menu="' + openColumnMenu + '"]');
+  const trigger = document.querySelector('.column-menu-trigger[data-column="' + openColumnMenu + '"]');
+  if (menu) menu.hidden = true;
+  if (trigger) { trigger.classList.remove("open"); trigger.setAttribute("aria-expanded", "false"); }
+  openColumnMenu = null;
+  menuDraft = null;
+}
+
+function openMenu(column) {
+  if (openColumnMenu === column) { closeColumnMenu(); return; }
+  closeColumnMenu();
+  openColumnMenu = column;
+  menuDraft = { selected: new Set(columnFilters[column] || []), sort: activeSort.column === column ? activeSort.direction : null };
+  renderColumnMenu(column);
+  const menu = document.querySelector('[data-menu="' + column + '"]');
+  const trigger = document.querySelector('.column-menu-trigger[data-column="' + column + '"]');
+  menu.hidden = false;
+  trigger.classList.add("open");
+  trigger.setAttribute("aria-expanded", "true");
+}
+
+function applyColumnMenu(column) {
+  if (columnFilters[column]) columnFilters[column] = new Set(menuDraft.selected);
+  if (menuDraft.sort) activeSort = { column, direction: menuDraft.sort };
+  else if (activeSort.column === column) activeSort = { column: null, direction: null };
+  closeColumnMenu();
+  renderAll();
+}
+
+function clearColumnMenu(column) {
+  if (columnFilters[column]) columnFilters[column] = new Set();
+  if (activeSort.column === column) activeSort = { column: null, direction: null };
+  closeColumnMenu();
+  renderAll();
+}
+
+function renderColumnIndicators() {
+  document.querySelectorAll(".column-menu-trigger").forEach(trigger => {
+    const column = trigger.dataset.column;
+    const filtered = (columnFilters[column] && columnFilters[column].size > 0) || activeSort.column === column;
+    trigger.classList.toggle("filtered", filtered);
+  });
 }
 
 function stateMarkup(ext, now) {
@@ -350,7 +516,7 @@ function alertMarkup(alert) {
 
 function renderTable(data) {
   const now = Date.now() / 1000;
-  const rows = data.extensions.filter(passesFilter).sort((a, b) => priority(a) - priority(b) || String(a.extension).localeCompare(String(b.extension), "pt-BR", { numeric: true }));
+  const rows = data.extensions.filter(passesFilter).sort(compareRows);
   const tbody = document.getElementById("tbody"); const empty = document.getElementById("empty");
   if (!data.extensions.length) { tbody.innerHTML = ""; empty.style.display = "block"; empty.textContent = "Nenhum ramal disponível ainda. Assim que a AMI conectar, eles aparecem aqui."; return; }
   if (!rows.length) { tbody.innerHTML = ""; empty.style.display = "block"; empty.textContent = "Nenhum ramal corresponde ao filtro ou à busca atual."; return; }
@@ -389,7 +555,7 @@ function renderAlerts(data) {
 
 function renderAll() {
   if (!lastData) return;
-  renderPills(lastData); renderStats(lastData); renderOperational(lastData); renderTable(lastData); renderAlerts(lastData); renderIncidents(lastData);
+  renderPills(lastData); renderStats(lastData); renderOperational(lastData); renderColumnIndicators(); renderTable(lastData); renderAlerts(lastData); renderIncidents(lastData);
   const shown = lastData.extensions.filter(passesFilter).length;
   document.getElementById("foot-left").textContent = "Exibindo " + shown + " de " + lastData.total + " ramais";
   document.getElementById("foot-right").textContent = lastData.generated_at ? "Dados recebidos às " + new Date(lastData.generated_at * 1000).toLocaleTimeString("pt-BR") : "";
@@ -417,6 +583,29 @@ async function sendTestAlert() {
 
 document.getElementById("search").addEventListener("input", e => { searchTerm = e.target.value.trim().toLowerCase(); renderAll(); });
 document.getElementById("filter").addEventListener("click", e => { const btn = e.target.closest("button"); if (!btn) return; filterMode = btn.dataset.f; document.querySelectorAll("#filter button").forEach(b => { const selected = b === btn; b.classList.toggle("active", selected); b.setAttribute("aria-pressed", String(selected)); }); renderAll(); });
+document.querySelector("thead").addEventListener("click", e => {
+  const trigger = e.target.closest(".column-menu-trigger");
+  if (trigger) { openMenu(trigger.dataset.column); return; }
+  const action = e.target.closest("[data-action]");
+  if (!action || !openColumnMenu || action.dataset.action === "search") return;
+  if (action.dataset.action === "sort") {
+    menuDraft.sort = menuDraft.sort === action.dataset.direction ? null : action.dataset.direction;
+    action.closest(".column-sort-row").querySelectorAll(".column-sort-button").forEach(button => button.classList.toggle("active", button.dataset.direction === menuDraft.sort));
+  } else if (action.dataset.action === "apply") applyColumnMenu(openColumnMenu);
+  else if (action.dataset.action === "clear") clearColumnMenu(openColumnMenu);
+});
+document.querySelector("thead").addEventListener("input", e => {
+  if (e.target.dataset.action === "search" && openColumnMenu) renderColumnMenuOptions(openColumnMenu, e.target.value.trim());
+});
+document.querySelector("thead").addEventListener("change", e => {
+  if (!e.target.matches("[data-option-value]") || !menuDraft) return;
+  if (e.target.checked) menuDraft.selected.add(e.target.dataset.optionValue);
+  else menuDraft.selected.delete(e.target.dataset.optionValue);
+});
+document.addEventListener("click", e => {
+  if (openColumnMenu && !e.target.closest(".column-menu") && !e.target.closest(".column-menu-trigger")) closeColumnMenu();
+});
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeColumnMenu(); });
 const testDialog = document.getElementById("test-dialog");
 function closeTestDialog() { if (testDialog.open) testDialog.close(); }
 function openTestDialog() {
