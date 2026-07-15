@@ -9,8 +9,14 @@ from config import ConfigError, load_config
 
 class ConfigTests(unittest.TestCase):
     def test_defaults_are_valid_without_optional_integrations(self):
-        with patch.dict(os.environ, {}, clear=True):
-            config = load_config()
+        with tempfile.TemporaryDirectory() as directory:
+            missing_secret = Path(directory) / "nao-existe.txt"
+            with patch.dict(
+                os.environ,
+                {"RESPONSIBLES_ADMIN_PASSWORD_FILE": str(missing_secret)},
+                clear=True,
+            ):
+                config = load_config()
         self.assertEqual(config.dashboard_port, 8080)
         self.assertFalse(config.ami_enabled)
         self.assertFalse(config.email_enabled)
