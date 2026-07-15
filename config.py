@@ -65,6 +65,16 @@ def _csv_env(name: str) -> list[str]:
     return list(dict.fromkeys(item for item in values if item))
 
 
+def _secret_from_file(path: Path) -> str | None:
+    try:
+        value = path.read_text(encoding="utf-8").strip()
+    except FileNotFoundError:
+        return None
+    except OSError as exc:
+        raise ConfigError(f"Nao foi possivel ler o segredo administrativo em {path}") from exc
+    return value or None
+
+
 @dataclass(frozen=True)
 class Config:
     ami_host: str
@@ -101,6 +111,8 @@ class Config:
     dashboard_username: str | None
     dashboard_password: str | None
     dashboard_auth_enabled: bool
+    responsibles_admin_password: str | None
+    responsibles_admin_enabled: bool
 
     demo_mode: bool
 
@@ -134,6 +146,20 @@ def load_config() -> Config:
     dashboard_password = _optional_env("DASHBOARD_PASSWORD")
     if bool(dashboard_username) != bool(dashboard_password):
         raise ConfigError("DASHBOARD_USERNAME e DASHBOARD_PASSWORD devem ser configurados juntos")
+
+    responsible_secret_path = Path(
+        _env_text(
+            "RESPONSIBLES_ADMIN_PASSWORD_FILE",
+            str(PROJECT_DIR / "data" / "responsibles_admin_password.txt"),
+        )
+    )
+    if not responsible_secret_path.is_absolute():
+        responsible_secret_path = PROJECT_DIR / responsible_secret_path
+    responsibles_admin_password = _optional_env(
+        "RESPONSIBLES_ADMIN_PASSWORD"
+    ) or _secret_from_file(responsible_secret_path)
+    if responsibles_admin_password and len(responsibles_admin_password) < 12:
+        raise ConfigError("RESPONSIBLES_ADMIN_PASSWORD deve ter pelo menos 12 caracteres")
 
     ami_user = _optional_env("AMI_USER")
     ami_secret = _optional_env("AMI_SECRET")
@@ -215,6 +241,8 @@ def load_config() -> Config:
         dashboard_username=dashboard_username,
         dashboard_password=dashboard_password,
         dashboard_auth_enabled=bool(dashboard_username and dashboard_password),
+        responsibles_admin_password=responsibles_admin_password,
+        responsibles_admin_enabled=bool(responsibles_admin_password),
         demo_mode=_bool_env("DEMO_MODE", False),
         mikopbx_api_key=mikopbx_api_key,
         mikopbx_api_url=mikopbx_api_url,

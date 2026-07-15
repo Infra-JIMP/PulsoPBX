@@ -26,7 +26,9 @@ Deve aparecer `[OK] Login AMI bem-sucedido` e a lista de ramais encontrados.
 
 Preencha `EMAIL_SMTP_HOST`, `EMAIL_SMTP_PORT` e `EMAIL_FROM`. Se o servidor exigir autenticação, configure também `EMAIL_SMTP_USERNAME` e `EMAIL_SMTP_PASSWORD`. Use `EMAIL_SMTP_STARTTLS=true` para a porta 587 ou `EMAIL_SMTP_SSL=true` para SSL direto, normalmente na porta 465; não ative os dois ao mesmo tempo.
 
-`EMAIL_RECIPIENTS` é opcional e serve apenas para o botão **Enviar teste** do painel. Os avisos reais usam o e-mail individual do funcionário vinculado ao ramal no MikoPBX. O endereço nunca é devolvido pelas APIs públicas do painel; somente a informação “configurado/não configurado” é exibida. Como exceção pontual, `ramais_nomes.json` também aceita `email` e `notificar: false`.
+`EMAIL_RECIPIENTS` é opcional e serve apenas para o botão **Enviar teste** do painel. Os avisos reais usam o e-mail individual vinculado ao ramal. O MikoPBX continua sendo a fonte automática, mas um cadastro local pode assumir prioridade quando a central estiver indisponível. O endereço nunca é devolvido pelas APIs normais do painel; somente a informação “configurado/não configurado” é exibida.
+
+Para habilitar a tela interna **Responsáveis**, configure `RESPONSIBLES_ADMIN_PASSWORD` com pelo menos 12 caracteres ou salve a senha isoladamente em `data/responsibles_admin_password.txt`. A tela aparece somente em acesso direto pela rede interna; requisições encaminhadas pelo Cloudflare são recusadas. A senha fica apenas na memória da aba do navegador. O cadastro é salvo em `ramais_nomes.json`, entra em vigor sem reiniciar o serviço e pode ser removido pelo botão **Voltar ao MikoPBX**.
 
 O fluxo é: 30 segundos para confirmar a mudança de estado, mais 2 minutos de tolerância (`RESPONSIBLE_ALERT_DELAY_SECONDS=120`). Se o ramal reconectar nesse período, o e-mail é cancelado. Se continuar offline, estiver dentro do expediente e não fizer parte de uma queda coletiva, um único aviso amigável pede para verificar MicroSIP, internet e registro do ramal. O retorno só é avisado se o e-mail de queda realmente tiver sido entregue.
 
@@ -112,7 +114,7 @@ O painel busca o nome do funcionário de cada ramal direto do MikoPBX, via API R
 
 Por padrão, a consulta aceita o certificado interno/autoassinado comum no MikoPBX (`MIKOPBX_VERIFY_TLS=false`). Só altere para `true` depois que o PBX apresentar um certificado válido e confiável para a máquina do monitor.
 
-O MikoPBX não tem campo de "setor" separado (o setor, quando existe, já vem dentro do próprio nome, ex.: `Engenharia - Edson`). Se quiser sobrescrever algum nome específico ou adicionar um setor à parte, use o `ramais_nomes.json` manual (opcional, só para exceções):
+O MikoPBX não tem campo de "setor" separado (o setor, quando existe, já vem dentro do próprio nome, ex.: `Engenharia - Edson`). Se quiser sobrescrever algum nome específico ou adicionar um setor à parte, use o `ramais_nomes.json` manual (opcional, só para exceções). Os e-mails podem ser administrados pela tela **Responsáveis**, sem editar este arquivo:
 1. Copie `ramais_nomes.example.json` para `ramais_nomes.json`.
 2. Preencha só os ramais que quer sobrescrever:
    ```json
@@ -157,7 +159,7 @@ Isso registra novamente a tarefa como **SYSTEM** e abre no firewall a porta defi
 ### Scripts de gerenciamento (na pasta local e no compartilhamento)
 - `install_system_task.ps1` - upgrade para servico SYSTEM + firewall (rodar como admin).
 - `uninstall_task.ps1` - remove a tarefa e para o servico.
-- `deploy_local.ps1` (no compartilhamento) - valida, cria staging e backup, sincroniza a cópia local e reinicia o serviço. Não copia `.env`, `.venv`, `logs`, `data` ou artefatos locais; se a validação pós-cópia falhar, restaura automaticamente o backup.
+- `deploy_local.ps1` (na raiz do projeto local) - valida, cria staging e backup, sincroniza a cópia de produção e reinicia o serviço. Não copia `.env`, `.venv`, `logs`, `data`, `ramais_nomes.json`, `work_calendar.json` ou artefatos locais; se a validação pós-cópia falhar, restaura automaticamente o backup.
 
 Para validar sem copiar nem reiniciar:
 

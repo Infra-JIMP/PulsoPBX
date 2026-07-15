@@ -6,7 +6,7 @@ import mikopbx_api
 from names import load_names
 
 
-def _validated_email(value) -> str:
+def validate_email(value) -> str:
     email = str(value or "").strip().lower()
     _, parsed = parseaddr(email)
     local, separator, domain = parsed.partition("@")
@@ -20,7 +20,7 @@ def load_profiles() -> dict[str, dict]:
         extension: {
             "nome": profile.get("nome", ""),
             "setor": "",
-            "email": _validated_email(profile.get("email", "")),
+            "email": validate_email(profile.get("email", "")),
             "notificar": True,
         }
         for extension, profile in mikopbx_api.get_cached_profiles().items()
@@ -34,7 +34,7 @@ def load_profiles() -> dict[str, dict]:
             if override.get(field):
                 profile[field] = override[field]
         if override.get("email"):
-            profile["email"] = _validated_email(override["email"])
+            profile["email"] = validate_email(override["email"])
         if "notificar" in override:
             profile["notificar"] = override["notificar"]
     return profiles

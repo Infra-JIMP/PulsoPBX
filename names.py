@@ -18,6 +18,8 @@ principal; este arquivo serve apenas para sobrescritas pontuais.
 """
 import json
 import logging
+import os
+import threading
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -25,6 +27,7 @@ logger = logging.getLogger(__name__)
 NAMES_FILE = Path(__file__).parent / "ramais_nomes.json"
 
 _cache: dict = {"mtime": None, "data": {}}
+_write_lock = threading.Lock()
 
 
 def _normalize(raw: dict) -> dict:
@@ -61,3 +64,66 @@ def load_names() -> dict:
         except Exception:
             logger.exception("Falha ao ler %s - mantendo nomes anteriores", NAMES_FILE.name)
     return _cache["data"]
+
+
+def _read_raw() -> dict:
+    try:
+        raw = json.loads(NAMES_FILE.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return {}
+    except (OSError, ValueError) as exc:
+        raise ValueError(f"Nao foi possivel ler {NAMES_FILE.name}") from exc
+    if not isinstance(raw, dict):
+        raise ValueError(f"{NAMES_FILE.name} deve conter um objeto JSON")
+    return raw
+
+
+def _write_raw(raw: dict) -> None:
+    NAMES_FILE.parent.mkdir(parents=True, exist_ok=True)
+    temporary = NAMES_FILE.with_name(f".{NAMES_FILE.name}.tmp")
+    content = json.dumps(raw, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+    try:
+        temporary.write_text(content, encoding="utf-8")
+        os.replace(temporary, NAMES_FILE)
+    finally:
+        temporary.unlink(missing_ok=True)
+    _cache["mtime"] = None
+
+
+def save_email_override(extension: str, email: str, notify: bool = True) -> dict:
+    """Salva o destinatario local sem apagar nome ou setor ja cadastrados."""
+    extension = str(extension).strip()
+    if not extension:
+        raise ValueError("Ramal obrigatorio")
+    with _write_lock:
+        raw = _read_raw()
+        existing = raw.get(extension, {})
+        if isinstance(existing, str):
+            existing = {"nome": existing}
+        elif not isinstance(existing, dict):
+            existing = {}
+        existing["email"] = str(email).strip().lower()
+        existing["notificar"] = bool(notify)
+        raw[extension] = existing
+        _write_raw(raw)
+        return _normalize({extension: existing})[extension]
+
+
+def clear_email_override(extension: str) -> bool:
+    """Remove somente a excecao de e-mail e volta a herdar o MikoPBX."""
+    extension = str(extension).strip()
+    with _write_lock:
+        raw = _read_raw()
+        existing = raw.get(extension)
+        if not isinstance(existing, dict):
+            return False
+        changed = "email" in existing or "notificar" in existing
+        existing.pop("email", None)
+        existing.pop("notificar", None)
+        if existing:
+            raw[extension] = existing
+        else:
+            raw.pop(extension, None)
+        if changed:
+            _write_raw(raw)
+        return changed

@@ -103,6 +103,11 @@
   .segmented button:hover:not(.active) { color: var(--text); background: rgba(255, 255, 255, .05); }
   .segmented button:active { transform: scale(.965); }
   .segmented button:focus-visible { position: relative; outline: 2px solid var(--blue); outline-offset: -2px; }
+  [hidden] { display: none !important; }
+  .manage-button { min-height: 46px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 9px 14px; border: 1px solid rgba(255, 183, 119, .34); border-radius: 14px; background: linear-gradient(145deg, rgba(255, 255, 255, .095), rgba(255, 119, 0, .09)); box-shadow: inset 0 1px rgba(255, 255, 255, .13), 0 8px 20px rgba(0, 0, 0, .18); color: var(--text); cursor: pointer; font: 800 .77rem inherit; transition: border-color .18s ease, background .18s ease, transform .13s cubic-bezier(.22, 1, .36, 1); }
+  .manage-button::before { content: "✉"; color: var(--orange-light); font-size: .95rem; }
+  .manage-button:hover { border-color: rgba(255, 183, 119, .58); background: linear-gradient(145deg, rgba(255, 255, 255, .13), rgba(255, 119, 0, .14)); }
+  .manage-button:active { transform: scale(.97); }
 
   .table-wrap { border: 1px solid var(--border-strong); border-radius: 22px; overflow-x: auto; background: linear-gradient(145deg, rgba(255, 255, 255, .055), rgba(3, 12, 31, .55)); box-shadow: var(--glass-shadow); animation: rise-in .62s .2s cubic-bezier(.22, 1, .36, 1) both; }
   table { width: 100%; min-width: 900px; border-collapse: collapse; }
@@ -255,11 +260,57 @@
   .primary-button:hover { filter: brightness(1.08); }
   .ghost-button:active, .primary-button:active { transform: scale(.965); }
 
+  .responsibles-dialog { width: min(920px, calc(100% - 32px)); max-height: calc(100dvh - 24px); overflow-y: auto; border-radius: 26px; }
+  .responsibles-dialog .dialog-surface { padding: 22px; }
+  .admin-unlock { width: min(430px, 100%); margin: 18px auto 0; }
+  .field-label { display: block; color: var(--faint); font-size: .65rem; font-weight: 850; letter-spacing: .9px; text-transform: uppercase; }
+  .glass-input { width: 100%; min-height: 46px; margin-top: 7px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 13px; outline: none; background: rgba(0, 0, 0, .29); box-shadow: inset 0 1px rgba(255, 255, 255, .055); color: white; font: 650 .84rem inherit; transition: border-color .18s ease, box-shadow .18s ease, background .18s ease; }
+  .glass-input:focus { border-color: rgba(255, 119, 0, .62); background: rgba(0, 0, 0, .38); box-shadow: 0 0 0 4px rgba(255, 119, 0, .1), inset 0 1px rgba(255, 255, 255, .07); }
+  .glass-input::placeholder { color: var(--faint); }
+  .admin-feedback { min-height: 20px; margin: 9px 0 0; color: var(--muted); font-size: .76rem; }
+  .admin-feedback.error { color: var(--red); }.admin-feedback.ok { color: var(--green); }
+  .admin-unlock .primary-button { width: 100%; margin-top: 8px; }
+  .responsibles-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 18px 0 11px; }
+  .responsibles-toolbar .search { min-width: 0; }
+  .responsibles-count { flex: 0 0 auto; color: var(--faint); font: 700 .7rem var(--mono); }
+  .responsibles-layout { display: grid; grid-template-columns: minmax(260px, .85fr) minmax(360px, 1.15fr); min-height: 390px; overflow: hidden; border: 1px solid var(--border); border-radius: 19px; background: rgba(1, 7, 22, .34); }
+  .responsibles-list { max-height: 430px; overflow-y: auto; border-right: 1px solid var(--border); }
+  .responsible-row { width: 100%; min-height: 63px; display: grid; grid-template-columns: 9px 64px minmax(0, 1fr); gap: 9px; align-items: center; padding: 10px 12px; border: 0; border-bottom: 1px solid rgba(139, 166, 230, .1); background: transparent; color: var(--text); cursor: pointer; text-align: left; transition: background .16s ease, box-shadow .16s ease; }
+  .responsible-row:hover { background: rgba(50, 78, 145, .2); }
+  .responsible-row.active { background: linear-gradient(90deg, rgba(255, 119, 0, .13), rgba(50, 78, 145, .17)); box-shadow: inset 3px 0 var(--orange); }
+  .responsible-row-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
+  .responsible-row-dot.configured { background: var(--green); box-shadow: 0 0 8px rgba(53, 207, 108, .32); }
+  .responsible-row-extension { color: white; font: 800 .83rem var(--mono); }
+  .responsible-row-copy { min-width: 0; }
+  .responsible-row-copy strong, .responsible-row-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .responsible-row-copy strong { color: var(--text); font-size: .76rem; }.responsible-row-copy small { margin-top: 2px; color: var(--faint); font-size: .66rem; }
+  .responsibles-empty { display: grid; min-height: 180px; place-items: center; padding: 24px; color: var(--faint); font-size: .78rem; text-align: center; }
+  .responsible-editor { padding: 22px; }
+  .responsible-identity { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+  .responsible-identity p { margin: 0 0 3px; color: var(--orange-light); font: 800 .72rem var(--mono); }
+  .responsible-identity h3 { margin: 0; color: white; font-size: 1.03rem; }
+  .responsible-identity span { display: block; margin-top: 3px; color: var(--faint); font-size: .72rem; }
+  .source-badge { flex: 0 0 auto; min-height: 28px; display: inline-flex; align-items: center; padding: 4px 9px; border: 1px solid var(--border); border-radius: 999px; background: rgba(255, 255, 255, .045); color: var(--muted); font-size: .67rem; font-weight: 750; }
+  .source-badge.local { color: var(--orange-light); border-color: rgba(255, 119, 0, .35); background: rgba(255, 119, 0, .08); }
+  .source-badge.mikopbx { color: var(--blue); border-color: rgba(119, 174, 255, .3); background: var(--blue-bg); }
+  .responsible-form-field { display: block; margin-top: 18px; }
+  .responsible-help { display: block; margin-top: 7px; color: var(--faint); font-size: .7rem; line-height: 1.4; }
+  .switch-row { min-height: 56px; display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 16px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 14px; background: rgba(255, 255, 255, .03); }
+  .switch-copy strong, .switch-copy small { display: block; }.switch-copy strong { color: var(--text); font-size: .78rem; }.switch-copy small { margin-top: 2px; color: var(--faint); font-size: .67rem; }
+  .switch { position: relative; width: 44px; height: 25px; flex: 0 0 auto; }
+  .switch input { position: absolute; opacity: 0; pointer-events: none; }
+  .switch-track { position: absolute; inset: 0; border: 1px solid var(--border); border-radius: 999px; background: rgba(255, 255, 255, .08); cursor: pointer; transition: background .2s ease, border-color .2s ease; }
+  .switch-track::after { content: ""; position: absolute; width: 19px; height: 19px; left: 2px; top: 2px; border-radius: 50%; background: #d9e2f4; box-shadow: 0 3px 8px rgba(0, 0, 0, .32); transition: transform .24s cubic-bezier(.22, 1, .36, 1), background .2s ease; }
+  .switch input:checked + .switch-track { border-color: rgba(53, 207, 108, .5); background: rgba(53, 207, 108, .42); }.switch input:checked + .switch-track::after { transform: translateX(19px); background: white; }
+  .switch input:focus-visible + .switch-track { outline: 2px solid #ffcb9c; outline-offset: 3px; }
+  .responsible-actions { display: grid; grid-template-columns: 1fr 1.2fr; gap: 10px; margin-top: 17px; }
+  .responsible-actions button:disabled { cursor: not-allowed; opacity: .38; }
+
   @keyframes rise-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
   @keyframes column-menu-drop { from { opacity: 0; transform: translateY(-10px) scale(.975); } to { opacity: 1; transform: translateY(0) scale(1); } }
   @keyframes dialog-in { from { opacity: 0; transform: translateY(12px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
-  @media (max-width: 930px) { .stats, .report-cards { grid-template-columns: repeat(2, 1fr); } .topbar { align-items: flex-start; } .status-pills { justify-content: flex-start; } .report-layout { grid-template-columns: 1fr; }.activity-list { grid-template-columns: 1fr; } .activity-item { border-right: 0; border-bottom: 1px solid var(--border); } .activity-item:last-child { border-bottom: 0; } .activity-head { align-items: flex-start; } .activity-actions { align-items: flex-end; flex-direction: column-reverse; } }
-  @media (max-width: 580px) { .wrap { width: min(100% - 28px, 1440px); padding-top: 14px; }.topbar { padding: 13px; border-radius: 20px; }.brand-mark { width: 42px; height: 42px; border-radius: 12px; }.brand h1 { font-size: 1.13rem; }.brand-subtitle { font-size: .71rem; }.status-pills { width: 100%; }.pill { padding: 6px 8px; font-size: .72rem; }.stats { gap: 8px; }.tile { padding: 14px; border-radius: 17px; }.tile .value { font-size: 1.72rem; }.operational { align-items: flex-start; }.operational-detail { display: block; margin-top: 3px; }.search { min-width: 100%; }.segmented { width: 100%; }.segmented button { flex: 1; padding: 8px 6px; font-size: .72rem; }.report-head { align-items: flex-start; flex-direction: column; }.report-period { width: 100%; }.report-period button { flex: 1; }.report-cards { grid-template-columns: 1fr 1fr; }.report-layout { grid-template-columns: minmax(0, 1fr); padding: 10px; }.weekday-grid { gap: 4px; padding-inline: 8px; }.report-panel-head { align-items: flex-start; flex-direction: column; }.report-tabs { width: 100%; }.report-tabs button { flex: 1; }.report-general { grid-template-columns: 1fr; }.report-row { grid-template-columns: minmax(130px, 1.3fr) minmax(80px, .7fr); }.report-row .report-cell:nth-child(n+3) { display: none; }.activity-head { align-items: flex-start; flex-direction: column; gap: 3px; }.activity-actions { width: 100%; align-items: stretch; }.test-button { width: 100%; }.dialog-surface { padding: 21px; border-radius: 23px; }.dialog-actions { grid-template-columns: 1fr; }.ghost-button { order: 2; } }
+  @media (max-width: 930px) { .stats, .report-cards { grid-template-columns: repeat(2, 1fr); } .topbar { align-items: flex-start; } .status-pills { justify-content: flex-start; } .report-layout { grid-template-columns: 1fr; }.activity-list { grid-template-columns: 1fr; } .activity-item { border-right: 0; border-bottom: 1px solid var(--border); } .activity-item:last-child { border-bottom: 0; } .activity-head { align-items: flex-start; } .activity-actions { align-items: flex-end; flex-direction: column-reverse; } .responsibles-layout { grid-template-columns: 1fr; }.responsibles-list { max-height: 220px; border-right: 0; border-bottom: 1px solid var(--border); } }
+  @media (max-width: 580px) { .wrap { width: min(100% - 28px, 1440px); padding-top: 14px; }.topbar { padding: 13px; border-radius: 20px; }.brand-mark { width: 42px; height: 42px; border-radius: 12px; }.brand h1 { font-size: 1.13rem; }.brand-subtitle { font-size: .71rem; }.status-pills { width: 100%; }.pill { padding: 6px 8px; font-size: .72rem; }.stats { gap: 8px; }.tile { padding: 14px; border-radius: 17px; }.tile .value { font-size: 1.72rem; }.operational { align-items: flex-start; }.operational-detail { display: block; margin-top: 3px; }.search { min-width: 100%; }.manage-button { width: 100%; }.segmented { width: 100%; }.segmented button { flex: 1; padding: 8px 6px; font-size: .72rem; }.report-head { align-items: flex-start; flex-direction: column; }.report-period { width: 100%; }.report-period button { flex: 1; }.report-cards { grid-template-columns: 1fr 1fr; }.report-layout { grid-template-columns: minmax(0, 1fr); padding: 10px; }.weekday-grid { gap: 4px; padding-inline: 8px; }.report-panel-head { align-items: flex-start; flex-direction: column; }.report-tabs { width: 100%; }.report-tabs button { flex: 1; }.report-general { grid-template-columns: 1fr; }.report-row { grid-template-columns: minmax(130px, 1.3fr) minmax(80px, .7fr); }.report-row .report-cell:nth-child(n+3) { display: none; }.activity-head { align-items: flex-start; flex-direction: column; gap: 3px; }.activity-actions { width: 100%; align-items: stretch; }.test-button { width: 100%; }.dialog-surface { padding: 21px; border-radius: 23px; }.dialog-actions { grid-template-columns: 1fr; }.ghost-button { order: 2; }.responsibles-dialog .dialog-surface { padding: 18px; }.responsibles-toolbar { align-items: stretch; flex-direction: column; }.responsible-editor { padding: 17px 14px; }.responsible-identity { flex-direction: column; }.responsible-actions { grid-template-columns: 1fr; }.responsible-actions .ghost-button { order: 2; } }
   @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) { .topbar, .tile, .operational, .toolbar, .table-wrap, .activity, .availability-report, .dialog-surface { background-color: rgba(7, 18, 46, .96); } }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
 </style>
@@ -295,6 +346,7 @@
 
   <div class="toolbar">
     <label class="search"><span class="icon" aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Buscar por ramal, nome ou setor…" autocomplete="off" aria-label="Buscar ramal, nome ou setor"></label>
+    <button id="responsibles-open" class="manage-button" type="button" hidden>Responsáveis</button>
     <div class="segmented" id="filter" role="group" aria-label="Filtrar ramais">
       <button type="button" data-f="all" class="active" aria-pressed="true">Todos</button><button type="button" data-f="attention" aria-pressed="false">Atenção</button><button type="button" data-f="offline" aria-pressed="false">Offline</button><button type="button" data-f="online" aria-pressed="false">Online</button>
     </div>
@@ -390,6 +442,58 @@
   </div>
 </dialog>
 
+<dialog id="responsibles-dialog" class="glass-dialog responsibles-dialog" aria-labelledby="responsibles-dialog-title">
+  <div class="dialog-surface">
+    <button id="responsibles-close" class="dialog-close" type="button" aria-label="Fechar cadastro de responsáveis">×</button>
+    <div class="dialog-icon" aria-hidden="true">✉</div>
+    <p class="dialog-overline">Cadastro interno protegido</p>
+    <h2 id="responsibles-dialog-title">Responsáveis dos ramais</h2>
+    <p class="dialog-copy">Vincule um e-mail diretamente ao ramal. O cadastro local funciona sem o MikoPBX e pode ser removido a qualquer momento.</p>
+
+    <form id="responsibles-unlock" class="admin-unlock">
+      <input type="text" name="username" value="administrador" autocomplete="username" hidden>
+      <label class="field-label" for="responsibles-password">Senha administrativa</label>
+      <input id="responsibles-password" class="glass-input" type="password" autocomplete="current-password" placeholder="Digite a senha desta área" required>
+      <p id="responsibles-unlock-feedback" class="admin-feedback" role="status" aria-live="polite"></p>
+      <button class="primary-button" type="submit">Acessar responsáveis</button>
+    </form>
+
+    <div id="responsibles-manager" hidden>
+      <div class="responsibles-toolbar">
+        <label class="search"><span class="icon" aria-hidden="true">⌕</span><input id="responsibles-search" type="search" placeholder="Buscar ramal ou responsável…" autocomplete="off" aria-label="Buscar ramal ou responsável"></label>
+        <span id="responsibles-count" class="responsibles-count">0 ramais</span>
+      </div>
+      <div class="responsibles-layout">
+        <div id="responsibles-list" class="responsibles-list" aria-label="Ramais monitorados"></div>
+        <form id="responsible-form" class="responsible-editor">
+          <div class="responsible-identity">
+            <div>
+              <p id="responsible-extension">Selecione um ramal</p>
+              <h3 id="responsible-name">Nenhum ramal selecionado</h3>
+              <span id="responsible-sector">—</span>
+            </div>
+            <span id="responsible-source" class="source-badge">Sem cadastro</span>
+          </div>
+          <label class="responsible-form-field">
+            <span class="field-label">E-mail do responsável</span>
+            <input id="responsible-email" class="glass-input" type="email" maxlength="254" autocomplete="email" placeholder="responsavel@empresa.com.br" required disabled>
+            <small class="responsible-help">Este endereço receberá somente os alertas vinculados ao ramal selecionado.</small>
+          </label>
+          <label class="switch-row">
+            <span class="switch-copy"><strong>Enviar alertas automáticos</strong><small>Queda confirmada e retorno, conforme as regras do monitor.</small></span>
+            <span class="switch"><input id="responsible-notify" type="checkbox" checked disabled><span class="switch-track" aria-hidden="true"></span></span>
+          </label>
+          <p id="responsible-feedback" class="admin-feedback" role="status" aria-live="polite"></p>
+          <div class="responsible-actions">
+            <button id="responsible-clear" class="ghost-button" type="button" disabled>Voltar ao MikoPBX</button>
+            <button id="responsible-save" class="primary-button" type="submit" disabled>Salvar vínculo</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</dialog>
+
 <script>
 const POLL_MS = 3000;
 let lastData = null;
@@ -404,6 +508,11 @@ let reportData = null;
 let reportDays = 30;
 let reportView = "general";
 let reportLoading = false;
+let responsiblesPassword = "";
+let responsibleRows = [];
+let selectedResponsibleExtension = null;
+let responsibleSearchTerm = "";
+let responsibleRequestInFlight = false;
 
 const columnConfigs = {
   status: { label: "Situação", search: "Buscar situação", sort: [["asc", "Online primeiro"], ["desc", "Offline primeiro"]], values: true },
@@ -739,9 +848,163 @@ function renderAlerts(data) {
   }).join("");
 }
 
+const responsiblesDialog = document.getElementById("responsibles-dialog");
+const responsiblesUnlock = document.getElementById("responsibles-unlock");
+const responsiblesManager = document.getElementById("responsibles-manager");
+let responsibleClearArmed = false;
+
+function responsibleSource(source) {
+  return {
+    local: ["Cadastro local", "local"],
+    mikopbx: ["MikoPBX", "mikopbx"],
+    none: ["Sem e-mail", ""],
+  }[source] || ["Sem e-mail", ""];
+}
+
+function resetResponsibleClear() {
+  responsibleClearArmed = false;
+  document.getElementById("responsible-clear").textContent = "Voltar ao MikoPBX";
+}
+
+function renderResponsibleEditor() {
+  const row = responsibleRows.find(item => item.extension === selectedResponsibleExtension);
+  const email = document.getElementById("responsible-email");
+  const notify = document.getElementById("responsible-notify");
+  const save = document.getElementById("responsible-save");
+  const clear = document.getElementById("responsible-clear");
+  const source = document.getElementById("responsible-source");
+  resetResponsibleClear();
+  if (!row) {
+    document.getElementById("responsible-extension").textContent = "Selecione um ramal";
+    document.getElementById("responsible-name").textContent = "Nenhum ramal selecionado";
+    document.getElementById("responsible-sector").textContent = "—";
+    source.textContent = "Sem cadastro"; source.className = "source-badge";
+    email.value = ""; email.disabled = true; notify.disabled = true; save.disabled = true; clear.disabled = true;
+    return;
+  }
+  const sourceInfo = responsibleSource(row.source);
+  document.getElementById("responsible-extension").textContent = "Ramal " + row.extension;
+  document.getElementById("responsible-name").textContent = row.name || "Responsável não identificado";
+  document.getElementById("responsible-sector").textContent = row.sector || (row.online ? "Ramal online" : "Ramal offline");
+  source.textContent = sourceInfo[0]; source.className = "source-badge" + (sourceInfo[1] ? " " + sourceInfo[1] : "");
+  email.value = row.email || ""; email.disabled = false;
+  notify.checked = row.notify !== false; notify.disabled = false;
+  save.disabled = false; clear.disabled = row.source !== "local";
+}
+
+function renderResponsibleList() {
+  const list = document.getElementById("responsibles-list");
+  const query = responsibleSearchTerm.toLocaleLowerCase("pt-BR");
+  const rows = responsibleRows.filter(row => (row.extension + " " + (row.name || "") + " " + (row.sector || "")).toLocaleLowerCase("pt-BR").includes(query));
+  document.getElementById("responsibles-count").textContent = rows.length + " de " + responsibleRows.length + " ramais";
+  if (!rows.length) {
+    list.innerHTML = '<div class="responsibles-empty">Nenhum ramal corresponde à busca atual.</div>';
+    return;
+  }
+  list.innerHTML = rows.map(row => {
+    const source = responsibleSource(row.source)[0];
+    const active = row.extension === selectedResponsibleExtension ? " active" : "";
+    const configured = row.email ? " configured" : "";
+    return '<button class="responsible-row' + active + '" type="button" data-extension="' + escapeHtml(row.extension) + '"><span class="responsible-row-dot' + configured + '" aria-hidden="true"></span><span class="responsible-row-extension">' + escapeHtml(row.extension) + '</span><span class="responsible-row-copy"><strong>' + escapeHtml(row.name || "Sem identificação") + '</strong><small>' + escapeHtml(source) + '</small></span></button>';
+  }).join("");
+}
+
+function selectResponsible(extension) {
+  selectedResponsibleExtension = extension;
+  document.getElementById("responsible-feedback").textContent = "";
+  renderResponsibleList();
+  renderResponsibleEditor();
+}
+
+function responsibleHeaders() {
+  return {
+    "X-PulsoPBX-Admin": responsiblesPassword,
+    "X-PulsoPBX-Action": "manage-responsibles",
+  };
+}
+
+async function loadResponsibles(password) {
+  if (responsibleRequestInFlight) return false;
+  responsibleRequestInFlight = true;
+  const feedback = document.getElementById("responsibles-unlock-feedback");
+  feedback.className = "admin-feedback"; feedback.textContent = "Verificando acesso…";
+  try {
+    const candidate = password || responsiblesPassword;
+    const response = await fetch("/api/admin/responsibles", {
+      cache: "no-store",
+      headers: { "X-PulsoPBX-Admin": candidate, "X-PulsoPBX-Action": "manage-responsibles" },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "HTTP " + response.status);
+    responsiblesPassword = candidate;
+    responsibleRows = payload.responsibles || [];
+    if (!responsibleRows.some(row => row.extension === selectedResponsibleExtension)) selectedResponsibleExtension = responsibleRows.length ? responsibleRows[0].extension : null;
+    responsiblesUnlock.hidden = true; responsiblesManager.hidden = false;
+    feedback.textContent = "";
+    renderResponsibleList(); renderResponsibleEditor();
+    return true;
+  } catch (error) {
+    responsiblesPassword = "";
+    responsiblesManager.hidden = true; responsiblesUnlock.hidden = false;
+    feedback.className = "admin-feedback error"; feedback.textContent = error.message;
+    document.getElementById("responsibles-password").focus();
+    return false;
+  } finally { responsibleRequestInFlight = false; }
+}
+
+async function saveResponsible(event) {
+  event.preventDefault();
+  if (!selectedResponsibleExtension || responsibleRequestInFlight) return;
+  const emailInput = document.getElementById("responsible-email");
+  if (!emailInput.reportValidity()) return;
+  const feedback = document.getElementById("responsible-feedback");
+  responsibleRequestInFlight = true; feedback.className = "admin-feedback"; feedback.textContent = "Salvando vínculo…";
+  try {
+    const response = await fetch("/api/admin/responsibles/" + encodeURIComponent(selectedResponsibleExtension), {
+      method: "PUT",
+      headers: { ...responsibleHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({ email: emailInput.value.trim(), notify: document.getElementById("responsible-notify").checked }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "HTTP " + response.status);
+    responsibleRequestInFlight = false;
+    await loadResponsibles(responsiblesPassword);
+    feedback.className = "admin-feedback ok"; feedback.textContent = "Vínculo salvo e já ativo no monitor.";
+    refresh(); refreshReport();
+  } catch (error) {
+    feedback.className = "admin-feedback error"; feedback.textContent = error.message;
+  } finally { responsibleRequestInFlight = false; }
+}
+
+async function clearResponsible() {
+  const row = responsibleRows.find(item => item.extension === selectedResponsibleExtension);
+  if (!row || row.source !== "local" || responsibleRequestInFlight) return;
+  const button = document.getElementById("responsible-clear");
+  if (!responsibleClearArmed) {
+    responsibleClearArmed = true;
+    button.textContent = "Confirmar retorno ao MikoPBX";
+    document.getElementById("responsible-feedback").textContent = "Clique novamente para remover somente o cadastro local.";
+    return;
+  }
+  const feedback = document.getElementById("responsible-feedback");
+  responsibleRequestInFlight = true; feedback.className = "admin-feedback"; feedback.textContent = "Removendo cadastro local…";
+  try {
+    const response = await fetch("/api/admin/responsibles/" + encodeURIComponent(row.extension), { method: "DELETE", headers: responsibleHeaders() });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "HTTP " + response.status);
+    responsibleRequestInFlight = false;
+    await loadResponsibles(responsiblesPassword);
+    feedback.className = "admin-feedback ok"; feedback.textContent = "Cadastro local removido; a fonte automática voltou a valer.";
+    refresh(); refreshReport();
+  } catch (error) {
+    feedback.className = "admin-feedback error"; feedback.textContent = error.message;
+  } finally { responsibleRequestInFlight = false; }
+}
+
 function renderAll() {
   if (!lastData) return;
   renderPills(lastData); renderStats(lastData); renderOperational(lastData); renderColumnIndicators(); renderTable(lastData); renderAlerts(lastData); renderIncidents(lastData);
+  document.getElementById("responsibles-open").hidden = !((lastData.management || {}).responsibles_available);
   const shown = lastData.extensions.filter(passesFilter).length;
   document.getElementById("foot-left").textContent = "Exibindo " + shown + " de " + lastData.total + " ramais";
   document.getElementById("foot-right").textContent = lastData.generated_at ? "Dados recebidos às " + new Date(lastData.generated_at * 1000).toLocaleTimeString("pt-BR") : "";
@@ -820,6 +1083,34 @@ document.getElementById("test-dialog-close").addEventListener("click", closeTest
 document.getElementById("test-dialog-cancel").addEventListener("click", closeTestDialog);
 document.getElementById("test-dialog-confirm").addEventListener("click", () => { closeTestDialog(); sendTestAlert(); });
 testDialog.addEventListener("click", event => { if (event.target === testDialog) closeTestDialog(); });
+document.getElementById("responsibles-open").addEventListener("click", () => {
+  responsibleSearchTerm = "";
+  document.getElementById("responsibles-search").value = "";
+  responsiblesDialog.showModal();
+  if (responsiblesPassword) loadResponsibles(responsiblesPassword);
+  else {
+    responsiblesUnlock.hidden = false; responsiblesManager.hidden = true;
+    document.getElementById("responsibles-password").value = "";
+    document.getElementById("responsibles-unlock-feedback").textContent = "";
+    document.getElementById("responsibles-password").focus();
+  }
+});
+document.getElementById("responsibles-close").addEventListener("click", () => responsiblesDialog.close());
+responsiblesDialog.addEventListener("click", event => { if (event.target === responsiblesDialog) responsiblesDialog.close(); });
+responsiblesUnlock.addEventListener("submit", event => {
+  event.preventDefault();
+  loadResponsibles(document.getElementById("responsibles-password").value);
+});
+document.getElementById("responsibles-search").addEventListener("input", event => {
+  responsibleSearchTerm = event.target.value.trim();
+  renderResponsibleList();
+});
+document.getElementById("responsibles-list").addEventListener("click", event => {
+  const row = event.target.closest("[data-extension]");
+  if (row) selectResponsible(row.dataset.extension);
+});
+document.getElementById("responsible-form").addEventListener("submit", saveResponsible);
+document.getElementById("responsible-clear").addEventListener("click", clearResponsible);
 function tickClock() { document.getElementById("clock").textContent = new Date().toLocaleTimeString("pt-BR"); }
 setInterval(tickClock, 1000); tickClock(); refresh(); refreshReport(); setInterval(refresh, POLL_MS); setInterval(refreshReport, 60000);
 </script>

@@ -1,5 +1,7 @@
 import os
+import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from config import ConfigError, load_config
@@ -13,6 +15,7 @@ class ConfigTests(unittest.TestCase):
         self.assertFalse(config.ami_enabled)
         self.assertFalse(config.email_enabled)
         self.assertFalse(config.notifications_enabled)
+        self.assertFalse(config.responsibles_admin_enabled)
 
     def test_zero_reconcile_interval_is_rejected(self):
         with patch.dict(os.environ, {"RECONCILE_SECONDS": "0"}, clear=True):
@@ -81,4 +84,26 @@ class ConfigTests(unittest.TestCase):
     def test_dashboard_credentials_must_be_complete(self):
         with patch.dict(os.environ, {"DASHBOARD_USERNAME": "pulsopbx"}, clear=True):
             with self.assertRaisesRegex(ConfigError, "DASHBOARD_PASSWORD"):
+                load_config()
+
+    def test_responsibles_admin_password_can_come_from_private_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            secret_file = Path(directory) / "admin.txt"
+            secret_file.write_text("uma-senha-administrativa-segura", encoding="utf-8")
+            with patch.dict(
+                os.environ,
+                {"RESPONSIBLES_ADMIN_PASSWORD_FILE": str(secret_file)},
+                clear=True,
+            ):
+                config = load_config()
+        self.assertTrue(config.responsibles_admin_enabled)
+        self.assertEqual(config.responsibles_admin_password, "uma-senha-administrativa-segura")
+
+    def test_short_responsibles_admin_password_is_rejected(self):
+        with patch.dict(
+            os.environ,
+            {"RESPONSIBLES_ADMIN_PASSWORD": "curta"},
+            clear=True,
+        ):
+            with self.assertRaisesRegex(ConfigError, "pelo menos 12"):
                 load_config()

@@ -7,14 +7,14 @@ param(
 # Nao copia nem remove .env, .venv, logs, data ou outros estados locais.
 $ErrorActionPreference = "Stop"
 $taskName = "RamaisMonitor"
-$src = "\\10.5.0.5\Alma\TI\Ramais\ramais_monitor"
+$src = $PSScriptRoot
 $dst = "C:\Users\eduardo.p\ramais_monitor"
 $backupRoot = "C:\Users\eduardo.p\ramais_monitor_backups"
 $excludedDirectories = @(
     ".git", ".venv", "__pycache__", "logs", "data", "output",
     ".claude", ".playwright-cli"
 )
-$excludedFiles = @("*.pyc", ".env")
+$excludedFiles = @("*.pyc", ".env", "ramais_nomes.json", "work_calendar.json")
 
 function Invoke-SafeRobocopy {
     param(
