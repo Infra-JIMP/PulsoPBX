@@ -139,6 +139,22 @@ async def tick_loop(
                 )
 
 
+async def maintain_ami_connection(client: AmiClient, retry_seconds: float = 5) -> None:
+    """Mantem a AMI em segundo plano sem impedir o painel web de iniciar."""
+    while True:
+        try:
+            await client.connect()
+            # O panoramisk assume as reconexoes depois do primeiro connect.
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logging.getLogger("main").exception(
+                "Falha ao iniciar conexao AMI; nova tentativa em %.0fs", retry_seconds
+            )
+            await asyncio.sleep(retry_seconds)
+
+
 async def run() -> None:
     setup_logging()
     logger = logging.getLogger("main")
@@ -316,10 +332,6 @@ async def run() -> None:
             mass_outage_window_seconds=config.mass_outage_window_seconds,
         )
 
-    if client is not None:
-        logger.info("Conectando a AMI em %s:%s...", config.ami_host, config.ami_port)
-        await client.connect()
-
     tasks = [
         tick_loop(tracker, responsible_scheduler, incidents, availability),
         run_dashboard(
@@ -338,6 +350,12 @@ async def run() -> None:
     if responsible_scheduler is not None:
         tasks.append(responsible_scheduler.run())
     if client is not None:
+        logger.info(
+            "Conexao AMI sera mantida em segundo plano em %s:%s",
+            config.ami_host,
+            config.ami_port,
+        )
+        tasks.append(maintain_ami_connection(client))
         tasks.append(client.periodic_reconcile(config.reconcile_seconds))
     if config.mikopbx_api_enabled and not config.demo_mode:
         tasks.append(mikopbx_names_loop(config, tracker, incidents, availability))
