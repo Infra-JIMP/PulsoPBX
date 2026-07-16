@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
+  <title>{{TITLE}}</title>
+  <style>
+    @media only screen and (max-width: 700px) {
+      .email-shell { width: 100% !important; }
+      .mobile-pad { padding-left: 20px !important; padding-right: 20px !important; }
+      .signature-logo, .signature-copy { display: block !important; width: 100% !important; border-left: 0 !important; padding-left: 0 !important; text-align: left !important; }
+      .signature-logo { padding-bottom: 12px !important; }
+    }
+  </style>
+</head>
+<body style="margin:0;padding:0;background-color:#eef1f5;font-family:Arial,Helvetica,sans-serif;color:#172033;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#eef1f5">
+    <tr>
+      <td align="center" style="padding:28px 12px;">
+        <!--[if mso]><table role="presentation" width="680" cellspacing="0" cellpadding="0" border="0"><tr><td><![endif]-->
+        <table role="presentation" width="680" cellspacing="0" cellpadding="0" border="0" bgcolor="#ffffff" class="email-shell" style="width:680px;background-color:#ffffff;border:1px solid #dfe4ec;">
+          <tr>
+            <td width="190" height="6" bgcolor="#f58220" style="width:190px;height:6px;font-size:0;line-height:0;background-color:#f58220;">&nbsp;</td>
+            <td height="6" bgcolor="#0b1c3d" style="height:6px;font-size:0;line-height:0;background-color:#0b1c3d;">&nbsp;</td>
+          </tr>
+          <tr>
+            <td colspan="2" class="mobile-pad" style="padding:30px 34px 16px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  <td width="52" valign="middle" style="width:52px;padding-right:12px;">
+                    <table role="presentation" width="42" cellspacing="0" cellpadding="0" border="0" bgcolor="#fff0ed" style="width:42px;background-color:#fff0ed;border:1px solid #ffd0c8;">
+                      <tr><td height="42" align="center" valign="middle" style="height:42px;color:{{STATUS_COLOR}};font-size:22px;font-weight:bold;line-height:42px;">!</td></tr>
+                    </table>
+                  </td>
+                  <td valign="middle">
+                    <div style="color:{{STATUS_COLOR}};font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;letter-spacing:1px;line-height:16px;text-transform:uppercase;">{{EYEBROW}}</div>
+                    <div style="color:#0b1c3d;font-family:Arial,Helvetica,sans-serif;font-size:24px;font-weight:bold;line-height:30px;">{{TITLE}}</div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td colspan="2" class="mobile-pad" style="padding:0 34px 22px;color:#39465a;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:24px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                <tr><td style="padding:0 0 12px;color:#39465a;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:24px;">{{GREETING}}</td></tr>
+                <tr><td style="padding:0 0 18px;color:#39465a;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:24px;">{{MESSAGE}}</td></tr>
+              </table>
+
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#f7f9fc" style="width:100%;background-color:#f7f9fc;border:1px solid #dfe4ec;">
+                <tr>
+                  <td width="50%" valign="top" bgcolor="#f7f9fc" style="width:50%;padding:15px 17px;border-right:1px solid #dfe4ec;border-bottom:1px solid #dfe4ec;background-color:#f7f9fc;">
+                    <div style="color:#7a879a;font-family:Arial,Helvetica,sans-serif;font-size:10px;letter-spacing:.7px;line-height:15px;text-transform:uppercase;">SITUAÇÃO</div>
+                    <div style="padding-top:4px;color:{{STATUS_COLOR}};font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:bold;line-height:20px;">{{STATUS_LABEL}}</div>
+                  </td>
+                  <td width="50%" valign="top" bgcolor="#f7f9fc" style="width:50%;padding:15px 17px;border-bottom:1px solid #dfe4ec;background-color:#f7f9fc;">
+                    <div style="color:#7a879a;font-family:Arial,Helvetica,sans-serif;font-size:10px;letter-spacing:.7px;line-height:15px;text-transform:uppercase;">RAMAL</div>
+                    <div style="padding-top:4px;color:#0b1c3d;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:bold;line-height:20px;">{{EXTENSION}}</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td width="50%" valign="top" bgcolor="#f7f9fc" style="width:50%;padding:15px 17px;border-right:1px solid #dfe4ec;background-color:#f7f9fc;">
+                    <div style="color:#7a879a;font-family:Arial,Helvetica,sans-serif;font-size:10px;letter-spacing:.7px;line-height:15px;text-transform:uppercase;">SETOR</div>
+                    <div style="padding-top:4px;color:#0b1c3d;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:bold;line-height:20px;">{{SECTOR}}</div>
+                  </td>
+                  <td width="50%" valign="top" bgcolor="#f7f9fc" style="width:50%;padding:15px 17px;background-color:#f7f9fc;">
+                    <div style="color:#7a879a;font-family:Arial,Helvetica,sans-serif;font-size:10px;letter-spacing:.7px;line-height:15px;text-transform:uppercase;">{{TIMESTAMP_LABEL}}</div>
+                    <div style="padding-top:4px;color:#0b1c3d;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:bold;line-height:20px;">{{TIMESTAMP}}</div>
+                  </td>
+                </tr>
+              </table>
+
+              {{STEPS}}
+
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-top:16px;">
+                <tr>
+                  <td width="4" bgcolor="#f58220" style="width:4px;background-color:#f58220;font-size:0;line-height:0;">&nbsp;</td>
+                  <td bgcolor="#fff8ed" style="padding:13px 15px;background-color:#fff8ed;color:#574633;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:21px;">{{CALLOUT}}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td colspan="2" class="mobile-pad" style="padding:0 34px;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr><td height="1" bgcolor="#dfe4ec" style="height:1px;background-color:#dfe4ec;font-size:0;line-height:0;">&nbsp;</td></tr></table></td>
+          </tr>
+          <tr>
+            <td colspan="2" class="mobile-pad" style="padding:20px 34px 16px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  {{LOGO_CELL}}
+                  <td valign="middle" class="signature-copy" style="padding-left:20px;border-left:1px solid #dfe4ec;color:#111827;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:16px;">
+                    <div style="padding-bottom:8px;font-weight:bold;">Atenciosamente,</div>
+                    <div style="font-size:13px;line-height:17px;">Eduardo Porangaba Leite Ribeiro da Silva</div>
+                    <div>Assistente de TI Júnior</div>
+                    <div style="padding-top:6px;"><strong>Televendas:</strong> 0800-641-1133</div>
+                    <div><strong>Fixo:</strong> (47) 3464-1133</div>
+                    <div><strong>Whats:</strong> (47) 99980-2446</div>
+                    <div style="padding-top:6px;">Av. Celso Ramos, 4821 | Distr. Indl Sul | Garuva - SC</div>
+                    <div style="padding-top:4px;"><a href="https://www.joinvilleimplementos.com.br" style="color:#2449a5;text-decoration:underline;">www.joinvilleimplementos.com.br</a></div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td colspan="2" align="center" class="mobile-pad" style="padding:12px 34px 20px;color:#8993a4;font-family:Arial,Helvetica,sans-serif;font-size:11px;line-height:16px;text-align:center;">Mensagem automática enviada pelo PulsoPBX. Um único aviso é emitido por incidente.</td>
+          </tr>
+        </table>
+        <!--[if mso]></td></tr></table><![endif]-->
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

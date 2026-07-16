@@ -150,6 +150,12 @@
   tbody tr.pending-recovery { box-shadow: inset 3px 0 0 var(--blue); }
   .col-ramal { color: white; font: 750 .93rem var(--mono); }
   .col-nome { color: white; font-weight: 600; }
+  .profile-trigger { max-width: 100%; display: inline-flex; align-items: center; gap: 8px; padding: 5px 8px; margin: -5px -8px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: white; cursor: pointer; font: 700 .88rem inherit; text-align: left; transition: color .18s ease, border-color .18s ease, background .18s ease, box-shadow .18s ease, transform .13s cubic-bezier(.22, 1, .36, 1); }
+  .profile-trigger > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .profile-trigger::after { content: ""; width: 6px; height: 6px; flex: 0 0 auto; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; opacity: 0; transform: translateX(-3px) rotate(-45deg); transition: opacity .18s ease, transform .22s cubic-bezier(.22, 1, .36, 1); }
+  .profile-trigger:hover, .profile-trigger[aria-expanded="true"] { border-color: rgba(255, 255, 255, .12); background: rgba(255, 255, 255, .065); box-shadow: inset 0 1px rgba(255, 255, 255, .07); }
+  .profile-trigger:hover::after, .profile-trigger[aria-expanded="true"]::after { opacity: .72; transform: translateX(0) rotate(-45deg); }
+  .profile-trigger:active { transform: scale(.975); }
   .col-setor, .col-tempo { color: var(--muted); }
   .col-tempo { font-variant-numeric: tabular-nums; font-family: var(--mono); font-size: .83rem; white-space: nowrap; }
   .st { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; font-size: .82rem; white-space: nowrap; }
@@ -239,6 +245,62 @@
   .test-feedback.ok { color: var(--green); }.test-feedback.error { color: var(--red); }
   footer { margin-top: 16px; color: var(--faint); font-size: .78rem; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
 
+  .profile-scrim { display: none; }
+  .profile-popover { --profile-origin-x: 48px; position: fixed; z-index: 90; width: min(420px, calc(100vw - 28px)); max-height: calc(100dvh - 28px); padding: 18px; overflow-x: hidden; overflow-y: auto; border: 1px solid rgba(255, 255, 255, .2); border-radius: 26px; background: radial-gradient(circle at 16% -8%, rgba(255, 255, 255, .2), transparent 12rem), radial-gradient(circle at 92% 4%, rgba(64, 111, 231, .24), transparent 15rem), linear-gradient(145deg, rgba(255, 255, 255, .13), rgba(9, 24, 60, .73) 46%, rgba(2, 8, 24, .82)); -webkit-backdrop-filter: blur(36px) saturate(180%); backdrop-filter: blur(36px) saturate(180%); box-shadow: 0 30px 80px rgba(0, 0, 0, .52), 0 10px 30px rgba(9, 31, 88, .28), inset 0 1px rgba(255, 255, 255, .2), inset 0 -1px rgba(255, 255, 255, .055); color: var(--text); scrollbar-width: thin; transform-origin: var(--profile-origin-x) top; isolation: isolate; }
+  .profile-popover::before { content: ""; position: absolute; z-index: -1; width: 15rem; height: 5rem; left: -3rem; top: -3.8rem; border-radius: 50%; pointer-events: none; background: rgba(255, 255, 255, .18); filter: blur(16px); transform: rotate(-9deg); }
+  .profile-popover::after { content: ""; position: absolute; z-index: -1; width: 12rem; height: 12rem; right: -7rem; bottom: -8rem; border-radius: 50%; pointer-events: none; background: rgba(255, 119, 0, .14); filter: blur(10px); }
+  .profile-popover[data-placement="top"] { transform-origin: var(--profile-origin-x) bottom; }
+  .profile-popover:not(.ready) { visibility: hidden; opacity: 0; }
+  .profile-popover.ready { animation: profile-pop-in .25s cubic-bezier(.22, 1, .36, 1) both; }
+  .profile-close { position: absolute; z-index: 2; top: 13px; right: 13px; width: 34px; height: 34px; display: grid; place-items: center; padding: 0; border: 1px solid rgba(255, 255, 255, .13); border-radius: 999px; background: rgba(255, 255, 255, .07); box-shadow: inset 0 1px rgba(255, 255, 255, .1); color: var(--muted); cursor: pointer; font: 400 1.2rem/1 inherit; transition: color .18s ease, background .18s ease, transform .13s ease; }
+  .profile-close:hover { color: white; background: rgba(255, 255, 255, .13); }
+  .profile-close:active { transform: scale(.94); }
+  .profile-head { display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 13px; align-items: center; padding-right: 32px; }
+  .profile-avatar { width: 58px; height: 58px; display: grid; place-items: center; border: 1px solid rgba(255, 186, 124, .42); border-radius: 19px; background: radial-gradient(circle at 28% 18%, rgba(255, 255, 255, .28), transparent 42%), linear-gradient(145deg, rgba(255, 139, 45, .82), rgba(35, 65, 138, .74)); box-shadow: 0 12px 26px rgba(0, 0, 0, .28), inset 0 1px rgba(255, 255, 255, .28); color: white; font-size: 1rem; font-weight: 850; letter-spacing: .4px; text-shadow: 0 2px 8px rgba(0, 0, 0, .3); }
+  .profile-overline { margin: 0 0 2px; color: var(--orange-light); font-size: .61rem; font-weight: 850; letter-spacing: 1.25px; text-transform: uppercase; }
+  .profile-head h2 { margin: 0; overflow: hidden; color: white; font-size: 1.08rem; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+  .profile-extension { margin: 3px 0 0; color: var(--muted); font: 750 .72rem var(--mono); }
+  .profile-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 16px; padding: 4px; border: 1px solid rgba(255, 255, 255, .1); border-radius: 14px; background: rgba(0, 0, 0, .23); box-shadow: inset 0 1px rgba(255, 255, 255, .045); }
+  .profile-tab { min-height: 37px; padding: 7px 10px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: var(--muted); cursor: pointer; font: 800 .7rem inherit; transition: color .18s ease, border-color .18s ease, background .18s ease, transform .13s ease; }
+  .profile-tab:hover { color: white; background: rgba(255, 255, 255, .05); }
+  .profile-tab[aria-selected="true"] { border-color: rgba(255, 184, 120, .34); background: linear-gradient(145deg, rgba(255, 255, 255, .12), rgba(255, 119, 0, .13)); box-shadow: inset 0 1px rgba(255, 255, 255, .12); color: white; }
+  .profile-tab:active { transform: scale(.975); }
+  .profile-panel { animation: profile-panel-in .22s cubic-bezier(.22, 1, .36, 1) both; }
+  .profile-state { min-height: 64px; display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 10px; align-items: center; margin-top: 17px; padding: 11px 13px; border: 1px solid var(--border); border-radius: 17px; background: rgba(0, 0, 0, .24); box-shadow: inset 0 1px rgba(255, 255, 255, .06); }
+  .profile-state-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--green); box-shadow: 0 0 11px rgba(53, 207, 108, .42); }
+  .profile-state-copy span { display: block; color: var(--faint); font-size: .59rem; font-weight: 800; letter-spacing: .8px; text-transform: uppercase; }
+  .profile-state-copy strong { display: block; margin-top: 2px; color: var(--green); font-size: .83rem; }
+  .profile-state-duration { color: var(--muted); font: 750 .73rem var(--mono); white-space: nowrap; }
+  .profile-state.offline { border-color: rgba(255, 93, 87, .28); background: rgba(79, 16, 29, .3); }.profile-state.offline .profile-state-dot { background: var(--red); box-shadow: 0 0 11px rgba(255, 93, 87, .4); }.profile-state.offline .profile-state-copy strong { color: #ff7671; }
+  .profile-state.pending { border-color: rgba(243, 179, 59, .28); background: rgba(85, 57, 14, .25); }.profile-state.pending .profile-state-dot { background: var(--amber); box-shadow: 0 0 11px rgba(243, 179, 59, .36); }.profile-state.pending .profile-state-copy strong { color: var(--amber); }
+  .profile-state.recovery { border-color: rgba(119, 174, 255, .27); background: rgba(20, 52, 105, .26); }.profile-state.recovery .profile-state-dot { background: var(--blue); box-shadow: 0 0 11px rgba(119, 174, 255, .38); }.profile-state.recovery .profile-state-copy strong { color: var(--blue); }
+  .profile-details { display: grid; grid-template-columns: 1fr 1.25fr; gap: 9px; margin-top: 9px; }
+  .profile-detail { min-width: 0; padding: 10px 11px; border: 1px solid rgba(255, 255, 255, .09); border-radius: 14px; background: rgba(255, 255, 255, .035); box-shadow: inset 0 1px rgba(255, 255, 255, .045); }
+  .profile-detail span { display: block; color: var(--faint); font-size: .58rem; font-weight: 850; letter-spacing: .75px; text-transform: uppercase; }
+  .profile-detail strong { display: block; margin-top: 4px; overflow: hidden; color: var(--text); font-size: .72rem; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+  .profile-detail strong.configured { color: var(--green); }
+  .profile-live-list { margin-top: 9px; overflow: hidden; border: 1px solid rgba(255, 255, 255, .09); border-radius: 16px; background: rgba(0, 0, 0, .18); box-shadow: inset 0 1px rgba(255, 255, 255, .045); }
+  .profile-live-row { min-height: 43px; display: grid; grid-template-columns: minmax(110px, .75fr) minmax(0, 1.25fr); gap: 12px; align-items: center; padding: 8px 11px; border-bottom: 1px solid rgba(255, 255, 255, .075); }
+  .profile-live-row:last-child { border-bottom: 0; }
+  .profile-live-row span { color: var(--faint); font-size: .61rem; font-weight: 800; letter-spacing: .45px; text-transform: uppercase; }
+  .profile-live-row strong { overflow: hidden; color: var(--text); font-size: .7rem; line-height: 1.35; text-align: right; text-overflow: ellipsis; }
+  .profile-live-row strong.ok { color: var(--green); }.profile-live-row strong.warn { color: var(--amber); }.profile-live-row strong.bad { color: #ff7671; }
+  .profile-history-banner { display: flex; align-items: flex-start; gap: 9px; margin-top: 13px; padding: 10px 11px; border: 1px solid rgba(243, 179, 59, .28); border-radius: 14px; background: rgba(243, 179, 59, .08); color: var(--muted); font-size: .69rem; line-height: 1.4; }
+  .profile-history-banner::before { content: ""; width: 8px; height: 8px; margin-top: 3px; flex: 0 0 auto; border-radius: 50%; background: var(--amber); box-shadow: 0 0 9px rgba(243, 179, 59, .34); }
+  .profile-history-banner.ready { border-color: rgba(53, 207, 108, .28); background: rgba(53, 207, 108, .075); }.profile-history-banner.ready::before { background: var(--green); box-shadow: 0 0 9px rgba(53, 207, 108, .34); }
+  .profile-history-banner.error { border-color: rgba(255, 93, 87, .28); background: rgba(255, 93, 87, .08); }.profile-history-banner.error::before { background: var(--red); }
+  .profile-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 9px; }
+  .profile-metric { min-width: 0; padding: 10px 11px; border: 1px solid rgba(255, 255, 255, .085); border-radius: 14px; background: rgba(255, 255, 255, .035); box-shadow: inset 0 1px rgba(255, 255, 255, .04); }
+  .profile-metric span { display: block; color: var(--faint); font-size: .57rem; font-weight: 850; letter-spacing: .65px; text-transform: uppercase; }
+  .profile-metric strong { display: block; margin-top: 5px; overflow: hidden; color: white; font: 800 .8rem var(--mono); text-overflow: ellipsis; white-space: nowrap; }
+  .profile-routine { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 9px; }
+  .profile-routine-item { padding: 9px 11px; border: 1px solid rgba(119, 174, 255, .16); border-radius: 13px; background: rgba(34, 68, 135, .13); }
+  .profile-routine-item span, .profile-routine-item strong { display: block; }.profile-routine-item span { color: var(--faint); font-size: .57rem; font-weight: 850; letter-spacing: .55px; text-transform: uppercase; }.profile-routine-item strong { margin-top: 4px; color: var(--blue); font: 800 .74rem var(--mono); }
+  .profile-history-note { margin: 10px 2px 0; color: var(--faint); font-size: .62rem; line-height: 1.45; text-align: center; }
+  .profile-manage { width: 100%; min-height: 45px; margin-top: 11px; padding: 9px 13px; border: 1px solid rgba(255, 183, 119, .38); border-radius: 14px; background: linear-gradient(145deg, rgba(255, 255, 255, .1), rgba(255, 119, 0, .12)); box-shadow: inset 0 1px rgba(255, 255, 255, .14), 0 9px 22px rgba(0, 0, 0, .18); color: white; cursor: pointer; font: 800 .76rem inherit; transition: border-color .18s ease, background .18s ease, transform .13s ease; }
+  .profile-manage:hover { border-color: rgba(255, 183, 119, .62); background: linear-gradient(145deg, rgba(255, 255, 255, .15), rgba(255, 119, 0, .18)); }
+  .profile-manage:active { transform: scale(.975); }
+
   .glass-dialog { width: min(430px, calc(100% - 32px)); max-width: none; padding: 0; border: 0; overflow: visible; color: var(--text); background: transparent; }
   .glass-dialog::backdrop { background: rgba(0, 3, 12, .66); -webkit-backdrop-filter: blur(8px) saturate(115%); backdrop-filter: blur(8px) saturate(115%); }
   .dialog-surface { position: relative; overflow: hidden; padding: 24px; border: 1px solid rgba(255, 255, 255, .17); border-radius: 26px; background: radial-gradient(circle at 12% -4%, rgba(255, 119, 0, .16), transparent 14rem), linear-gradient(145deg, rgba(255, 255, 255, .105), rgba(8, 20, 50, .72) 47%, rgba(2, 7, 19, .78)); -webkit-backdrop-filter: blur(34px) saturate(150%); backdrop-filter: blur(34px) saturate(150%); box-shadow: 0 28px 75px rgba(0, 0, 0, .55), inset 0 1px rgba(255, 255, 255, .11); animation: dialog-in .25s cubic-bezier(.22, 1, .36, 1) both; }
@@ -309,9 +371,12 @@
   @keyframes rise-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
   @keyframes column-menu-drop { from { opacity: 0; transform: translateY(-10px) scale(.975); } to { opacity: 1; transform: translateY(0) scale(1); } }
   @keyframes dialog-in { from { opacity: 0; transform: translateY(12px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  @keyframes profile-pop-in { from { opacity: 0; transform: translateY(-9px) scale(.965); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  @keyframes profile-panel-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
   @media (max-width: 930px) { .stats, .report-cards { grid-template-columns: repeat(2, 1fr); } .topbar { align-items: flex-start; } .status-pills { justify-content: flex-start; } .report-layout { grid-template-columns: 1fr; }.activity-list { grid-template-columns: 1fr; } .activity-item { border-right: 0; border-bottom: 1px solid var(--border); } .activity-item:last-child { border-bottom: 0; } .activity-head { align-items: flex-start; } .activity-actions { align-items: flex-end; flex-direction: column-reverse; } .responsibles-layout { grid-template-columns: 1fr; }.responsibles-list { max-height: 220px; border-right: 0; border-bottom: 1px solid var(--border); } }
-  @media (max-width: 580px) { .wrap { width: min(100% - 28px, 1440px); padding-top: 14px; }.topbar { padding: 13px; border-radius: 20px; }.brand-mark { width: 42px; height: 42px; border-radius: 12px; }.brand h1 { font-size: 1.13rem; }.brand-subtitle { font-size: .71rem; }.status-pills { width: 100%; }.pill { padding: 6px 8px; font-size: .72rem; }.stats { gap: 8px; }.tile { padding: 14px; border-radius: 17px; }.tile .value { font-size: 1.72rem; }.operational { align-items: flex-start; }.operational-detail { display: block; margin-top: 3px; }.search { min-width: 100%; }.manage-button { width: 100%; }.segmented { width: 100%; }.segmented button { flex: 1; padding: 8px 6px; font-size: .72rem; }.report-head { align-items: flex-start; flex-direction: column; }.report-period { width: 100%; }.report-period button { flex: 1; }.report-cards { grid-template-columns: 1fr 1fr; }.report-layout { grid-template-columns: minmax(0, 1fr); padding: 10px; }.weekday-grid { gap: 4px; padding-inline: 8px; }.report-panel-head { align-items: flex-start; flex-direction: column; }.report-tabs { width: 100%; }.report-tabs button { flex: 1; }.report-general { grid-template-columns: 1fr; }.report-row { grid-template-columns: minmax(130px, 1.3fr) minmax(80px, .7fr); }.report-row .report-cell:nth-child(n+3) { display: none; }.activity-head { align-items: flex-start; flex-direction: column; gap: 3px; }.activity-actions { width: 100%; align-items: stretch; }.test-button { width: 100%; }.dialog-surface { padding: 21px; border-radius: 23px; }.dialog-actions { grid-template-columns: 1fr; }.ghost-button { order: 2; }.responsibles-dialog .dialog-surface { padding: 18px; }.responsibles-toolbar { align-items: stretch; flex-direction: column; }.responsible-editor { padding: 17px 14px; }.responsible-identity { flex-direction: column; }.responsible-actions { grid-template-columns: 1fr; }.responsible-actions .ghost-button { order: 2; } }
-  @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) { .topbar, .tile, .operational, .toolbar, .table-wrap, .activity, .availability-report, .dialog-surface { background-color: rgba(7, 18, 46, .96); } }
+  @media (max-width: 580px) { .wrap { width: min(100% - 28px, 1440px); padding-top: 14px; }.topbar { padding: 13px; border-radius: 20px; }.brand-mark { width: 42px; height: 42px; border-radius: 12px; }.brand h1 { font-size: 1.13rem; }.brand-subtitle { font-size: .71rem; }.status-pills { width: 100%; }.pill { padding: 6px 8px; font-size: .72rem; }.stats { gap: 8px; }.tile { padding: 14px; border-radius: 17px; }.tile .value { font-size: 1.72rem; }.operational { align-items: flex-start; }.operational-detail { display: block; margin-top: 3px; }.search { min-width: 100%; }.manage-button { width: 100%; }.segmented { width: 100%; }.segmented button { flex: 1; padding: 8px 6px; font-size: .72rem; }.report-head { align-items: flex-start; flex-direction: column; }.report-period { width: 100%; }.report-period button { flex: 1; }.report-cards { grid-template-columns: 1fr 1fr; }.report-layout { grid-template-columns: minmax(0, 1fr); padding: 10px; }.weekday-grid { gap: 4px; padding-inline: 8px; }.report-panel-head { align-items: flex-start; flex-direction: column; }.report-tabs { width: 100%; }.report-tabs button { flex: 1; }.report-general { grid-template-columns: 1fr; }.report-row { grid-template-columns: minmax(130px, 1.3fr) minmax(80px, .7fr); }.report-row .report-cell:nth-child(n+3) { display: none; }.activity-head { align-items: flex-start; flex-direction: column; gap: 3px; }.activity-actions { width: 100%; align-items: stretch; }.test-button { width: 100%; }.dialog-surface { padding: 21px; border-radius: 23px; }.dialog-actions { grid-template-columns: 1fr; }.ghost-button { order: 2; }.responsibles-dialog .dialog-surface { padding: 18px; }.responsibles-toolbar { align-items: stretch; flex-direction: column; }.responsible-editor { padding: 17px 14px; }.responsible-identity { flex-direction: column; }.responsible-actions { grid-template-columns: 1fr; }.responsible-actions .ghost-button { order: 2; } body.profile-card-open { overflow: hidden; }.profile-scrim:not([hidden]) { position: fixed; z-index: 89; inset: 0; display: block; background: rgba(0, 3, 13, .48); -webkit-backdrop-filter: blur(6px) saturate(115%); backdrop-filter: blur(6px) saturate(115%); }.profile-popover { width: auto; right: 14px; bottom: 14px; left: 14px !important; top: auto !important; padding: 17px; border-radius: 25px; transform-origin: center bottom; }.profile-popover.ready { animation-name: profile-sheet-in; }.profile-details { grid-template-columns: 1fr; }.profile-state { grid-template-columns: 10px minmax(0, 1fr); }.profile-state-duration { grid-column: 2; }.profile-head h2 { white-space: normal; } }
+  @keyframes profile-sheet-in { from { opacity: 0; transform: translateY(24px) scale(.975); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) { .topbar, .tile, .operational, .toolbar, .table-wrap, .activity, .availability-report, .dialog-surface, .profile-popover { background-color: rgba(7, 18, 46, .97); } }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
 </style>
 </head>
@@ -424,6 +489,57 @@
   <footer><span id="foot-left">Aguardando dados…</span><span id="foot-right"></span></footer>
 </main>
 
+<div id="profile-scrim" class="profile-scrim" hidden aria-hidden="true"></div>
+<section id="profile-popover" class="profile-popover" role="dialog" aria-modal="false" aria-labelledby="profile-name" hidden>
+  <button id="profile-close" class="profile-close" type="button" aria-label="Fechar perfil do ramal">×</button>
+  <header class="profile-head">
+    <div id="profile-avatar" class="profile-avatar" aria-hidden="true">R</div>
+    <div>
+      <p class="profile-overline">Perfil do ramal</p>
+      <h2 id="profile-name">Responsável</h2>
+      <p id="profile-extension" class="profile-extension">Ramal —</p>
+    </div>
+  </header>
+  <div id="profile-tabs" class="profile-tabs" role="tablist" aria-label="Informações do ramal">
+    <button id="profile-tab-now" class="profile-tab" type="button" role="tab" data-profile-view="now" aria-selected="true" aria-controls="profile-panel-now">Agora</button>
+    <button id="profile-tab-history" class="profile-tab" type="button" role="tab" data-profile-view="history" aria-selected="false" aria-controls="profile-panel-history" tabindex="-1">30 dias</button>
+  </div>
+  <div id="profile-panel-now" class="profile-panel" role="tabpanel" aria-labelledby="profile-tab-now">
+    <div id="profile-state" class="profile-state">
+      <span class="profile-state-dot" aria-hidden="true"></span>
+      <div class="profile-state-copy"><span>Estado atual</span><strong id="profile-status">—</strong></div>
+      <span id="profile-duration" class="profile-state-duration">—</span>
+    </div>
+    <div class="profile-details">
+      <div class="profile-detail"><span>Setor</span><strong id="profile-sector">Não informado</strong></div>
+      <div class="profile-detail"><span>Notificação</span><strong id="profile-notification">Responsável sem e-mail</strong></div>
+    </div>
+    <div class="profile-live-list" aria-label="Detalhes atuais do ramal">
+      <div class="profile-live-row"><span id="profile-transition-label">Última mudança</span><strong id="profile-transition">—</strong></div>
+      <div class="profile-live-row"><span>Leitura da central</span><strong id="profile-last-seen">—</strong></div>
+      <div class="profile-live-row"><span>Incidente</span><strong id="profile-incident">Nenhuma ocorrência registrada</strong></div>
+      <div class="profile-live-row"><span>Alerta atual</span><strong id="profile-alert-detail">—</strong></div>
+    </div>
+  </div>
+  <div id="profile-panel-history" class="profile-panel" role="tabpanel" aria-labelledby="profile-tab-history" hidden>
+    <div id="profile-history-banner" class="profile-history-banner" role="status">Carregando o histórico deste ramal…</div>
+    <div class="profile-metrics" aria-label="Métricas dos últimos 30 dias">
+      <div class="profile-metric"><span>Disponibilidade</span><strong id="profile-metric-availability">—</strong></div>
+      <div class="profile-metric"><span>Quedas</span><strong id="profile-metric-incidents">—</strong></div>
+      <div class="profile-metric"><span>Maior queda</span><strong id="profile-metric-longest">—</strong></div>
+      <div class="profile-metric"><span>Média de reconexão</span><strong id="profile-metric-average">—</strong></div>
+      <div class="profile-metric"><span>Mediana</span><strong id="profile-metric-median">—</strong></div>
+      <div class="profile-metric"><span>Cobertura</span><strong id="profile-metric-coverage">—</strong></div>
+    </div>
+    <div class="profile-routine" aria-label="Horários habituais">
+      <div class="profile-routine-item"><span>Conexão habitual</span><strong id="profile-typical-connection">—</strong></div>
+      <div class="profile-routine-item"><span>Desconexão habitual</span><strong id="profile-typical-disconnection">—</strong></div>
+    </div>
+    <p class="profile-history-note">Métricas técnicas de disponibilidade dentro do expediente. Não representam produtividade individual.</p>
+  </div>
+  <button id="profile-manage" class="profile-manage" type="button" hidden>Configurar responsável</button>
+</section>
+
 <dialog id="test-dialog" class="glass-dialog" aria-labelledby="test-dialog-title" aria-describedby="test-dialog-copy">
   <div class="dialog-surface">
     <button id="test-dialog-close" class="dialog-close" type="button" aria-label="Fechar confirmação">×</button>
@@ -513,6 +629,15 @@ let responsibleRows = [];
 let selectedResponsibleExtension = null;
 let responsibleSearchTerm = "";
 let responsibleRequestInFlight = false;
+let selectedProfileExtension = null;
+let profileTriggerElement = null;
+let profileView = "now";
+let profileReportData = null;
+let profileReportLoadedAt = 0;
+let profileReportLoading = false;
+let profileReportError = "";
+const profilePopover = document.getElementById("profile-popover");
+const profileScrim = document.getElementById("profile-scrim");
 
 const columnConfigs = {
   status: { label: "Situação", search: "Buscar situação", sort: [["asc", "Online primeiro"], ["desc", "Offline primeiro"]], values: true },
@@ -716,6 +841,209 @@ function alertMarkup(alert, emailConfigured = true) {
   return '<span class="alert-status ' + escapeHtml(alert.status) + '" title="' + escapeHtml(alert.last_error || label) + '">' + label + suffix + '</span>';
 }
 
+function profileInitials(name) {
+  const parts = String(name || "").replace(/[-–—]+/g, " ").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "R";
+  return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toLocaleUpperCase("pt-BR");
+}
+
+function profileState(ext) {
+  const state = stateMarkup(ext, Date.now() / 1000);
+  if (state.className === "pending") return { ...state, tone: "pending", detail: state.duration };
+  if (state.className === "recovery") return { ...state, tone: "recovery", detail: state.duration };
+  return { ...state, tone: state.className === "off" ? "offline" : "online", detail: (ext.online ? "Conectado há " : "Desconectado há ") + state.duration };
+}
+
+function profileTimestamp(timestamp) {
+  if (!timestamp) return "Sem registro";
+  const date = new Date(Number(timestamp) * 1000); const now = new Date();
+  const time = date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const target = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const dayDifference = Math.round((today - target) / 86400000);
+  if (dayDifference === 0) return "Hoje, às " + time;
+  if (dayDifference === 1) return "Ontem, às " + time;
+  return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) + ", às " + time;
+}
+
+function profileIncident(ext) {
+  if (ext.incident && ext.incident.status === "open") {
+    return { text: "Em andamento · aberto " + profileTimestamp(ext.incident.opened_at).toLocaleLowerCase("pt-BR"), tone: "bad" };
+  }
+  const recent = (lastData.incidents || []).find(item => String(item.extension) === String(ext.extension));
+  if (!recent) return { text: "Nenhuma ocorrência registrada", tone: "" };
+  if (recent.status === "open") return { text: "Em andamento · há " + humanDuration(Date.now() / 1000 - recent.opened_at), tone: "bad" };
+  const resolved = recent.resolved_at ? " · há " + humanDuration(Date.now() / 1000 - recent.resolved_at) : "";
+  return { text: "Última queda: " + humanDuration(recent.duration_seconds || 0) + resolved, tone: "" };
+}
+
+function profileAlertDetail(ext) {
+  if (!ext.responsible_email_configured) return { text: "Aguardando e-mail do responsável", tone: "warn" };
+  if (!(lastData.notifications || {}).configured) return { text: "Canal de e-mail não configurado", tone: "warn" };
+  const alert = ext.alert;
+  if (!alert || alert.status === "idle") return { text: "Pronto para o próximo incidente", tone: "ok" };
+  if (alert.status === "not_configured") return { text: "Nenhuma entrega configurada", tone: "warn" };
+  const age = alert.created_at ? " · há " + humanDuration(Date.now() / 1000 - alert.created_at) : "";
+  const tone = ["failed", "partial_failure"].includes(alert.status) ? "bad" : (["queued", "sending", "retrying"].includes(alert.status) ? "warn" : "ok");
+  return { text: alertLabel(alert, true) + age, tone };
+}
+
+function setProfileLiveValue(id, value, tone = "") {
+  const element = document.getElementById(id);
+  element.textContent = value;
+  element.className = tone;
+}
+
+function resetProfileHistoryValues() {
+  ["availability", "incidents", "longest", "average", "median", "coverage"].forEach(id => { document.getElementById("profile-metric-" + id).textContent = "—"; });
+  document.getElementById("profile-typical-connection").textContent = "—";
+  document.getElementById("profile-typical-disconnection").textContent = "—";
+}
+
+function renderProfileHistory() {
+  const banner = document.getElementById("profile-history-banner");
+  banner.className = "profile-history-banner";
+  if (profileReportLoading && !profileReportData) { banner.textContent = "Carregando o histórico deste ramal…"; resetProfileHistoryValues(); return; }
+  if (profileReportError && !profileReportData) { banner.classList.add("error"); banner.textContent = profileReportError; resetProfileHistoryValues(); return; }
+  const report = profileReportData;
+  const metric = report && (report.individual || []).find(item => String(item.extension) === String(selectedProfileExtension));
+  if (!report || !metric) { banner.textContent = "Os dados deste ramal ainda estão em formação."; resetProfileHistoryValues(); return; }
+  const calendar = report.calendar || {};
+  if (!calendar.configured) {
+    banner.textContent = "Histórico coletado; falta configurar o calendário para calcular a disponibilidade no expediente.";
+  } else if (!metric.data_sufficient) {
+    banner.textContent = "Base em formação: " + (calendar.working_days || 0) + " de " + (calendar.minimum_workdays || 20) + " dias úteis observados.";
+  } else {
+    banner.classList.add("ready");
+    banner.textContent = "Base consolidada para os últimos 30 dias dentro do expediente cadastrado.";
+  }
+  document.getElementById("profile-metric-availability").textContent = reportPercent(metric.availability_percent);
+  document.getElementById("profile-metric-incidents").textContent = String(metric.incident_count || 0);
+  document.getElementById("profile-metric-longest").textContent = metric.longest_outage_seconds ? humanDuration(metric.longest_outage_seconds) : "—";
+  document.getElementById("profile-metric-average").textContent = metric.average_reconnect_seconds ? humanDuration(metric.average_reconnect_seconds) : "—";
+  document.getElementById("profile-metric-median").textContent = metric.median_outage_seconds ? humanDuration(metric.median_outage_seconds) : "—";
+  document.getElementById("profile-metric-coverage").textContent = reportPercent(metric.coverage_percent);
+  document.getElementById("profile-typical-connection").textContent = metric.typical_connection || "—";
+  document.getElementById("profile-typical-disconnection").textContent = metric.typical_disconnection || "—";
+}
+
+async function loadProfileReport() {
+  if (reportDays === 30 && reportData) {
+    profileReportData = reportData; profileReportLoadedAt = Date.now(); profileReportError = ""; renderProfileHistory(); return;
+  }
+  if (profileReportData && Date.now() - profileReportLoadedAt < 60000) { renderProfileHistory(); return; }
+  if (profileReportLoading) return;
+  profileReportLoading = true; profileReportError = ""; renderProfileHistory();
+  try {
+    const response = await fetch("/api/reports/availability?days=30", { cache: "no-store" });
+    if (!response.ok) throw new Error("HTTP " + response.status);
+    profileReportData = await response.json(); profileReportLoadedAt = Date.now();
+  } catch (error) {
+    profileReportError = "Não foi possível carregar o histórico agora: " + error.message;
+  } finally {
+    profileReportLoading = false;
+    if (!profilePopover.hidden && profileView === "history") { renderProfileHistory(); requestAnimationFrame(() => positionProfilePopover(profileTriggerElement)); }
+  }
+}
+
+function setProfileView(view, focusTab = false) {
+  profileView = view === "history" ? "history" : "now";
+  document.querySelectorAll("[data-profile-view]").forEach(button => {
+    const active = button.dataset.profileView === profileView;
+    button.setAttribute("aria-selected", String(active)); button.tabIndex = active ? 0 : -1;
+  });
+  document.getElementById("profile-panel-now").hidden = profileView !== "now";
+  document.getElementById("profile-panel-history").hidden = profileView !== "history";
+  if (profileView === "history") { renderProfileHistory(); loadProfileReport(); }
+  if (focusTab) document.querySelector('[data-profile-view="' + profileView + '"]').focus();
+  requestAnimationFrame(() => positionProfilePopover(profileTriggerElement));
+}
+
+function updateProfilePopover(ext) {
+  const state = profileState(ext);
+  document.getElementById("profile-avatar").textContent = profileInitials(ext.nome);
+  document.getElementById("profile-name").textContent = ext.nome || "Responsável não identificado";
+  document.getElementById("profile-extension").textContent = "Ramal " + ext.extension;
+  document.getElementById("profile-status").textContent = state.label;
+  document.getElementById("profile-duration").textContent = state.detail;
+  document.getElementById("profile-sector").textContent = ext.setor || "Não informado";
+  const notification = document.getElementById("profile-notification");
+  notification.textContent = ext.responsible_email_configured ? "Responsável com e-mail" : "Responsável sem e-mail";
+  notification.classList.toggle("configured", Boolean(ext.responsible_email_configured));
+  document.getElementById("profile-state").className = "profile-state " + state.tone;
+  const transitionAt = ext.pending_status ? ext.pending_since : ext.since;
+  document.getElementById("profile-transition-label").textContent = ext.pending_status ? "Transição detectada" : "Última mudança";
+  setProfileLiveValue("profile-transition", profileTimestamp(transitionAt));
+  setProfileLiveValue("profile-last-seen", ext.last_seen_at ? "há " + humanDuration(Date.now() / 1000 - ext.last_seen_at) + " · " + profileTimestamp(ext.last_seen_at) : "Sem leitura recente");
+  const incident = profileIncident(ext); setProfileLiveValue("profile-incident", incident.text, incident.tone);
+  const alert = profileAlertDetail(ext); setProfileLiveValue("profile-alert-detail", alert.text, alert.tone);
+  document.getElementById("profile-manage").hidden = !Boolean((lastData.management || {}).responsibles_available);
+  if (profileView === "history") renderProfileHistory();
+}
+
+function positionProfilePopover(trigger) {
+  if (!trigger || profilePopover.hidden || window.matchMedia("(max-width: 580px)").matches) return;
+  const margin = 14; const gap = 11; const rect = trigger.getBoundingClientRect();
+  const width = profilePopover.offsetWidth; const height = profilePopover.offsetHeight;
+  const anchor = rect.left + Math.min(rect.width / 2, 54);
+  const left = Math.max(margin, Math.min(anchor - 42, window.innerWidth - width - margin));
+  let top = rect.bottom + gap; let placement = "bottom";
+  if (top + height > window.innerHeight - margin && rect.top - height - gap >= margin) {
+    top = rect.top - height - gap; placement = "top";
+  } else {
+    top = Math.max(margin, Math.min(top, window.innerHeight - height - margin));
+  }
+  profilePopover.style.left = left + "px";
+  profilePopover.style.top = top + "px";
+  profilePopover.style.setProperty("--profile-origin-x", Math.max(28, Math.min(width - 28, anchor - left)) + "px");
+  profilePopover.dataset.placement = placement;
+}
+
+function closeProfilePopover(restoreFocus = false) {
+  const extension = selectedProfileExtension;
+  const currentTrigger = extension ? document.querySelector('[data-profile-extension="' + CSS.escape(extension) + '"]') : profileTriggerElement;
+  if (currentTrigger) currentTrigger.setAttribute("aria-expanded", "false");
+  profilePopover.classList.remove("ready");
+  profilePopover.hidden = true;
+  profileScrim.hidden = true;
+  document.body.classList.remove("profile-card-open");
+  selectedProfileExtension = null;
+  profileTriggerElement = null;
+  if (restoreFocus && currentTrigger) currentTrigger.focus();
+}
+
+function openProfilePopover(extension, trigger, focusInside = false) {
+  if (!lastData) return;
+  if (selectedProfileExtension === extension && !profilePopover.hidden) { closeProfilePopover(true); return; }
+  const ext = lastData.extensions.find(item => String(item.extension) === extension);
+  if (!ext) return;
+  closeProfilePopover(false);
+  selectedProfileExtension = extension;
+  profileTriggerElement = trigger;
+  trigger.setAttribute("aria-expanded", "true");
+  setProfileView("now");
+  updateProfilePopover(ext);
+  profilePopover.hidden = false;
+  profileScrim.hidden = false;
+  document.body.classList.add("profile-card-open");
+  requestAnimationFrame(() => {
+    positionProfilePopover(trigger);
+    profilePopover.classList.add("ready");
+    if (focusInside) document.getElementById("profile-close").focus();
+  });
+}
+
+function syncProfilePopover() {
+  if (!selectedProfileExtension || profilePopover.hidden || !lastData) return;
+  const ext = lastData.extensions.find(item => String(item.extension) === selectedProfileExtension);
+  const trigger = document.querySelector('[data-profile-extension="' + CSS.escape(selectedProfileExtension) + '"]');
+  if (!ext || !trigger) { closeProfilePopover(false); return; }
+  profileTriggerElement = trigger;
+  trigger.setAttribute("aria-expanded", "true");
+  updateProfilePopover(ext);
+  positionProfilePopover(trigger);
+}
+
 function renderTable(data) {
   const now = Date.now() / 1000;
   const rows = data.extensions.filter(passesFilter).sort(compareRows);
@@ -724,7 +1052,10 @@ function renderTable(data) {
   if (!rows.length) { tbody.innerHTML = ""; empty.style.display = "block"; empty.textContent = "Nenhum ramal corresponde ao filtro ou à busca atual."; return; }
   empty.style.display = "none";
   tbody.innerHTML = rows.map(ext => {
-    const state = stateMarkup(ext, now); const nome = ext.nome ? escapeHtml(ext.nome) : blank(); const setor = ext.setor ? escapeHtml(ext.setor) : blank();
+    const state = stateMarkup(ext, now);
+    const expanded = selectedProfileExtension === String(ext.extension) && !profilePopover.hidden;
+    const nome = ext.nome ? '<button class="profile-trigger" type="button" data-profile-extension="' + escapeHtml(ext.extension) + '" aria-haspopup="dialog" aria-controls="profile-popover" aria-expanded="' + String(expanded) + '" aria-label="Abrir perfil de ' + escapeHtml(ext.nome) + '"><span>' + escapeHtml(ext.nome) + '</span></button>' : blank();
+    const setor = ext.setor ? escapeHtml(ext.setor) : blank();
     return '<tr class="' + state.row + '"><td><span class="st ' + state.className + '">' + stateIndicator(state.className) + state.label + '</span></td><td class="col-ramal">' + escapeHtml(ext.extension) + '</td><td class="col-nome">' + nome + '</td><td class="col-setor">' + setor + '</td><td>' + alertMarkup(ext.alert, ext.responsible_email_configured) + '</td><td class="col-tempo">' + state.duration + '</td></tr>';
   }).join("");
 }
@@ -823,6 +1154,10 @@ async function refreshReport() {
     const response = await fetch("/api/reports/availability?days=" + reportDays, { cache: "no-store" });
     if (!response.ok) throw new Error("HTTP " + response.status);
     reportData = await response.json();
+    if (reportDays === 30) {
+      profileReportData = reportData; profileReportLoadedAt = Date.now(); profileReportError = "";
+      if (!profilePopover.hidden && profileView === "history") renderProfileHistory();
+    }
     renderReport();
   } catch (error) {
     document.getElementById("report-banner").textContent = "Não foi possível carregar o relatório agora: " + error.message;
@@ -1003,7 +1338,7 @@ async function clearResponsible() {
 
 function renderAll() {
   if (!lastData) return;
-  renderPills(lastData); renderStats(lastData); renderOperational(lastData); renderColumnIndicators(); renderTable(lastData); renderAlerts(lastData); renderIncidents(lastData);
+  renderPills(lastData); renderStats(lastData); renderOperational(lastData); renderColumnIndicators(); renderTable(lastData); syncProfilePopover(); renderAlerts(lastData); renderIncidents(lastData);
   document.getElementById("responsibles-open").hidden = !((lastData.management || {}).responsibles_available);
   const shown = lastData.extensions.filter(passesFilter).length;
   document.getElementById("foot-left").textContent = "Exibindo " + shown + " de " + lastData.total + " ramais";
@@ -1032,6 +1367,10 @@ async function sendTestAlert() {
 
 document.getElementById("search").addEventListener("input", e => { searchTerm = e.target.value.trim().toLowerCase(); renderAll(); });
 document.getElementById("filter").addEventListener("click", e => { const btn = e.target.closest("button"); if (!btn) return; filterMode = btn.dataset.f; document.querySelectorAll("#filter button").forEach(b => { const selected = b === btn; b.classList.toggle("active", selected); b.setAttribute("aria-pressed", String(selected)); }); renderAll(); });
+document.getElementById("tbody").addEventListener("click", event => {
+  const trigger = event.target.closest("[data-profile-extension]");
+  if (trigger) openProfilePopover(trigger.dataset.profileExtension, trigger, event.detail === 0);
+});
 document.querySelector("thead").addEventListener("click", e => {
   const trigger = e.target.closest(".column-menu-trigger");
   if (trigger) { openMenu(trigger.dataset.column); return; }
@@ -1053,8 +1392,11 @@ document.querySelector("thead").addEventListener("change", e => {
 });
 document.addEventListener("click", e => {
   if (openColumnMenu && !e.target.closest(".column-menu") && !e.target.closest(".column-menu-trigger")) closeColumnMenu();
+  if (!profilePopover.hidden && !e.target.closest("#profile-popover") && !e.target.closest("[data-profile-extension]")) closeProfilePopover(false);
 });
-document.addEventListener("keydown", e => { if (e.key === "Escape") closeColumnMenu(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") { closeColumnMenu(); if (!profilePopover.hidden) closeProfilePopover(true); } });
+window.addEventListener("resize", () => positionProfilePopover(profileTriggerElement));
+document.addEventListener("scroll", () => positionProfilePopover(profileTriggerElement), true);
 document.getElementById("report-period").addEventListener("click", event => {
   const button = event.target.closest("button[data-days]");
   if (!button) return;
@@ -1083,7 +1425,8 @@ document.getElementById("test-dialog-close").addEventListener("click", closeTest
 document.getElementById("test-dialog-cancel").addEventListener("click", closeTestDialog);
 document.getElementById("test-dialog-confirm").addEventListener("click", () => { closeTestDialog(); sendTestAlert(); });
 testDialog.addEventListener("click", event => { if (event.target === testDialog) closeTestDialog(); });
-document.getElementById("responsibles-open").addEventListener("click", () => {
+function openResponsiblesDialog(extension = null) {
+  if (extension) selectedResponsibleExtension = extension;
   responsibleSearchTerm = "";
   document.getElementById("responsibles-search").value = "";
   responsiblesDialog.showModal();
@@ -1094,7 +1437,25 @@ document.getElementById("responsibles-open").addEventListener("click", () => {
     document.getElementById("responsibles-unlock-feedback").textContent = "";
     document.getElementById("responsibles-password").focus();
   }
+}
+document.getElementById("profile-close").addEventListener("click", () => closeProfilePopover(true));
+profileScrim.addEventListener("click", () => closeProfilePopover(false));
+document.getElementById("profile-tabs").addEventListener("click", event => {
+  const button = event.target.closest("[data-profile-view]");
+  if (button) setProfileView(button.dataset.profileView);
 });
+document.getElementById("profile-tabs").addEventListener("keydown", event => {
+  if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+  event.preventDefault();
+  const next = event.key === "ArrowLeft" || event.key === "Home" ? "now" : "history";
+  setProfileView(next, true);
+});
+document.getElementById("profile-manage").addEventListener("click", () => {
+  const extension = selectedProfileExtension;
+  closeProfilePopover(false);
+  if (extension) openResponsiblesDialog(extension);
+});
+document.getElementById("responsibles-open").addEventListener("click", () => openResponsiblesDialog());
 document.getElementById("responsibles-close").addEventListener("click", () => responsiblesDialog.close());
 responsiblesDialog.addEventListener("click", event => { if (event.target === responsiblesDialog) responsiblesDialog.close(); });
 responsiblesUnlock.addEventListener("submit", event => {
