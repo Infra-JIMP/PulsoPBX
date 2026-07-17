@@ -26,9 +26,9 @@ Deve aparecer `[OK] Login AMI bem-sucedido` e a lista de ramais encontrados.
 
 Preencha `EMAIL_SMTP_HOST`, `EMAIL_SMTP_PORT` e `EMAIL_FROM`. Se o servidor exigir autenticação, configure também `EMAIL_SMTP_USERNAME` e `EMAIL_SMTP_PASSWORD`. Use `EMAIL_SMTP_STARTTLS=true` para a porta 587 ou `EMAIL_SMTP_SSL=true` para SSL direto, normalmente na porta 465; não ative os dois ao mesmo tempo.
 
-`EMAIL_RECIPIENTS` é opcional e serve apenas para o botão **Enviar teste** do painel. Os avisos reais usam o e-mail individual vinculado ao ramal. O MikoPBX continua sendo a fonte automática, mas um cadastro local pode assumir prioridade quando a central estiver indisponível. O endereço nunca é devolvido pelas APIs normais do painel; somente a informação “configurado/não configurado” é exibida.
+`EMAIL_RECIPIENTS` é opcional e serve apenas para o botão **Enviar teste** do painel. Os avisos reais usam o e-mail individual vinculado ao ramal. O MikoPBX continua sendo a fonte automática inicial, mas o diretório corporativo local assume prioridade depois que um cadastro é revisado. O endereço não é devolvido pela API pública do monitor; fica disponível apenas nas telas internas do diretório.
 
-Para habilitar a tela interna **Responsáveis**, configure `RESPONSIBLES_ADMIN_PASSWORD` com pelo menos 12 caracteres ou salve a senha isoladamente em `data/responsibles_admin_password.txt`. A tela aparece somente em acesso direto pela rede interna; requisições encaminhadas pelo Cloudflare são recusadas. A senha fica apenas na memória da aba do navegador. O cadastro é salvo em `ramais_nomes.json`, entra em vigor sem reiniciar o serviço e pode ser removido pelo botão **Voltar ao MikoPBX**.
+Para habilitar **Gerenciar cadastros**, configure `RESPONSIBLES_ADMIN_PASSWORD` com pelo menos 12 caracteres ou salve a senha isoladamente em `data/responsibles_admin_password.txt`. A tela aparece somente em acesso direto pela rede interna; requisições encaminhadas pelo Cloudflare são recusadas. A senha fica apenas na memória da aba do navegador. Nome, cargo, setor, ramal, e-mail, situação e preferência de alerta são gravados no SQLite `data/pulsopbx.db`, entram em vigor sem reiniciar o serviço e mantêm histórico de alterações. O botão **Usar e-mail do MikoPBX** restaura apenas o endereço herdado da central.
 
 O fluxo é: 30 segundos para confirmar a mudança de estado, mais 2 minutos de tolerância (`RESPONSIBLE_ALERT_DELAY_SECONDS=120`). Se o ramal reconectar nesse período, o e-mail é cancelado. Se continuar offline, estiver dentro do expediente e não fizer parte de uma queda coletiva, um único aviso amigável pede para verificar MicroSIP, internet e registro do ramal. O retorno só é avisado se o e-mail de queda realmente tiver sido entregue.
 
@@ -97,6 +97,8 @@ http://172.20.171.206:8080/
 - Faixa de prioridade operacional, tabela com os offline no topo (linha destacada em vermelho), nome, setor, status de entrega do alerta e há quanto tempo está no estado atual.
 - Campo de busca (por número, nome ou setor) e filtros Todos / Atenção / Offline / Online.
 - Histórico persistente de incidentes: queda confirmada, retorno, duração e situação atual. Ele usa SQLite local (`data/pulsopbx.db`), que não é versionado.
+- Aba **Colaboradores** com busca e filtros por setor e situação, usando a mesma base dos alertas.
+- Aba **Listas corporativas** com prévia para impressão e download das listas de ramais e e-mails em Excel, preservando o padrão azul, laranja e a separação visual por setor.
 
 Quando o painel estiver acessível pela rede, configure `DASHBOARD_USERNAME` e `DASHBOARD_PASSWORD`. O acesso usa HTTP Basic; portanto, mantenha-o restrito à rede interna/VPN. Para exposição fora dessa rede, use um proxy HTTPS e não abra a porta diretamente para a Internet. O endpoint `/api/health` não exige autenticação e retorna apenas prontidão e situação da AMI, sem nomes ou ramais.
 
@@ -110,19 +112,24 @@ O painel busca o nome do funcionário de cada ramal direto do MikoPBX, via API R
    - Filtro de rede: restrinja se o painel oferecer essa opção; se só houver "qualquer endereço" ou "somente locais", use "qualquer endereço" mesmo (a chave de 64 caracteres já protege o acesso, e o escopo é só leitura de 2 dados de baixa sensibilidade).
    - Salve e copie a chave gerada (ela some depois, então copie na hora).
 2. Preencha no `.env`: `MIKOPBX_API_KEY` (a chave copiada). `MIKOPBX_API_URL` já vem certo por padrão.
-3. Pronto — nome e e-mail responsável de cada ramal passam a ser atualizados a cada 5 minutos (`MIKOPBX_NAMES_REFRESH_SECONDS`). O painel não mostra o endereço; apenas a cobertura de cadastro.
+3. Pronto — novos ramais são importados para o diretório e os campos ainda herdados do MikoPBX são atualizados a cada 5 minutos (`MIKOPBX_NAMES_REFRESH_SECONDS`). Alterações manuais permanecem prioritárias, inclusive quando a central ainda contém um dado antigo.
 
 Por padrão, a consulta aceita o certificado interno/autoassinado comum no MikoPBX (`MIKOPBX_VERIFY_TLS=false`). Só altere para `true` depois que o PBX apresentar um certificado válido e confiável para a máquina do monitor.
 
-O MikoPBX não tem campo de "setor" separado (o setor, quando existe, já vem dentro do próprio nome, ex.: `Engenharia - Edson`). Se quiser sobrescrever algum nome específico ou adicionar um setor à parte, use o `ramais_nomes.json` manual (opcional, só para exceções). Os e-mails podem ser administrados pela tela **Responsáveis**, sem editar este arquivo:
+O MikoPBX não tem campo de "setor" separado (o setor, quando existe, já vem dentro do próprio nome, ex.: `Engenharia - Edson`). Use **Colaboradores → Gerenciar cadastros** para revisar nome, cargo, setor, ramal e e-mail ou arquivar alguém que saiu da empresa. Colaboradores arquivados permanecem no histórico e deixam de aparecer nas listas atuais. O `ramais_nomes.json` continua aceito apenas como compatibilidade para exceções antigas:
 1. Copie `ramais_nomes.example.json` para `ramais_nomes.json`.
 2. Preencha só os ramais que quer sobrescrever:
    ```json
    {
      "1001": {"setor": "Atendimento"},
      "1002": {"nome": "João Vendas"}
-   }
-   ```
+    }
+    ```
+
+As exportações atualizadas ficam disponíveis somente na rede interna:
+
+- `/api/directory/export/extensions.xlsx` — lista de ramais;
+- `/api/directory/export/emails.xlsx` — lista de e-mails.
 3. Salve. O arquivo é recarregado automaticamente (não precisa reiniciar o serviço) e tem prioridade sobre o nome vindo da API.
 
 ### 3.3. Ver o painel antes da AMI estar pronta (modo demonstração)
@@ -160,6 +167,8 @@ Isso registra novamente a tarefa como **SYSTEM** e abre no firewall a porta defi
 - `install_system_task.ps1` - upgrade para servico SYSTEM + firewall (rodar como admin).
 - `uninstall_task.ps1` - remove a tarefa e para o servico.
 - `deploy_local.ps1` (na raiz do projeto local) - valida, cria staging e backup, sincroniza a cópia de produção e reinicia o serviço. Não copia `.env`, `.venv`, `logs`, `data`, `ramais_nomes.json`, `work_calendar.json` ou artefatos locais; se a validação pós-cópia falhar, restaura automaticamente o backup.
+
+Por segurança, o deploy normal exige uma árvore Git limpa. Durante uma publicação intencional ainda não commitada, use `-AllowDirty`; as alterações continuam no projeto do Desktop para revisão e commit posterior. O script também sincroniza `requirements.lock.txt` no ambiente de produção antes de reiniciar o serviço.
 
 Para validar sem copiar nem reiniciar:
 

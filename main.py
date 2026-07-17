@@ -11,9 +11,11 @@ from alerts import AlertDispatcher
 from ami_client import AmiClient
 from availability import AvailabilityStore
 from config import ConfigError, load_config
+from directory import DirectoryStore
 from incidents import IncidentStore
+from names import load_names
 from notifications import EmailNotifier, NotificationRouter
-from profiles import load_profiles
+from profiles import load_profiles, set_directory_store
 from responsible_alerts import ResponsibleAlertScheduler
 from state import StateTracker
 from web import run_dashboard
@@ -50,12 +52,18 @@ async def mikopbx_names_loop(
     tracker: StateTracker,
     incidents: IncidentStore | None,
     availability: AvailabilityStore | None,
+    directory: DirectoryStore | None,
 ) -> None:
     while True:
         names = await asyncio.to_thread(
             mikopbx_api.refresh, config.mikopbx_api_url, config.mikopbx_api_key, config.mikopbx_verify_tls
         )
         if names is not None:
+            if directory is not None:
+                await asyncio.to_thread(
+                    directory.synchronize_mikopbx,
+                    mikopbx_api.get_cached_profiles(),
+                )
             await _apply_employee_snapshot(tracker, incidents, names, availability)
         await asyncio.sleep(config.mikopbx_names_refresh_seconds)
 
@@ -196,6 +204,25 @@ async def run() -> None:
         logger.exception("Historico de disponibilidade indisponivel")
         availability = None
 
+    directory: DirectoryStore | None = DirectoryStore(config.incidents_db_path)
+    try:
+        await asyncio.to_thread(directory.initialize)
+        legacy_overrides = await asyncio.to_thread(load_names)
+        migrated = await asyncio.to_thread(
+            directory.import_legacy_overrides,
+            legacy_overrides,
+        )
+        set_directory_store(directory)
+        logger.info(
+            "Diretorio corporativo em %s (%d cadastro(s) legado(s) migrado(s))",
+            config.incidents_db_path,
+            migrated,
+        )
+    except Exception:
+        logger.exception("Diretorio corporativo indisponivel; cadastros seguirao pelo MikoPBX")
+        directory = None
+        set_directory_store(None)
+
     calendar = WorkCalendar(config.work_calendar_path)
     if calendar.configured:
         logger.info("Calendario de expediente carregado de %s", config.work_calendar_path)
@@ -302,6 +329,11 @@ async def run() -> None:
             mikopbx_api.refresh, config.mikopbx_api_url, config.mikopbx_api_key, config.mikopbx_verify_tls
         )
         if names is not None:
+            if directory is not None:
+                await asyncio.to_thread(
+                    directory.synchronize_mikopbx,
+                    mikopbx_api.get_cached_profiles(),
+                )
             await _apply_employee_snapshot(tracker, incidents, names, availability)
 
     client: AmiClient | None = None
@@ -344,6 +376,7 @@ async def run() -> None:
             alert_store,
             availability,
             calendar,
+            directory,
         ),
     ]
     if alerts is not None:
@@ -359,7 +392,9 @@ async def run() -> None:
         tasks.append(maintain_ami_connection(client))
         tasks.append(client.periodic_reconcile(config.reconcile_seconds))
     if config.mikopbx_api_enabled and not config.demo_mode:
-        tasks.append(mikopbx_names_loop(config, tracker, incidents, availability))
+        tasks.append(
+            mikopbx_names_loop(config, tracker, incidents, availability, directory)
+        )
     elif not config.demo_mode:
         logger.warning(
             "MIKOPBX_API_KEY ausente no .env - nomes dos ramais nao serao buscados "
@@ -377,6 +412,9 @@ async def run() -> None:
             alert_store.close()
         if availability is not None:
             availability.close()
+        if directory is not None:
+            directory.close()
+        set_directory_store(None)
 
 
 def main() -> None:

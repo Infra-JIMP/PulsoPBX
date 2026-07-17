@@ -6,6 +6,7 @@ Roda no mesmo processo asyncio do monitor e le o estado em memoria diretamente
 import asyncio
 import base64
 import ipaddress
+import json
 import logging
 import secrets
 import time
@@ -17,6 +18,8 @@ from aiohttp import web
 import demo
 import mikopbx_api
 from alerts import AlertDispatcher
+from directory import DirectoryStore
+from directory_exports import build_directory_workbook
 from names import clear_email_override, load_names, save_email_override
 from profiles import load_profiles, validate_email
 
@@ -34,6 +37,7 @@ INCIDENTS_KEY = web.AppKey("incidents", object)
 ALERT_STORE_KEY = web.AppKey("alert_store", object)
 AVAILABILITY_KEY = web.AppKey("availability", object)
 CALENDAR_KEY = web.AppKey("calendar", object)
+DIRECTORY_KEY = web.AppKey("directory", object)
 PUBLIC_PROXY_HEADERS = ("CF-Connecting-IP", "CF-Ray", "CF-Visitor")
 
 
@@ -175,6 +179,184 @@ def _responsible_rows(tracker) -> list[dict]:
             }
         )
     return rows
+
+
+def _directory_rows(request: web.Request, include_inactive: bool) -> list[dict]:
+    directory = request.app[DIRECTORY_KEY]
+    if directory is None:
+        return []
+    tracker = request.app[TRACKER_KEY]
+    states = {
+        str(item.get("extension") or ""): item
+        for item in (tracker.snapshot() if tracker is not None else [])
+    }
+    rows = directory.list_people(include_inactive=include_inactive)
+    for row in rows:
+        state = states.get(row.get("extension", ""))
+        row["monitored"] = state is not None
+        row["online"] = bool(state and state.get("online"))
+        row["source"] = (
+            "local"
+            if row.get("email_source") == "manual"
+            else ("mikopbx" if row.get("email") else "none")
+        )
+    return rows
+
+
+async def _handle_directory_public(request: web.Request) -> web.Response:
+    if (
+        not _is_internal_management_request(request)
+        or getattr(request.app[CONFIG_KEY], "demo_mode", False)
+    ):
+        return web.json_response({"ok": False, "error": "Recurso indisponivel"}, status=404)
+    directory = request.app[DIRECTORY_KEY]
+    if directory is None:
+        return web.json_response({"ok": False, "error": "Diretorio indisponivel"}, status=503)
+    people = await asyncio.to_thread(_directory_rows, request, True)
+    sectors, quick_dials = await asyncio.gather(
+        asyncio.to_thread(directory.list_sectors),
+        asyncio.to_thread(directory.list_quick_dials),
+    )
+    return web.json_response(
+        {
+            "ok": True,
+            "people": people,
+            "sectors": sectors,
+            "quick_dials": quick_dials,
+            "generated_at": time.time(),
+        },
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+async def _handle_directory_admin(request: web.Request) -> web.Response:
+    error = _management_error(request)
+    if error is not None:
+        return error
+    directory = request.app[DIRECTORY_KEY]
+    if directory is None:
+        return web.json_response({"ok": False, "error": "Diretorio indisponivel"}, status=503)
+    people = await asyncio.to_thread(_directory_rows, request, True)
+    sectors, quick_dials, changes = await asyncio.gather(
+        asyncio.to_thread(directory.list_sectors),
+        asyncio.to_thread(directory.list_quick_dials),
+        asyncio.to_thread(directory.recent_changes, 40),
+    )
+    return web.json_response(
+        {
+            "ok": True,
+            "people": people,
+            "responsibles": people,
+            "sectors": sectors,
+            "quick_dials": quick_dials,
+            "changes": changes,
+        },
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+async def _directory_body(request: web.Request) -> dict:
+    if not _origin_allowed(request):
+        raise web.HTTPForbidden(
+            text=json.dumps({"ok": False, "error": "Origem nao autorizada"}),
+            content_type="application/json",
+        )
+    if request.content_type != "application/json":
+        raise web.HTTPUnsupportedMediaType(
+            text=json.dumps({"ok": False, "error": "Conteudo invalido"}),
+            content_type="application/json",
+        )
+    try:
+        body = await request.json()
+    except (ValueError, TypeError) as exc:
+        raise web.HTTPBadRequest(
+            text=json.dumps({"ok": False, "error": "JSON invalido"}),
+            content_type="application/json",
+        ) from exc
+    if not isinstance(body, dict):
+        raise web.HTTPBadRequest(
+            text=json.dumps({"ok": False, "error": "JSON invalido"}),
+            content_type="application/json",
+        )
+    return body
+
+
+async def _handle_directory_create(request: web.Request) -> web.Response:
+    error = _management_error(request)
+    if error is not None:
+        return error
+    directory = request.app[DIRECTORY_KEY]
+    if directory is None:
+        return web.json_response({"ok": False, "error": "Diretorio indisponivel"}, status=503)
+    try:
+        body = await _directory_body(request)
+        person = await asyncio.to_thread(directory.save_person, body)
+    except ValueError as exc:
+        return web.json_response({"ok": False, "error": str(exc)}, status=400)
+    return web.json_response({"ok": True, "person": person}, status=201, headers={"Cache-Control": "no-store"})
+
+
+async def _handle_directory_update(request: web.Request) -> web.Response:
+    error = _management_error(request)
+    if error is not None:
+        return error
+    directory = request.app[DIRECTORY_KEY]
+    if directory is None:
+        return web.json_response({"ok": False, "error": "Diretorio indisponivel"}, status=503)
+    try:
+        person_id = int(request.match_info["person_id"])
+        body = await _directory_body(request)
+        person = await asyncio.to_thread(directory.save_person, body, person_id)
+    except (TypeError, ValueError) as exc:
+        return web.json_response({"ok": False, "error": str(exc) or "Cadastro invalido"}, status=400)
+    return web.json_response({"ok": True, "person": person}, headers={"Cache-Control": "no-store"})
+
+
+async def _handle_directory_reset_email(request: web.Request) -> web.Response:
+    error = _management_error(request)
+    if error is not None:
+        return error
+    directory = request.app[DIRECTORY_KEY]
+    if directory is None:
+        return web.json_response({"ok": False, "error": "Diretorio indisponivel"}, status=503)
+    try:
+        person_id = int(request.match_info["person_id"])
+        person = await asyncio.to_thread(
+            directory.reset_email_to_mikopbx,
+            person_id,
+            mikopbx_api.get_cached_profiles(),
+        )
+    except (TypeError, ValueError) as exc:
+        return web.json_response({"ok": False, "error": str(exc) or "Cadastro invalido"}, status=400)
+    return web.json_response({"ok": True, "person": person}, headers={"Cache-Control": "no-store"})
+
+
+async def _handle_directory_export(request: web.Request) -> web.Response:
+    if (
+        not _is_internal_management_request(request)
+        or getattr(request.app[CONFIG_KEY], "demo_mode", False)
+    ):
+        return web.json_response({"ok": False, "error": "Recurso indisponivel"}, status=404)
+    directory = request.app[DIRECTORY_KEY]
+    if directory is None:
+        return web.json_response({"ok": False, "error": "Diretorio indisponivel"}, status=503)
+    kind = request.match_info["kind"]
+    if kind not in {"extensions", "emails"}:
+        return web.json_response({"ok": False, "error": "Lista invalida"}, status=404)
+    people, quick_dials = await asyncio.gather(
+        asyncio.to_thread(directory.list_people, False),
+        asyncio.to_thread(directory.list_quick_dials),
+    )
+    content = await asyncio.to_thread(build_directory_workbook, kind, people, quick_dials)
+    filename = "lista-ramais-atualizada.xlsx" if kind == "extensions" else "lista-emails-atualizada.xlsx"
+    return web.Response(
+        body=content,
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Cache-Control": "no-store",
+            "Content-Disposition": f'attachment; filename="{filename}"',
+        },
+    )
 
 
 async def _handle_responsibles_list(request: web.Request) -> web.Response:
@@ -383,6 +565,11 @@ async def _handle_status(request: web.Request) -> web.Response:
             },
             "management": {
                 "responsibles_available": _responsibles_management_available(request),
+                "directory_available": bool(
+                    _is_internal_management_request(request)
+                    and request.app[DIRECTORY_KEY] is not None
+                    and not config.demo_mode
+                ),
             },
             "generated_at": time.time(),
             "total": len(extensions),
@@ -476,6 +663,7 @@ def create_app(
     alert_store=None,
     availability=None,
     calendar=None,
+    directory=None,
 ) -> web.Application:
     app = web.Application(middlewares=[_dashboard_auth_middleware])
     app[TRACKER_KEY] = tracker
@@ -486,6 +674,7 @@ def create_app(
     app[ALERT_STORE_KEY] = alert_store
     app[AVAILABILITY_KEY] = availability
     app[CALENDAR_KEY] = calendar
+    app[DIRECTORY_KEY] = directory
     app.router.add_get("/", _handle_index)
     app.router.add_get("/assets/pulsopbx-logo.png", _handle_brand_logo)
     app.router.add_get("/favicon.ico", _handle_favicon)
@@ -497,6 +686,15 @@ def create_app(
     )
     app.router.add_delete(
         "/api/admin/responsibles/{extension}", _handle_responsible_clear
+    )
+    app.router.add_get("/api/directory", _handle_directory_public)
+    app.router.add_get("/api/directory/export/{kind}.xlsx", _handle_directory_export)
+    app.router.add_get("/api/admin/directory", _handle_directory_admin)
+    app.router.add_post("/api/admin/directory", _handle_directory_create)
+    app.router.add_put("/api/admin/directory/{person_id}", _handle_directory_update)
+    app.router.add_post(
+        "/api/admin/directory/{person_id}/reset-email",
+        _handle_directory_reset_email,
     )
     app.router.add_get("/api/reports/availability", _handle_availability_report)
     app.router.add_post("/api/alerts/test", _handle_test_alert)
@@ -512,6 +710,7 @@ async def run_dashboard(
     alert_store=None,
     availability=None,
     calendar=None,
+    directory=None,
 ) -> None:
     app = create_app(
         tracker,
@@ -522,6 +721,7 @@ async def run_dashboard(
         alert_store,
         availability,
         calendar,
+        directory,
     )
     runner = web.AppRunner(app, access_log=None)
     await runner.setup()

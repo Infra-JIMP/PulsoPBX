@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
-    [switch]$ValidateOnly
+    [switch]$ValidateOnly,
+    [switch]$AllowDirty
 )
 
 # Publica o codigo versionado na copia local com preflight, backup e rollback.
@@ -86,7 +87,10 @@ if (Test-Path -LiteralPath (Join-Path $src ".git") -PathType Container) {
         throw "Nao foi possivel consultar o estado Git da origem."
     }
     if ($gitStatus.Count -gt 0) {
-        throw "Deploy recusado: a origem possui alteracoes nao commitadas."
+        if (-not $AllowDirty) {
+            throw "Deploy recusado: a origem possui alteracoes nao commitadas. Use -AllowDirty somente para uma publicacao revisada e intencional."
+        }
+        Write-Warning "Publicacao autorizada com alteracoes nao commitadas; elas permanecerao visiveis no Git da origem."
     }
     $revision = & git -c safe.directory='*' -C $src rev-parse --short HEAD
     if ($LASTEXITCODE -ne 0) {
@@ -128,6 +132,11 @@ try {
     Write-Output "Instalando o pacote validado..."
     Invoke-SafeRobocopy -Source $stage -Destination $dst -Mode "/MIR"
     $destinationPython = Join-Path $dst ".venv\Scripts\python.exe"
+    Write-Output "Sincronizando dependencias fixadas..."
+    & $destinationPython -m pip install --disable-pip-version-check -r (Join-Path $dst "requirements.lock.txt")
+    if ($LASTEXITCODE -ne 0) {
+        throw "Nao foi possivel instalar as dependencias fixadas no ambiente de producao."
+    }
     Test-RamaisMonitorCode -Root $dst -Python $destinationPython
     $dashboardPort = & $destinationPython -c "from config import load_config; print(load_config().dashboard_port)"
     if ($LASTEXITCODE -ne 0 -or -not $dashboardPort) {

@@ -109,7 +109,7 @@
   .manage-button:hover { border-color: rgba(255, 183, 119, .58); background: linear-gradient(145deg, rgba(255, 255, 255, .13), rgba(255, 119, 0, .14)); }
   .manage-button:active { transform: scale(.97); }
 
-  .table-wrap { border: 1px solid var(--border-strong); border-radius: 22px; overflow-x: auto; background: linear-gradient(145deg, rgba(255, 255, 255, .055), rgba(3, 12, 31, .55)); box-shadow: var(--glass-shadow); animation: rise-in .62s .2s cubic-bezier(.22, 1, .36, 1) both; }
+  .table-wrap { max-width: 100%; border: 1px solid var(--border-strong); border-radius: 22px; overflow-x: auto; overscroll-behavior-inline: contain; scrollbar-gutter: stable; -webkit-overflow-scrolling: touch; background: linear-gradient(145deg, rgba(255, 255, 255, .055), rgba(3, 12, 31, .55)); box-shadow: var(--glass-shadow); animation: rise-in .62s .2s cubic-bezier(.22, 1, .36, 1) both; }
   table { width: 100%; min-width: 900px; border-collapse: collapse; }
   thead { position: relative; z-index: 12; }
   thead th { position: relative; padding: 7px 9px; border-bottom: 1px solid var(--border-strong); background: linear-gradient(180deg, rgba(255, 255, 255, .065), rgba(7, 19, 47, .56)); color: rgba(218, 231, 255, .76); font-size: .67rem; font-weight: 800; letter-spacing: 1px; text-align: left; text-transform: uppercase; overflow: visible; }
@@ -120,9 +120,10 @@
   .column-menu-trigger.filtered::after { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--orange); box-shadow: 0 0 8px rgba(255, 119, 0, .5); }
   .column-chevron { width: 7px; height: 7px; margin-left: auto; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: translateY(-2px) rotate(45deg); transform-origin: 58% 58%; opacity: .72; transition: transform .28s cubic-bezier(.22, 1, .36, 1), opacity .18s ease; }
   .column-menu-trigger.open .column-chevron { transform: translateY(2px) rotate(225deg); opacity: 1; }
-  .column-menu { position: absolute; z-index: 60; top: calc(100% + 8px); left: 9px; width: 300px; padding: 12px; border: 1px solid rgba(255, 132, 31, .38); border-radius: 17px; background: radial-gradient(circle at 100% 0, rgba(255, 119, 0, .1), transparent 11rem), linear-gradient(155deg, rgba(17, 31, 69, .98), rgba(4, 10, 29, .985)); box-shadow: 0 22px 48px rgba(0, 0, 0, .48), inset 0 1px rgba(255, 255, 255, .09); -webkit-backdrop-filter: blur(26px) saturate(145%); backdrop-filter: blur(26px) saturate(145%); color: var(--text); font-size: .78rem; font-weight: 600; letter-spacing: 0; text-transform: none; animation: column-menu-drop .26s cubic-bezier(.22, 1, .36, 1) both; }
-  th:nth-child(5) .column-menu, th:nth-child(6) .column-menu { right: 9px; left: auto; }
+  .column-menu { position: fixed; z-index: 101; width: min(300px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); padding: 12px; overflow-x: hidden; overflow-y: auto; border: 1px solid rgba(255, 132, 31, .38); border-radius: 17px; background: radial-gradient(circle at 100% 0, rgba(255, 119, 0, .1), transparent 11rem), linear-gradient(155deg, rgba(17, 31, 69, .98), rgba(4, 10, 29, .985)); box-shadow: 0 22px 48px rgba(0, 0, 0, .48), inset 0 1px rgba(255, 255, 255, .09); -webkit-backdrop-filter: blur(26px) saturate(145%); backdrop-filter: blur(26px) saturate(145%); color: var(--text); font-size: .78rem; font-weight: 600; letter-spacing: 0; text-transform: none; scrollbar-width: thin; animation: column-menu-drop .26s cubic-bezier(.22, 1, .36, 1) both; }
   .column-menu[hidden] { display: none !important; }
+  .column-menu-scrim { position: fixed; z-index: 100; inset: 0; background: rgba(0, 3, 13, .5); -webkit-backdrop-filter: blur(5px) saturate(115%); backdrop-filter: blur(5px) saturate(115%); animation: fade-in .18s ease both; }
+  .column-menu-scrim[hidden] { display: none !important; }
   .column-menu-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
   .column-menu-head strong { color: white; font-size: .83rem; }
   .column-menu-head span { color: var(--faint); font-size: .61rem; font-weight: 850; letter-spacing: .7px; text-transform: uppercase; }
@@ -377,11 +378,65 @@
 
   @keyframes rise-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
   @keyframes column-menu-drop { from { opacity: 0; transform: translateY(-10px) scale(.975); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  @keyframes column-menu-sheet { from { opacity: 0; transform: translateY(28px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
   @keyframes dialog-in { from { opacity: 0; transform: translateY(12px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
   @keyframes profile-pop-in { from { opacity: 0; transform: translateY(-9px) scale(.965); } to { opacity: 1; transform: translateY(0) scale(1); } }
   @keyframes profile-panel-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-  @media (max-width: 930px) { .stats, .report-cards { grid-template-columns: repeat(2, 1fr); } .topbar { align-items: flex-start; } .status-pills { justify-content: flex-start; } .report-layout { grid-template-columns: 1fr; }.activity-list { grid-template-columns: 1fr; } .activity-item { border-right: 0; border-bottom: 1px solid var(--border); } .activity-item:last-child { border-bottom: 0; } .activity-head { align-items: flex-start; } .activity-actions { align-items: flex-end; flex-direction: column-reverse; } .responsibles-layout { grid-template-columns: 1fr; }.responsibles-list { max-height: 220px; border-right: 0; border-bottom: 1px solid var(--border); } }
-  @media (max-width: 580px) { .wrap { width: min(100% - 28px, 1440px); padding-top: 14px; }.topbar { padding: 13px; border-radius: 20px; }.brand-mark { width: 42px; height: 42px; border-radius: 12px; }.brand h1 { font-size: 1.13rem; }.brand-subtitle { font-size: .71rem; }.status-pills { width: 100%; }.pill { padding: 6px 8px; font-size: .72rem; }.stats { gap: 8px; }.tile { padding: 14px; border-radius: 17px; }.tile .value { font-size: 1.72rem; }.operational { align-items: flex-start; }.operational-detail { display: block; margin-top: 3px; }.search { min-width: 100%; }.manage-button { width: 100%; }.segmented { width: 100%; }.segmented button { flex: 1; padding: 8px 6px; font-size: .72rem; }.report-head { align-items: flex-start; flex-direction: column; }.report-period { width: 100%; }.report-period button { flex: 1; }.report-cards { grid-template-columns: 1fr 1fr; }.report-layout { grid-template-columns: minmax(0, 1fr); padding: 10px; }.weekday-grid { gap: 4px; padding-inline: 8px; }.report-panel-head { align-items: flex-start; flex-direction: column; }.report-tabs { width: 100%; }.report-tabs button { flex: 1; }.report-general { grid-template-columns: 1fr; }.report-row { grid-template-columns: minmax(130px, 1.3fr) minmax(80px, .7fr); }.report-row .report-cell:nth-child(n+3) { display: none; }.activity-head { align-items: flex-start; flex-direction: column; gap: 3px; }.activity-actions { width: 100%; align-items: stretch; }.test-button { width: 100%; }.dialog-surface { padding: 21px; border-radius: 23px; }.dialog-actions { grid-template-columns: 1fr; }.ghost-button { order: 2; }.responsibles-dialog .dialog-surface { padding: 18px; }.responsibles-toolbar { align-items: stretch; flex-direction: column; }.responsibles-summary { grid-template-columns: 1fr; }.responsible-editor { padding: 17px 14px; }.responsible-identity { flex-direction: column; }.responsible-actions { grid-template-columns: 1fr; }.responsible-actions .ghost-button { order: 2; } body.profile-card-open { overflow: hidden; }.profile-scrim:not([hidden]) { position: fixed; z-index: 89; inset: 0; display: block; background: rgba(0, 3, 13, .48); -webkit-backdrop-filter: blur(6px) saturate(115%); backdrop-filter: blur(6px) saturate(115%); }.profile-popover { width: auto; right: 14px; bottom: 14px; left: 14px !important; top: auto !important; padding: 17px; border-radius: 25px; transform-origin: center bottom; }.profile-popover.ready { animation-name: profile-sheet-in; }.profile-details { grid-template-columns: 1fr; }.profile-state { grid-template-columns: 10px minmax(0, 1fr); }.profile-state-duration { grid-column: 2; }.profile-head h2 { white-space: normal; } }
+  .app-nav { width: fit-content; max-width: 100%; display: flex; align-items: center; gap: 5px; margin: 14px auto 18px; padding: 5px; overflow-x: auto; border: 1px solid var(--border); border-radius: 18px; background: linear-gradient(135deg, rgba(255,255,255,.075), rgba(2,10,28,.56)); box-shadow: 0 16px 34px rgba(0,0,0,.24), inset 0 1px rgba(255,255,255,.08); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); }
+  .app-nav button { min-width: 150px; padding: 9px 16px; border: 1px solid transparent; border-radius: 13px; color: var(--muted); background: transparent; font-weight: 760; cursor: pointer; transition: .22s ease; }
+  .app-nav button:hover { color: white; background: rgba(255,255,255,.055); }
+  .app-nav button.active { color: white; border-color: rgba(255,143,48,.55); background: linear-gradient(180deg, rgba(255,143,48,.98), rgba(213,86,0,.92)); box-shadow: 0 8px 20px rgba(235,95,0,.22), inset 0 1px rgba(255,255,255,.38); }
+  .app-view[hidden] { display: none !important; }
+  .directory-page { overflow: hidden; border: 1px solid var(--border-strong); border-radius: 25px; background: radial-gradient(circle at 90% -15%, rgba(255,126,28,.16), transparent 29rem), linear-gradient(145deg, rgba(255,255,255,.075), rgba(3,12,31,.62)); box-shadow: var(--glass-shadow); animation: rise-in .55s cubic-bezier(.22,1,.36,1) both; }
+  .directory-page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding: 22px; border-bottom: 1px solid var(--border); }
+  .directory-page-title p { margin: 0 0 5px; color: var(--orange); font-size: .64rem; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
+  .directory-page-title h2 { margin: 0; color: white; font-size: 1.35rem; }
+  .directory-page-title span { display: block; margin-top: 5px; color: var(--muted); font-size: .78rem; line-height: 1.5; }
+  .directory-head-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+  .directory-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 16px 22px 0; }
+  .directory-summary-card { min-height: 72px; padding: 13px 15px; border: 1px solid rgba(139,166,230,.14); border-radius: 17px; background: rgba(255,255,255,.04); box-shadow: inset 0 1px rgba(255,255,255,.06); }
+  .directory-summary-card span { display: block; color: var(--faint); font-size: .64rem; font-weight: 780; text-transform: uppercase; letter-spacing: .06em; }
+  .directory-summary-card strong { display: block; margin-top: 5px; color: white; font: 850 1.25rem var(--mono); }
+  .directory-controls { display: grid; grid-template-columns: minmax(240px, 1fr) 210px 170px; gap: 9px; padding: 14px 22px; }
+  .directory-select { width: 100%; min-height: 40px; padding: 0 34px 0 12px; border: 1px solid var(--border); border-radius: 13px; color: var(--text); background: rgba(2,10,28,.66); font: 700 .76rem var(--sans); outline: none; }
+  .directory-select:focus { border-color: var(--orange); box-shadow: 0 0 0 3px rgba(255,126,28,.1); }
+  .directory-table-wrap { margin: 0 22px 22px; overflow: auto; border: 1px solid var(--border); border-radius: 18px; background: rgba(1,7,22,.4); }
+  .directory-table { min-width: 880px; }
+  .directory-table th { position: sticky; top: 0; z-index: 2; padding: 12px 14px; color: var(--faint); background: rgba(14,32,76,.96); font-size: .65rem; letter-spacing: .055em; text-transform: uppercase; }
+  .directory-table td { padding: 12px 14px; border-top: 1px solid rgba(139,166,230,.12); color: var(--muted); font-size: .78rem; }
+  .directory-table td strong { color: white; }
+  .directory-table tr[data-person-id] { cursor: pointer; transition: background .18s ease; }
+  .directory-table tr[data-person-id]:hover { background: rgba(255,255,255,.045); }
+  .directory-status { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border: 1px solid rgba(47,209,111,.28); border-radius: 999px; color: var(--green); background: rgba(47,209,111,.08); font-size: .64rem; font-weight: 800; }
+  .directory-status.inactive { border-color: rgba(160,174,205,.2); color: var(--faint); background: rgba(160,174,205,.06); }
+  .directory-empty { padding: 42px 20px; color: var(--faint); text-align: center; }
+  .list-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 16px 22px; border-bottom: 1px solid var(--border); }
+  .list-tabs { display: inline-flex; gap: 4px; padding: 4px; border: 1px solid var(--border); border-radius: 14px; background: rgba(1,7,22,.45); }
+  .list-tabs button { padding: 8px 13px; border: 0; border-radius: 10px; color: var(--muted); background: transparent; font-weight: 780; cursor: pointer; }
+  .list-tabs button.active { color: white; background: rgba(39,78,166,.58); box-shadow: inset 0 1px rgba(255,255,255,.1); }
+  .list-toolbar-spacer { flex: 1; }
+  .download-button { display: inline-flex; align-items: center; justify-content: center; min-height: 38px; padding: 8px 14px; border: 1px solid rgba(255,143,48,.52); border-radius: 12px; color: white; background: linear-gradient(180deg,#ff8a24,#d85a00); font-size: .75rem; font-weight: 800; text-decoration: none; box-shadow: 0 8px 18px rgba(225,86,0,.18); cursor: pointer; }
+  .print-preview-shell { padding: 22px; overflow: auto; background: rgba(0,4,16,.22); }
+  .print-sheet { width: min(100%, 1060px); margin: 0 auto; overflow: hidden; border-radius: 8px; background: white; box-shadow: 0 22px 55px rgba(0,0,0,.34); }
+  .print-sheet table { width: 100%; min-width: 0; border-collapse: collapse; color: #000; background: white; font-family: Calibri, Arial, sans-serif; }
+  .print-sheet th, .print-sheet td { padding: 7px 9px; border: 2px solid #000; font-size: .84rem; font-weight: 700; }
+  .print-sheet td { color: #000; background: #fff; }
+  .print-sheet th { background: #ed7d31; color: #000; text-align: center; }
+  .print-sheet.extensions th { background: #0070c0; color: white; }
+  .print-sheet td.sector { width: 18%; text-align: center; vertical-align: middle; }
+  .print-sheet td.person { width: 34%; }
+  .print-sheet td.value { text-align: left; }
+  .print-sheet.extensions td.value { width: 18%; text-align: center; }
+  .print-sheet tr.blue td { color: white; background: #0070c0; }
+  .print-sheet tr.quick td { color: #000; background: #ed7d31; text-align: center; }
+  .print-meta { display: flex; justify-content: space-between; gap: 12px; padding: 10px 22px 18px; color: var(--faint); font-size: .68rem; }
+  .responsibles-toolbar-actions { display: flex; align-items: center; gap: 9px; }
+  .responsible-field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
+  @media print { body.print-directory { background: white !important; } body.print-directory::before, body.print-directory .topbar, body.print-directory .app-nav, body.print-directory #monitor-view, body.print-directory #directory-view, body.print-directory .directory-page-head, body.print-directory .list-toolbar, body.print-directory .print-meta { display: none !important; } body.print-directory .wrap { width: 100%; max-width: none; padding: 0; } body.print-directory #lists-view { display: block !important; border: 0; box-shadow: none; background: white; } body.print-directory .print-preview-shell { padding: 0; background: white; } body.print-directory .print-sheet { width: 100%; box-shadow: none; } }
+  @media (max-width: 930px) { .stats, .report-cards { grid-template-columns: repeat(2, 1fr); } .topbar { align-items: flex-start; } .status-pills { justify-content: flex-start; } .report-layout { grid-template-columns: 1fr; }.activity-list { grid-template-columns: 1fr; } .activity-item { border-right: 0; border-bottom: 1px solid var(--border); } .activity-item:last-child { border-bottom: 0; } .activity-head { align-items: flex-start; } .activity-actions { align-items: flex-end; flex-direction: column-reverse; } .responsibles-layout { grid-template-columns: 1fr; }.responsibles-list { max-height: 220px; border-right: 0; border-bottom: 1px solid var(--border); } .directory-summary { grid-template-columns: repeat(2, 1fr); }.directory-controls { grid-template-columns: 1fr 1fr; }.directory-controls .search { grid-column: 1 / -1; } }
+  @media (max-width: 680px) { body.column-menu-open { overflow: hidden; }.column-menu.mobile-sheet { width: auto !important; max-height: min(76dvh, 620px) !important; right: 12px !important; bottom: max(12px, env(safe-area-inset-bottom)) !important; left: 12px !important; top: auto !important; padding: 16px; border-radius: 24px; animation-name: column-menu-sheet; }.column-menu.mobile-sheet .column-option-list { max-height: min(34dvh, 260px); }.column-menu.mobile-sheet .column-menu-actions { position: sticky; bottom: -16px; margin-right: -16px; margin-bottom: -16px; margin-left: -16px; padding: 12px 16px max(16px, env(safe-area-inset-bottom)); background: linear-gradient(180deg, rgba(5, 13, 34, .88), rgba(3, 9, 27, .99) 30%); }.toolbar > *, .topbar > *, .report-head > *, .directory-page-head > * { min-width: 0; } }
+  @media (max-width: 580px) { .wrap { width: min(100% - 28px, 1440px); padding-top: 14px; }.topbar { padding: 13px; border-radius: 20px; }.brand-mark { width: 42px; height: 42px; border-radius: 12px; }.brand h1 { font-size: 1.13rem; }.brand-subtitle { font-size: .71rem; }.status-pills { width: 100%; }.pill { padding: 6px 8px; font-size: .72rem; }.app-nav { width: 100%; }.app-nav button { min-width: 128px; }.stats { gap: 8px; }.tile { padding: 14px; border-radius: 17px; }.tile .value { font-size: 1.72rem; }.operational { align-items: flex-start; }.operational-detail { display: block; margin-top: 3px; }.search { min-width: 100%; }.manage-button { width: 100%; }.segmented { width: 100%; }.segmented button { flex: 1; padding: 8px 6px; font-size: .72rem; }.report-head { align-items: flex-start; flex-direction: column; }.report-period { width: 100%; }.report-period button { flex: 1; }.report-cards { grid-template-columns: 1fr 1fr; }.report-layout { grid-template-columns: minmax(0, 1fr); padding: 10px; }.weekday-grid { gap: 4px; padding-inline: 8px; }.report-panel-head { align-items: flex-start; flex-direction: column; }.report-tabs { width: 100%; }.report-tabs button { flex: 1; }.report-general { grid-template-columns: 1fr; }.report-row { grid-template-columns: minmax(130px, 1.3fr) minmax(80px, .7fr); }.report-row .report-cell:nth-child(n+3) { display: none; }.activity-head { align-items: flex-start; flex-direction: column; gap: 3px; }.activity-actions { width: 100%; align-items: stretch; }.test-button { width: 100%; }.dialog-surface { padding: 21px; border-radius: 23px; }.dialog-actions { grid-template-columns: 1fr; }.ghost-button { order: 2; }.responsibles-dialog .dialog-surface { padding: 18px; }.responsibles-toolbar { align-items: stretch; flex-direction: column; }.responsibles-toolbar-actions { align-items: stretch; flex-direction: column; }.responsibles-summary { grid-template-columns: 1fr; }.responsible-editor { padding: 17px 14px; }.responsible-identity { flex-direction: column; }.responsible-field-grid { grid-template-columns: 1fr; }.responsible-actions { grid-template-columns: 1fr; }.responsible-actions .ghost-button { order: 2; }.directory-page-head { flex-direction: column; padding: 18px; }.directory-head-actions { width: 100%; }.directory-summary { grid-template-columns: 1fr 1fr; padding: 14px 14px 0; }.directory-controls { grid-template-columns: 1fr; padding: 12px 14px; }.directory-controls .search { grid-column: auto; }.directory-table-wrap { margin: 0 14px 14px; }.list-toolbar { align-items: stretch; padding: 14px; }.list-tabs { width: 100%; }.list-tabs button { flex: 1; }.list-toolbar-spacer { display: none; }.download-button { width: 100%; }.print-preview-shell { padding: 12px; } body.profile-card-open { overflow: hidden; }.profile-scrim:not([hidden]) { position: fixed; z-index: 89; inset: 0; display: block; background: rgba(0, 3, 13, .48); -webkit-backdrop-filter: blur(6px) saturate(115%); backdrop-filter: blur(6px) saturate(115%); }.profile-popover { width: auto; right: 14px; bottom: 14px; left: 14px !important; top: auto !important; padding: 17px; border-radius: 25px; transform-origin: center bottom; }.profile-popover.ready { animation-name: profile-sheet-in; }.profile-details { grid-template-columns: 1fr; }.profile-state { grid-template-columns: 10px minmax(0, 1fr); }.profile-state-duration { grid-column: 2; }.profile-head h2 { white-space: normal; } }
+  @media (max-width: 580px) { .app-nav button { min-width: 108px; padding-inline: 8px; font-size: .7rem; } }
   @keyframes profile-sheet-in { from { opacity: 0; transform: translateY(24px) scale(.975); } to { opacity: 1; transform: translateY(0) scale(1); } }
   @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) { .topbar, .tile, .operational, .toolbar, .table-wrap, .activity, .availability-report, .dialog-surface, .profile-popover { background-color: rgba(7, 18, 46, .97); } }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
@@ -406,6 +461,14 @@
       <span class="clock" id="clock">--:--:--</span>
     </div>
   </header>
+
+  <nav class="app-nav" aria-label="Áreas do PulsoPBX">
+    <button type="button" class="active" data-app-view="monitor" aria-pressed="true">Monitor</button>
+    <button type="button" data-app-view="directory" aria-pressed="false" hidden>Colaboradores</button>
+    <button type="button" data-app-view="lists" aria-pressed="false" hidden>Listas corporativas</button>
+  </nav>
+
+  <section id="monitor-view" class="app-view" data-app-panel="monitor">
 
   <section class="stats" aria-label="Resumo dos ramais">
     <div class="tile"><div class="label">Total de ramais</div><div class="value" id="stat-total">–</div></div>
@@ -493,9 +556,65 @@
     <div id="recent-incidents" class="activity-list"></div>
   </section>
 
-  <footer><span id="foot-left">Aguardando dados…</span><span id="foot-right"></span></footer>
+    <footer><span id="foot-left">Aguardando dados…</span><span id="foot-right"></span></footer>
+  </section>
+
+  <section id="directory-view" class="app-view directory-page" data-app-panel="directory" hidden>
+    <header class="directory-page-head">
+      <div class="directory-page-title">
+        <p>Base corporativa central</p>
+        <h2>Colaboradores, ramais e e-mails</h2>
+        <span>Uma única fonte para o monitor, os alertas e as listas impressas da empresa.</span>
+      </div>
+      <div class="directory-head-actions">
+        <button id="directory-manage" class="manage-button" type="button" hidden>Gerenciar cadastros</button>
+      </div>
+    </header>
+    <div class="directory-summary" aria-label="Resumo do diretório">
+      <div class="directory-summary-card"><span>Colaboradores ativos</span><strong id="directory-active-count">—</strong></div>
+      <div class="directory-summary-card"><span>Com ramal</span><strong id="directory-extension-count">—</strong></div>
+      <div class="directory-summary-card"><span>Com e-mail</span><strong id="directory-email-count">—</strong></div>
+      <div class="directory-summary-card"><span>Setores</span><strong id="directory-sector-count">—</strong></div>
+    </div>
+    <div class="directory-controls">
+      <label class="search"><span class="icon" aria-hidden="true">⌕</span><input id="directory-search" type="search" autocomplete="off" placeholder="Buscar nome, cargo, setor, ramal ou e-mail…" aria-label="Buscar no diretório"></label>
+      <select id="directory-sector-filter" class="directory-select" aria-label="Filtrar diretório por setor"><option value="">Todos os setores</option></select>
+      <select id="directory-status-filter" class="directory-select" aria-label="Filtrar diretório por situação"><option value="active">Somente ativos</option><option value="all">Ativos e inativos</option><option value="inactive">Somente inativos</option></select>
+    </div>
+    <div class="directory-table-wrap">
+      <table class="directory-table">
+        <thead><tr><th>Colaborador</th><th>Cargo</th><th>Setor</th><th>Ramal</th><th>E-mail</th><th>Situação</th></tr></thead>
+        <tbody id="directory-tbody"></tbody>
+      </table>
+      <div id="directory-empty" class="directory-empty" hidden>Nenhum colaborador corresponde aos filtros atuais.</div>
+    </div>
+  </section>
+
+  <section id="lists-view" class="app-view directory-page" data-app-panel="lists" hidden>
+    <header class="directory-page-head">
+      <div class="directory-page-title">
+        <p>Visualização e distribuição</p>
+        <h2>Listas corporativas atualizadas</h2>
+        <span>Prévia pronta para consulta, impressão e download em Excel, preservando as cores por setor.</span>
+      </div>
+    </header>
+    <div class="list-toolbar">
+      <div id="list-tabs" class="list-tabs" role="group" aria-label="Tipo da lista">
+        <button type="button" class="active" data-list-kind="extensions" aria-pressed="true">Lista de ramais</button>
+        <button type="button" data-list-kind="emails" aria-pressed="false">Lista de e-mails</button>
+      </div>
+      <span class="list-toolbar-spacer"></span>
+      <button id="list-print" class="ghost-button" type="button">Imprimir</button>
+      <a id="list-download" class="download-button" href="/api/directory/export/extensions.xlsx" download>Baixar Excel atualizado</a>
+    </div>
+    <div class="print-preview-shell">
+      <div id="list-preview" class="print-sheet extensions" aria-live="polite"></div>
+    </div>
+    <div class="print-meta"><span id="list-preview-count">Carregando lista…</span><span>Gerada a partir do cadastro central do PulsoPBX</span></div>
+  </section>
 </main>
 
+<div id="column-menu-scrim" class="column-menu-scrim" hidden aria-hidden="true"></div>
 <div id="profile-scrim" class="profile-scrim" hidden aria-hidden="true"></div>
 <section id="profile-popover" class="profile-popover" role="dialog" aria-modal="false" aria-labelledby="profile-name" hidden>
   <button id="profile-close" class="profile-close" type="button" aria-label="Fechar perfil do ramal">×</button>
@@ -584,7 +703,10 @@
     <div id="responsibles-manager" hidden>
       <div class="responsibles-toolbar">
         <label class="search"><span class="icon" aria-hidden="true">⌕</span><input id="responsibles-search" type="search" placeholder="Buscar ramal, colaborador, e-mail ou setor…" autocomplete="off" aria-label="Buscar ramal, colaborador, e-mail ou setor"></label>
-        <span id="responsibles-count" class="responsibles-count">0 colaboradores</span>
+        <div class="responsibles-toolbar-actions">
+          <span id="responsibles-count" class="responsibles-count">0 colaboradores</span>
+          <button id="responsibles-new" class="manage-button" type="button">Novo colaborador</button>
+        </div>
       </div>
       <div class="responsibles-summary" aria-label="Resumo dos cadastros">
         <div class="responsibles-summary-item"><span>Ramais cadastrados</span><strong id="responsibles-total">0</strong></div>
@@ -602,16 +724,33 @@
             </div>
             <span id="responsible-source" class="source-badge">Sem cadastro</span>
           </div>
+          <div class="responsible-field-grid">
+            <label class="responsible-form-field">
+              <span class="field-label">Nome do colaborador</span>
+              <input id="responsible-name-input" class="glass-input" type="text" maxlength="120" autocomplete="name" placeholder="Nome completo" required disabled>
+            </label>
+            <label class="responsible-form-field">
+              <span class="field-label">Cargo</span>
+              <input id="responsible-role-input" class="glass-input" type="text" maxlength="120" autocomplete="organization-title" placeholder="Cargo ou função" disabled>
+            </label>
+            <label class="responsible-form-field">
+              <span class="field-label">Ramal</span>
+              <input id="responsible-extension-input" class="glass-input" type="text" maxlength="24" inputmode="numeric" placeholder="Ex.: 3001" disabled>
+            </label>
+            <label class="responsible-form-field">
+              <span class="field-label">Setor atual</span>
+              <input id="responsible-sector-input" class="glass-input" type="text" maxlength="80" list="responsible-sector-options" autocomplete="off" placeholder="Digite ou selecione um setor" disabled>
+              <datalist id="responsible-sector-options"></datalist>
+            </label>
+          </div>
           <label class="responsible-form-field">
             <span class="field-label">E-mail do responsável</span>
-            <input id="responsible-email" class="glass-input" type="email" maxlength="254" autocomplete="email" placeholder="responsavel@empresa.com.br" required disabled>
-            <small class="responsible-help">Este endereço receberá somente os alertas vinculados ao ramal selecionado.</small>
+            <input id="responsible-email" class="glass-input" type="email" maxlength="254" autocomplete="email" placeholder="responsavel@empresa.com.br" disabled>
+            <small class="responsible-help">Quando preenchido, este endereço recebe os alertas vinculados ao ramal. As listas e os e-mails usam a mesma informação.</small>
           </label>
-          <label class="responsible-form-field">
-            <span class="field-label">Setor atual</span>
-            <input id="responsible-sector-input" class="glass-input" type="text" maxlength="80" list="responsible-sector-options" autocomplete="off" placeholder="Digite ou selecione um setor" disabled>
-            <datalist id="responsible-sector-options"></datalist>
-            <small class="responsible-help">Selecione um setor existente ou digite um novo. A alteração será usada no painel, nos próximos e-mails e nos novos registros.</small>
+          <label class="switch-row">
+            <span class="switch-copy"><strong>Colaborador ativo</strong><small>Desative para preservar o histórico sem exibir a pessoa nas listas atuais.</small></span>
+            <span class="switch"><input id="responsible-active" type="checkbox" checked disabled><span class="switch-track" aria-hidden="true"></span></span>
           </label>
           <label class="switch-row">
             <span class="switch-copy"><strong>Enviar alertas automáticos</strong><small>Queda confirmada e retorno, conforme as regras do monitor.</small></span>
@@ -644,9 +783,17 @@ let reportView = "general";
 let reportLoading = false;
 let responsiblesPassword = "";
 let responsibleRows = [];
-let selectedResponsibleExtension = null;
+let selectedResponsibleId = null;
+let pendingResponsibleExtension = null;
 let responsibleSearchTerm = "";
 let responsibleRequestInFlight = false;
+let directoryData = { people: [], sectors: [], quick_dials: [], generated_at: 0 };
+let directorySearchTerm = "";
+let directorySector = "";
+let directoryStatus = "active";
+let directoryLoading = false;
+let activeAppView = "monitor";
+let listKind = "extensions";
 let selectedProfileExtension = null;
 let profileTriggerElement = null;
 let profileView = "now";
@@ -797,10 +944,53 @@ function closeColumnMenu() {
   if (!openColumnMenu) return;
   const menu = document.querySelector('[data-menu="' + openColumnMenu + '"]');
   const trigger = document.querySelector('.column-menu-trigger[data-column="' + openColumnMenu + '"]');
-  if (menu) menu.hidden = true;
+  if (menu) {
+    menu.hidden = true;
+    menu.classList.remove("mobile-sheet");
+    menu.removeAttribute("style");
+    if (trigger && trigger.closest("th")) trigger.closest("th").appendChild(menu);
+  }
   if (trigger) { trigger.classList.remove("open"); trigger.setAttribute("aria-expanded", "false"); }
+  document.body.classList.remove("column-menu-open");
+  document.getElementById("column-menu-scrim").hidden = true;
   openColumnMenu = null;
   menuDraft = null;
+}
+
+function positionColumnMenu() {
+  if (!openColumnMenu) return;
+  const menu = document.querySelector('[data-menu="' + openColumnMenu + '"]');
+  const trigger = document.querySelector('.column-menu-trigger[data-column="' + openColumnMenu + '"]');
+  if (!menu || !trigger || menu.hidden) return;
+  const mobile = window.matchMedia("(max-width: 680px)").matches;
+  menu.classList.toggle("mobile-sheet", mobile);
+  document.body.classList.toggle("column-menu-open", mobile);
+  document.getElementById("column-menu-scrim").hidden = !mobile;
+  if (mobile) {
+    menu.removeAttribute("style");
+    return;
+  }
+  const viewportMargin = 12;
+  const gap = 8;
+  const width = Math.min(300, window.innerWidth - viewportMargin * 2);
+  menu.style.width = width + "px";
+  menu.style.maxHeight = Math.max(220, window.innerHeight - viewportMargin * 2) + "px";
+  menu.style.visibility = "hidden";
+  const triggerRect = trigger.getBoundingClientRect();
+  const menuHeight = Math.min(menu.scrollHeight, window.innerHeight - viewportMargin * 2);
+  const opensToLeft = triggerRect.left + width > window.innerWidth - viewportMargin;
+  const desiredLeft = opensToLeft ? triggerRect.right - width : triggerRect.left;
+  const left = Math.min(Math.max(viewportMargin, desiredLeft), window.innerWidth - width - viewportMargin);
+  const roomBelow = window.innerHeight - triggerRect.bottom - gap - viewportMargin;
+  const roomAbove = triggerRect.top - gap - viewportMargin;
+  const openAbove = roomBelow < menuHeight && roomAbove > roomBelow;
+  const desiredTop = openAbove ? triggerRect.top - menuHeight - gap : triggerRect.bottom + gap;
+  const top = Math.min(Math.max(viewportMargin, desiredTop), window.innerHeight - menuHeight - viewportMargin);
+  menu.style.left = left + "px";
+  menu.style.right = "auto";
+  menu.style.top = top + "px";
+  menu.style.bottom = "auto";
+  menu.style.visibility = "visible";
 }
 
 function openMenu(column) {
@@ -811,9 +1001,11 @@ function openMenu(column) {
   renderColumnMenu(column);
   const menu = document.querySelector('[data-menu="' + column + '"]');
   const trigger = document.querySelector('.column-menu-trigger[data-column="' + column + '"]');
+  document.body.appendChild(menu);
   menu.hidden = false;
   trigger.classList.add("open");
   trigger.setAttribute("aria-expanded", "true");
+  positionColumnMenu();
 }
 
 function applyColumnMenu(column) {
@@ -1220,31 +1412,47 @@ function resetResponsibleClear() {
 }
 
 function renderResponsibleEditor() {
-  const row = responsibleRows.find(item => item.extension === selectedResponsibleExtension);
-  const email = document.getElementById("responsible-email");
-  const sector = document.getElementById("responsible-sector-input");
-  const notify = document.getElementById("responsible-notify");
+  const row = responsibleRows.find(item => item.id === selectedResponsibleId);
+  const inputs = {
+    name: document.getElementById("responsible-name-input"),
+    role: document.getElementById("responsible-role-input"),
+    extension: document.getElementById("responsible-extension-input"),
+    sector: document.getElementById("responsible-sector-input"),
+    email: document.getElementById("responsible-email"),
+    active: document.getElementById("responsible-active"),
+    notify: document.getElementById("responsible-notify"),
+  };
   const save = document.getElementById("responsible-save");
   const clear = document.getElementById("responsible-clear");
   const source = document.getElementById("responsible-source");
   resetResponsibleClear();
-  if (!row) {
-    document.getElementById("responsible-extension").textContent = "Selecione um ramal";
-    document.getElementById("responsible-name").textContent = "Nenhum ramal selecionado";
+  if (!row && selectedResponsibleId !== "new") {
+    document.getElementById("responsible-extension").textContent = "Selecione um cadastro";
+    document.getElementById("responsible-name").textContent = "Nenhum colaborador selecionado";
     document.getElementById("responsible-sector").textContent = "—";
     source.textContent = "Sem cadastro"; source.className = "source-badge";
-    email.value = ""; email.disabled = true; sector.value = ""; sector.disabled = true; notify.disabled = true; save.disabled = true; clear.disabled = true;
+    Object.values(inputs).forEach(input => { input.disabled = true; if (input.type === "checkbox") input.checked = false; else input.value = ""; });
+    save.disabled = true; clear.disabled = true;
     return;
   }
-  const sourceInfo = responsibleSource(row.source);
-  document.getElementById("responsible-extension").textContent = "Ramal " + row.extension;
-  document.getElementById("responsible-name").textContent = row.name || "Responsável não identificado";
-  document.getElementById("responsible-sector").textContent = row.sector || (row.online ? "Ramal online" : "Ramal offline");
+  const isNew = selectedResponsibleId === "new";
+  const current = row || { name: "", role: "", extension: "", sector: "", email: "", active: true, notify: true, source: "local" };
+  const sourceInfo = isNew ? ["Novo cadastro", "local"] : responsibleSource(current.source);
+  document.getElementById("responsible-extension").textContent = isNew ? "Novo colaborador" : (current.extension ? "Ramal " + current.extension : "Sem ramal");
+  document.getElementById("responsible-name").textContent = isNew ? "Preencha os dados principais" : (current.name || "Responsável não identificado");
+  document.getElementById("responsible-sector").textContent = isNew ? "Cadastro manual" : (current.sector || "Setor não informado");
   source.textContent = sourceInfo[0]; source.className = "source-badge" + (sourceInfo[1] ? " " + sourceInfo[1] : "");
-  email.value = row.email || ""; email.disabled = false;
-  sector.value = row.sector || ""; sector.disabled = false;
-  notify.checked = row.notify !== false; notify.disabled = false;
-  save.disabled = false; clear.disabled = row.source !== "local";
+  inputs.name.value = current.name || "";
+  inputs.role.value = current.role || "";
+  inputs.extension.value = current.extension || "";
+  inputs.sector.value = current.sector || "";
+  inputs.email.value = current.email || "";
+  inputs.active.checked = current.active !== false;
+  inputs.notify.checked = current.notify !== false;
+  Object.values(inputs).forEach(input => { input.disabled = false; });
+  save.disabled = false;
+  clear.disabled = isNew || current.email_source !== "manual" || !current.extension;
+  if (isNew) requestAnimationFrame(() => inputs.name.focus());
 }
 
 function renderResponsibleSectorOptions() {
@@ -1256,31 +1464,33 @@ function renderResponsibleSectorOptions() {
 }
 
 function renderResponsibleSummary() {
-  document.getElementById("responsibles-total").textContent = responsibleRows.length;
-  document.getElementById("responsibles-with-email").textContent = responsibleRows.filter(row => Boolean(row.email)).length;
-  document.getElementById("responsibles-with-sector").textContent = responsibleRows.filter(row => Boolean((row.sector || "").trim())).length;
+  const activeRows = responsibleRows.filter(row => row.active !== false);
+  document.getElementById("responsibles-total").textContent = activeRows.length;
+  document.getElementById("responsibles-with-email").textContent = activeRows.filter(row => Boolean(row.email)).length;
+  document.getElementById("responsibles-with-sector").textContent = activeRows.filter(row => Boolean((row.sector || "").trim())).length;
 }
 
 function renderResponsibleList() {
   const list = document.getElementById("responsibles-list");
   const query = responsibleSearchTerm.toLocaleLowerCase("pt-BR");
-  const rows = responsibleRows.filter(row => (row.extension + " " + (row.name || "") + " " + (row.email || "") + " " + (row.sector || "")).toLocaleLowerCase("pt-BR").includes(query));
+  const rows = responsibleRows.filter(row => ((row.extension || "") + " " + (row.name || "") + " " + (row.role || "") + " " + (row.email || "") + " " + (row.sector || "")).toLocaleLowerCase("pt-BR").includes(query));
   document.getElementById("responsibles-count").textContent = rows.length + " de " + responsibleRows.length + " colaboradores";
   if (!rows.length) {
     list.innerHTML = '<div class="responsibles-empty">Nenhum ramal corresponde à busca atual.</div>';
     return;
   }
   list.innerHTML = rows.map(row => {
-    const active = row.extension === selectedResponsibleExtension ? " active" : "";
+    const active = row.id === selectedResponsibleId ? " active" : "";
     const configured = row.email ? " configured" : "";
     const sector = row.sector || "Setor não informado";
     const email = row.email || "E-mail não cadastrado";
-    return '<button class="responsible-row' + active + '" type="button" data-extension="' + escapeHtml(row.extension) + '"><span class="responsible-row-dot' + configured + '" aria-hidden="true"></span><span class="responsible-row-extension">' + escapeHtml(row.extension) + '</span><span class="responsible-row-copy"><strong>' + escapeHtml(row.name || "Sem identificação") + '</strong><small class="responsible-row-sector">' + escapeHtml(sector) + '</small><small class="responsible-row-email">' + escapeHtml(email) + '</small></span></button>';
+    const state = row.active === false ? " · Inativo" : "";
+    return '<button class="responsible-row' + active + '" type="button" data-person-id="' + row.id + '"><span class="responsible-row-dot' + configured + '" aria-hidden="true"></span><span class="responsible-row-extension">' + escapeHtml(row.extension || "—") + '</span><span class="responsible-row-copy"><strong>' + escapeHtml(row.name || "Sem identificação") + '</strong><small class="responsible-row-sector">' + escapeHtml(sector + state) + '</small><small class="responsible-row-email">' + escapeHtml(email) + '</small></span></button>';
   }).join("");
 }
 
-function selectResponsible(extension) {
-  selectedResponsibleExtension = extension;
+function selectResponsible(personId) {
+  selectedResponsibleId = personId;
   document.getElementById("responsible-feedback").textContent = "";
   renderResponsibleList();
   renderResponsibleEditor();
@@ -1300,15 +1510,20 @@ async function loadResponsibles(password) {
   feedback.className = "admin-feedback"; feedback.textContent = "Verificando acesso…";
   try {
     const candidate = password || responsiblesPassword;
-    const response = await fetch("/api/admin/responsibles", {
+    const response = await fetch("/api/admin/directory", {
       cache: "no-store",
       headers: { "X-PulsoPBX-Admin": candidate, "X-PulsoPBX-Action": "manage-responsibles" },
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.error || "HTTP " + response.status);
     responsiblesPassword = candidate;
-    responsibleRows = payload.responsibles || [];
-    if (!responsibleRows.some(row => row.extension === selectedResponsibleExtension)) selectedResponsibleExtension = responsibleRows.length ? responsibleRows[0].extension : null;
+    responsibleRows = payload.people || payload.responsibles || [];
+    if (pendingResponsibleExtension) {
+      const target = responsibleRows.find(row => row.extension === pendingResponsibleExtension);
+      if (target) selectedResponsibleId = target.id;
+      pendingResponsibleExtension = null;
+    }
+    if (selectedResponsibleId !== "new" && !responsibleRows.some(row => row.id === selectedResponsibleId)) selectedResponsibleId = responsibleRows.length ? responsibleRows[0].id : null;
     responsiblesUnlock.hidden = true; responsiblesManager.hidden = false;
     feedback.textContent = "";
     renderResponsibleSectorOptions(); renderResponsibleSummary(); renderResponsibleList(); renderResponsibleEditor();
@@ -1324,23 +1539,34 @@ async function loadResponsibles(password) {
 
 async function saveResponsible(event) {
   event.preventDefault();
-  if (!selectedResponsibleExtension || responsibleRequestInFlight) return;
-  const emailInput = document.getElementById("responsible-email");
-  const sectorInput = document.getElementById("responsible-sector-input");
-  if (!emailInput.reportValidity() || !sectorInput.reportValidity()) return;
+  if (selectedResponsibleId === null || responsibleRequestInFlight) return;
+  const form = event.currentTarget;
+  if (!form.reportValidity()) return;
+  const creating = selectedResponsibleId === "new";
+  const body = {
+    name: document.getElementById("responsible-name-input").value.trim(),
+    role: document.getElementById("responsible-role-input").value.trim(),
+    extension: document.getElementById("responsible-extension-input").value.trim(),
+    sector: document.getElementById("responsible-sector-input").value.trim(),
+    email: document.getElementById("responsible-email").value.trim(),
+    active: document.getElementById("responsible-active").checked,
+    notify: document.getElementById("responsible-notify").checked,
+  };
   const feedback = document.getElementById("responsible-feedback");
   responsibleRequestInFlight = true; feedback.className = "admin-feedback"; feedback.textContent = "Salvando dados…";
   try {
-    const response = await fetch("/api/admin/responsibles/" + encodeURIComponent(selectedResponsibleExtension), {
-      method: "PUT",
+    const response = await fetch(creating ? "/api/admin/directory" : "/api/admin/directory/" + encodeURIComponent(selectedResponsibleId), {
+      method: creating ? "POST" : "PUT",
       headers: { ...responsibleHeaders(), "Content-Type": "application/json" },
-      body: JSON.stringify({ email: emailInput.value.trim(), sector: sectorInput.value.trim(), notify: document.getElementById("responsible-notify").checked }),
+      body: JSON.stringify(body),
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.error || "HTTP " + response.status);
+    selectedResponsibleId = payload.person.id;
     responsibleRequestInFlight = false;
     await loadResponsibles(responsiblesPassword);
-    feedback.className = "admin-feedback ok"; feedback.textContent = "E-mail e setor salvos e já ativos no monitor.";
+    feedback.className = "admin-feedback ok"; feedback.textContent = "Cadastro salvo e sincronizado com o monitor e as listas.";
+    await loadDirectoryPublic(true);
     refresh(); refreshReport();
   } catch (error) {
     feedback.className = "admin-feedback error"; feedback.textContent = error.message;
@@ -1348,8 +1574,8 @@ async function saveResponsible(event) {
 }
 
 async function clearResponsible() {
-  const row = responsibleRows.find(item => item.extension === selectedResponsibleExtension);
-  if (!row || row.source !== "local" || responsibleRequestInFlight) return;
+  const row = responsibleRows.find(item => item.id === selectedResponsibleId);
+  if (!row || row.email_source !== "manual" || !row.extension || responsibleRequestInFlight) return;
   const button = document.getElementById("responsible-clear");
   if (!responsibleClearArmed) {
     responsibleClearArmed = true;
@@ -1360,21 +1586,138 @@ async function clearResponsible() {
   const feedback = document.getElementById("responsible-feedback");
   responsibleRequestInFlight = true; feedback.className = "admin-feedback"; feedback.textContent = "Removendo cadastro local…";
   try {
-    const response = await fetch("/api/admin/responsibles/" + encodeURIComponent(row.extension), { method: "DELETE", headers: responsibleHeaders() });
+    const response = await fetch("/api/admin/directory/" + encodeURIComponent(row.id) + "/reset-email", { method: "POST", headers: responsibleHeaders() });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.error || "HTTP " + response.status);
     responsibleRequestInFlight = false;
     await loadResponsibles(responsiblesPassword);
-    feedback.className = "admin-feedback ok"; feedback.textContent = "E-mail local removido; o setor cadastrado foi preservado.";
+    feedback.className = "admin-feedback ok"; feedback.textContent = "E-mail atualizado com o valor disponível no MikoPBX.";
+    await loadDirectoryPublic(true);
     refresh(); refreshReport();
   } catch (error) {
     feedback.className = "admin-feedback error"; feedback.textContent = error.message;
   } finally { responsibleRequestInFlight = false; }
 }
 
+function switchAppView(view) {
+  if (!document.querySelector('[data-app-panel="' + view + '"]')) return;
+  closeColumnMenu();
+  activeAppView = view;
+  document.querySelectorAll("[data-app-panel]").forEach(panel => { panel.hidden = panel.dataset.appPanel !== view; });
+  document.querySelectorAll("[data-app-view]").forEach(button => {
+    const active = button.dataset.appView === view;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+  if (view === "directory" || view === "lists") loadDirectoryPublic();
+}
+
+function updateDirectoryAvailability(data) {
+  const management = data.management || {};
+  const available = Boolean(management.directory_available);
+  document.querySelectorAll('[data-app-view="directory"], [data-app-view="lists"]').forEach(button => { button.hidden = !available; });
+  document.getElementById("directory-manage").hidden = !management.responsibles_available;
+  if (!available && activeAppView !== "monitor") switchAppView("monitor");
+}
+
+async function loadDirectoryPublic(force = false) {
+  if (directoryLoading) return;
+  if (!force && directoryData.generated_at) {
+    renderDirectory(); renderListPreview();
+    return;
+  }
+  directoryLoading = true;
+  try {
+    const response = await fetch("/api/directory", { cache: "no-store" });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "HTTP " + response.status);
+    directoryData = payload;
+    renderDirectory(); renderListPreview();
+  } catch (error) {
+    const empty = document.getElementById("directory-empty");
+    empty.hidden = false; empty.textContent = "Não foi possível carregar o diretório: " + error.message;
+    document.getElementById("list-preview").innerHTML = '<div class="directory-empty">Não foi possível gerar a prévia atual.</div>';
+    document.getElementById("list-preview-count").textContent = "Diretório indisponível";
+  } finally { directoryLoading = false; }
+}
+
+function directorySectorNames() {
+  return [...new Set((directoryData.people || []).map(row => (row.sector || "").trim()).filter(Boolean))]
+    .sort((left, right) => left.localeCompare(right, "pt-BR", { sensitivity: "base" }));
+}
+
+function renderDirectory() {
+  const all = directoryData.people || [];
+  const active = all.filter(row => row.active !== false);
+  document.getElementById("directory-active-count").textContent = active.length;
+  document.getElementById("directory-extension-count").textContent = active.filter(row => Boolean(row.extension)).length;
+  document.getElementById("directory-email-count").textContent = active.filter(row => Boolean(row.email)).length;
+  document.getElementById("directory-sector-count").textContent = new Set(active.map(row => (row.sector || "").trim()).filter(Boolean)).size;
+
+  const sectorSelect = document.getElementById("directory-sector-filter");
+  sectorSelect.innerHTML = '<option value="">Todos os setores</option>' + directorySectorNames().map(sector => '<option value="' + escapeHtml(sector) + '">' + escapeHtml(sector) + '</option>').join("");
+  sectorSelect.value = directorySector;
+  const query = directorySearchTerm.toLocaleLowerCase("pt-BR");
+  const rows = all.filter(row => {
+    const activeMatch = directoryStatus === "all" || (directoryStatus === "active" ? row.active !== false : row.active === false);
+    const sectorMatch = !directorySector || row.sector === directorySector;
+    const haystack = [row.name, row.role, row.sector, row.extension, row.email].join(" ").toLocaleLowerCase("pt-BR");
+    return activeMatch && sectorMatch && haystack.includes(query);
+  });
+  const tbody = document.getElementById("directory-tbody");
+  const empty = document.getElementById("directory-empty");
+  tbody.innerHTML = rows.map(row => {
+    const statusClass = row.active === false ? " inactive" : "";
+    const statusText = row.active === false ? "Inativo" : "Ativo";
+    return '<tr data-person-id="' + row.id + '"><td><strong>' + escapeHtml(row.name || "—") + '</strong></td><td>' + (row.role ? escapeHtml(row.role) : blank()) + '</td><td>' + (row.sector ? escapeHtml(row.sector) : blank()) + '</td><td><strong>' + (row.extension ? escapeHtml(row.extension) : "—") + '</strong></td><td>' + (row.email ? escapeHtml(row.email) : blank()) + '</td><td><span class="directory-status' + statusClass + '">' + statusText + '</span></td></tr>';
+  }).join("");
+  empty.hidden = rows.length !== 0;
+  if (!rows.length) empty.textContent = "Nenhum colaborador corresponde aos filtros atuais.";
+}
+
+function groupedActivePeople() {
+  const groups = [];
+  (directoryData.people || []).filter(row => row.active !== false).forEach(row => {
+    const sector = (row.sector || "Não informado").trim();
+    let group = groups.find(item => item.sector === sector);
+    if (!group) { group = { sector, rows: [] }; groups.push(group); }
+    group.rows.push(row);
+  });
+  return groups;
+}
+
+function renderListPreview() {
+  const groups = groupedActivePeople();
+  const extensionList = listKind === "extensions";
+  const header = extensionList ? ["Setor", "Usuário", "Ramal"] : ["Setor", "Usuário", "E-mail"];
+  let body = "";
+  groups.forEach((group, groupIndex) => {
+    group.rows.forEach((row, rowIndex) => {
+      const rowClass = groupIndex % 2 === 1 ? "blue" : "";
+      body += '<tr class="' + rowClass + '">';
+      if (rowIndex === 0) body += '<td class="sector" rowspan="' + group.rows.length + '">' + escapeHtml(group.sector.toLocaleUpperCase("pt-BR")) + '</td>';
+      body += '<td class="person">' + escapeHtml(row.name || "—") + '</td><td class="value">' + escapeHtml(extensionList ? (row.extension || "—") : (row.email || "—")) + '</td></tr>';
+    });
+  });
+  if (extensionList) {
+    (directoryData.quick_dials || []).forEach(item => {
+      body += '<tr class="quick"><td>' + escapeHtml(item.label || "Atalho") + '</td><td>Discagem rápida</td><td class="value">' + escapeHtml(item.code || "—") + '</td></tr>';
+    });
+  }
+  const preview = document.getElementById("list-preview");
+  preview.className = "print-sheet " + listKind;
+  preview.innerHTML = '<table><thead><tr>' + header.map(value => "<th>" + value + "</th>").join("") + "</tr></thead><tbody>" + body + "</tbody></table>";
+  const total = groups.reduce((count, group) => count + group.rows.length, 0);
+  document.getElementById("list-preview-count").textContent = total + " colaborador(es) ativo(s) · " + groups.length + " setor(es)";
+  const download = document.getElementById("list-download");
+  download.href = "/api/directory/export/" + listKind + ".xlsx";
+  download.setAttribute("download", listKind === "extensions" ? "lista-ramais-atualizada.xlsx" : "lista-emails-atualizada.xlsx");
+}
+
 function renderAll() {
   if (!lastData) return;
   renderPills(lastData); renderStats(lastData); renderOperational(lastData); renderColumnIndicators(); renderTable(lastData); syncProfilePopover(); renderAlerts(lastData); renderIncidents(lastData);
+  updateDirectoryAvailability(lastData);
   document.getElementById("responsibles-open").hidden = !((lastData.management || {}).responsibles_available);
   const shown = lastData.extensions.filter(passesFilter).length;
   document.getElementById("foot-left").textContent = "Exibindo " + shown + " de " + lastData.total + " ramais";
@@ -1410,7 +1753,9 @@ document.getElementById("tbody").addEventListener("click", event => {
 document.querySelector("thead").addEventListener("click", e => {
   const trigger = e.target.closest(".column-menu-trigger");
   if (trigger) { openMenu(trigger.dataset.column); return; }
-  const action = e.target.closest("[data-action]");
+});
+document.addEventListener("click", e => {
+  const action = e.target.closest(".column-menu [data-action]");
   if (!action || !openColumnMenu || action.dataset.action === "search") return;
   if (action.dataset.action === "sort") {
     menuDraft.sort = menuDraft.sort === action.dataset.direction ? null : action.dataset.direction;
@@ -1418,10 +1763,10 @@ document.querySelector("thead").addEventListener("click", e => {
   } else if (action.dataset.action === "apply") applyColumnMenu(openColumnMenu);
   else if (action.dataset.action === "clear") clearColumnMenu(openColumnMenu);
 });
-document.querySelector("thead").addEventListener("input", e => {
+document.addEventListener("input", e => {
   if (e.target.dataset.action === "search" && openColumnMenu) renderColumnMenuOptions(openColumnMenu, e.target.value.trim());
 });
-document.querySelector("thead").addEventListener("change", e => {
+document.addEventListener("change", e => {
   if (!e.target.matches("[data-option-value]") || !menuDraft) return;
   if (e.target.checked) menuDraft.selected.add(e.target.dataset.optionValue);
   else menuDraft.selected.delete(e.target.dataset.optionValue);
@@ -1431,8 +1776,9 @@ document.addEventListener("click", e => {
   if (!profilePopover.hidden && !e.target.closest("#profile-popover") && !e.target.closest("[data-profile-extension]")) closeProfilePopover(false);
 });
 document.addEventListener("keydown", e => { if (e.key === "Escape") { closeColumnMenu(); if (!profilePopover.hidden) closeProfilePopover(true); } });
-window.addEventListener("resize", () => positionProfilePopover(profileTriggerElement));
-document.addEventListener("scroll", () => positionProfilePopover(profileTriggerElement), true);
+document.getElementById("column-menu-scrim").addEventListener("click", closeColumnMenu);
+window.addEventListener("resize", () => { positionProfilePopover(profileTriggerElement); positionColumnMenu(); });
+document.addEventListener("scroll", () => { positionProfilePopover(profileTriggerElement); positionColumnMenu(); }, true);
 document.getElementById("report-period").addEventListener("click", event => {
   const button = event.target.closest("button[data-days]");
   if (!button) return;
@@ -1461,8 +1807,9 @@ document.getElementById("test-dialog-close").addEventListener("click", closeTest
 document.getElementById("test-dialog-cancel").addEventListener("click", closeTestDialog);
 document.getElementById("test-dialog-confirm").addEventListener("click", () => { closeTestDialog(); sendTestAlert(); });
 testDialog.addEventListener("click", event => { if (event.target === testDialog) closeTestDialog(); });
-function openResponsiblesDialog(extension = null) {
-  if (extension) selectedResponsibleExtension = extension;
+function openResponsiblesDialog(extension = null, personId = null) {
+  if (personId !== null) selectedResponsibleId = Number(personId);
+  if (extension) pendingResponsibleExtension = extension;
   responsibleSearchTerm = "";
   document.getElementById("responsibles-search").value = "";
   responsiblesDialog.showModal();
@@ -1492,6 +1839,7 @@ document.getElementById("profile-manage").addEventListener("click", () => {
   if (extension) openResponsiblesDialog(extension);
 });
 document.getElementById("responsibles-open").addEventListener("click", () => openResponsiblesDialog());
+document.getElementById("directory-manage").addEventListener("click", () => openResponsiblesDialog());
 document.getElementById("responsibles-close").addEventListener("click", () => responsiblesDialog.close());
 responsiblesDialog.addEventListener("click", event => { if (event.target === responsiblesDialog) responsiblesDialog.close(); });
 responsiblesUnlock.addEventListener("submit", event => {
@@ -1503,11 +1851,32 @@ document.getElementById("responsibles-search").addEventListener("input", event =
   renderResponsibleList();
 });
 document.getElementById("responsibles-list").addEventListener("click", event => {
-  const row = event.target.closest("[data-extension]");
-  if (row) selectResponsible(row.dataset.extension);
+  const row = event.target.closest("[data-person-id]");
+  if (row) selectResponsible(Number(row.dataset.personId));
 });
+document.getElementById("responsibles-new").addEventListener("click", () => selectResponsible("new"));
 document.getElementById("responsible-form").addEventListener("submit", saveResponsible);
 document.getElementById("responsible-clear").addEventListener("click", clearResponsible);
+document.querySelector(".app-nav").addEventListener("click", event => {
+  const button = event.target.closest("[data-app-view]");
+  if (button && !button.hidden) switchAppView(button.dataset.appView);
+});
+document.getElementById("directory-search").addEventListener("input", event => { directorySearchTerm = event.target.value.trim(); renderDirectory(); });
+document.getElementById("directory-sector-filter").addEventListener("change", event => { directorySector = event.target.value; renderDirectory(); });
+document.getElementById("directory-status-filter").addEventListener("change", event => { directoryStatus = event.target.value; renderDirectory(); });
+document.getElementById("directory-tbody").addEventListener("click", event => {
+  const row = event.target.closest("[data-person-id]");
+  if (row && lastData && (lastData.management || {}).responsibles_available) openResponsiblesDialog(null, row.dataset.personId);
+});
+document.getElementById("list-tabs").addEventListener("click", event => {
+  const button = event.target.closest("[data-list-kind]");
+  if (!button) return;
+  listKind = button.dataset.listKind;
+  document.querySelectorAll("#list-tabs [data-list-kind]").forEach(item => { const active = item === button; item.classList.toggle("active", active); item.setAttribute("aria-pressed", String(active)); });
+  renderListPreview();
+});
+document.getElementById("list-print").addEventListener("click", () => { document.body.classList.add("print-directory"); window.print(); });
+window.addEventListener("afterprint", () => document.body.classList.remove("print-directory"));
 function tickClock() { document.getElementById("clock").textContent = new Date().toLocaleTimeString("pt-BR"); }
 setInterval(tickClock, 1000); tickClock(); refresh(); refreshReport(); setInterval(refresh, POLL_MS); setInterval(refreshReport, 60000);
 </script>

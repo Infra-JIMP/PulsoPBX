@@ -8,6 +8,7 @@ from unittest.mock import patch
 from aiohttp.test_utils import TestClient, TestServer
 
 import names
+from directory import DirectoryStore
 from web import create_app
 
 
@@ -219,6 +220,90 @@ class ResponsibleManagementTests(unittest.IsolatedAsyncioTestCase):
             headers={**self.headers, "Origin": "https://example.invalid"},
         )
         self.assertEqual(response.status, 403)
+
+
+class DirectoryEndpointTests(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.directory = DirectoryStore(Path(self.temporary.name) / "pulsopbx.db")
+        self.directory.initialize()
+        self.directory.synchronize_mikopbx(
+            {
+                "1001": {
+                    "nome": "Financeiro - Thayse",
+                    "email": "financeiro@example.com",
+                }
+            }
+        )
+        config = SimpleNamespace(
+            dashboard_auth_enabled=False,
+            demo_mode=False,
+            responsibles_admin_enabled=True,
+            responsibles_admin_password="senha-administrativa-segura",
+        )
+        app = create_app(_FakeTracker(), None, config, directory=self.directory)
+        self.client = TestClient(TestServer(app))
+        await self.client.start_server()
+        self.headers = {
+            "X-PulsoPBX-Admin": "senha-administrativa-segura",
+            "X-PulsoPBX-Action": "manage-responsibles",
+        }
+
+    async def asyncTearDown(self):
+        await self.client.close()
+        self.directory.close()
+        self.temporary.cleanup()
+
+    async def test_internal_directory_and_excel_exports_are_available(self):
+        response = await self.client.get("/api/directory")
+        payload = await response.json()
+        self.assertEqual(response.status, 200)
+        self.assertEqual(payload["people"][0]["name"], "Thayse")
+        self.assertEqual(payload["people"][0]["sector"], "Financeiro")
+
+        response = await self.client.get("/api/directory/export/extensions.xlsx")
+        content = await response.read()
+        self.assertEqual(response.status, 200)
+        self.assertTrue(content.startswith(b"PK"))
+        self.assertIn("lista-ramais-atualizada.xlsx", response.headers["Content-Disposition"])
+
+    async def test_cloudflare_cannot_read_directory_or_export(self):
+        for path in ("/api/directory", "/api/directory/export/emails.xlsx"):
+            with self.subTest(path=path):
+                response = await self.client.get(path, headers={"CF-Ray": "public-request"})
+                self.assertEqual(response.status, 404)
+
+    async def test_admin_can_create_update_and_archive_person(self):
+        response = await self.client.post(
+            "/api/admin/directory",
+            json={
+                "name": "Eduardo",
+                "role": "Assistente de TI Júnior",
+                "sector": "T.I.",
+                "extension": "8008",
+                "email": "assistente@example.com",
+                "active": True,
+                "notify": True,
+            },
+            headers=self.headers,
+        )
+        payload = await response.json()
+        self.assertEqual(response.status, 201)
+        person_id = payload["person"]["id"]
+
+        response = await self.client.put(
+            f"/api/admin/directory/{person_id}",
+            json={**payload["person"], "role": "Analista de TI", "active": False},
+            headers=self.headers,
+        )
+        updated = await response.json()
+        self.assertEqual(response.status, 200)
+        self.assertEqual(updated["person"]["role"], "Analista de TI")
+        self.assertFalse(updated["person"]["active"])
+
+        response = await self.client.get("/api/admin/directory", headers=self.headers)
+        admin = await response.json()
+        self.assertTrue(any(change["action"] == "archive" for change in admin["changes"]))
 
 
 class StaticManagementUiTests(unittest.TestCase):
