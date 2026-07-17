@@ -64,6 +64,27 @@ class WorkCalendarTests(unittest.TestCase):
             self.assertFalse(calendar.is_working_time(0))
             self.assertEqual(calendar.working_intervals(0, 1000), [])
 
+    def test_working_seconds_excludes_lunch_and_dates_use_calendar_timezone(self):
+        zone = ZoneInfo("America/Sao_Paulo")
+        with tempfile.TemporaryDirectory() as directory:
+            calendar = self._calendar(directory)
+            before_lunch = datetime(2026, 7, 14, 11, 30, tzinfo=zone).timestamp()
+            after_lunch = datetime(2026, 7, 14, 13, 30, tzinfo=zone).timestamp()
+            next_day = datetime(2026, 7, 16, 9, tzinfo=zone).timestamp()
+
+            self.assertEqual(calendar.working_seconds(before_lunch, after_lunch), 3600)
+            self.assertTrue(calendar.is_same_local_day(before_lunch, after_lunch))
+            self.assertFalse(calendar.is_same_local_day(before_lunch, next_day))
+            self.assertEqual(
+                calendar.current_interval_end(before_lunch),
+                datetime(2026, 7, 14, 12, tzinfo=zone).timestamp(),
+            )
+            self.assertIsNone(
+                calendar.current_interval_end(
+                    datetime(2026, 7, 14, 12, 30, tzinfo=zone).timestamp()
+                )
+            )
+
     def test_invalid_calendar_is_safely_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "invalid.json"

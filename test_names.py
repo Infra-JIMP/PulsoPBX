@@ -32,6 +32,28 @@ class LocalResponsibleStoreTests(unittest.TestCase):
         self.assertEqual(names.load_names()["1001"]["nome"], "Ana")
         self.assertEqual(names.load_names()["1001"]["setor"], "Financeiro")
 
+    def test_updates_sector_without_losing_email_or_name(self):
+        self.names_file.write_text(
+            json.dumps(
+                {
+                    "1001": {
+                        "nome": "Ana",
+                        "setor": "Financeiro",
+                        "email": "ana@example.com",
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        saved = names.save_email_override(
+            "1001", "ana@example.com", True, "  Televendas  "
+        )
+
+        self.assertEqual(saved["nome"], "Ana")
+        self.assertEqual(saved["email"], "ana@example.com")
+        self.assertEqual(saved["setor"], "Televendas")
+
     def test_clear_email_preserves_name_and_returns_to_inheritance(self):
         names.save_email_override("1001", "ana@example.com", True)
         raw = json.loads(self.names_file.read_text(encoding="utf-8"))

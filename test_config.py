@@ -22,6 +22,7 @@ class ConfigTests(unittest.TestCase):
         self.assertFalse(config.email_enabled)
         self.assertFalse(config.notifications_enabled)
         self.assertFalse(config.responsibles_admin_enabled)
+        self.assertEqual(config.email_subject_brand, "Joinville Implementos")
 
     def test_zero_reconcile_interval_is_rejected(self):
         with patch.dict(os.environ, {"RECONCILE_SECONDS": "0"}, clear=True):
@@ -59,6 +60,25 @@ class ConfigTests(unittest.TestCase):
         self.assertTrue(config.email_enabled)
         self.assertEqual(config.enabled_notification_channels, ["email"])
         self.assertEqual(config.notification_target_count, 1)
+
+    def test_email_subject_brand_is_configurable(self):
+        with patch.dict(
+            os.environ,
+            {"EMAIL_SUBJECT_BRAND": "JIMP"},
+            clear=True,
+        ):
+            config = load_config()
+
+        self.assertEqual(config.email_subject_brand, "JIMP")
+
+    def test_empty_email_subject_brand_is_rejected(self):
+        with patch.dict(
+            os.environ,
+            {"EMAIL_SUBJECT_BRAND": " "},
+            clear=True,
+        ):
+            with self.assertRaisesRegex(ConfigError, "EMAIL_SUBJECT_BRAND"):
+                load_config()
 
     def test_email_channel_can_use_only_responsible_addresses_from_mikopbx(self):
         values = {

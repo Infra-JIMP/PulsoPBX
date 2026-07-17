@@ -90,8 +90,17 @@ def _write_raw(raw: dict) -> None:
     _cache["mtime"] = None
 
 
-def save_email_override(extension: str, email: str, notify: bool = True) -> dict:
-    """Salva o destinatario local sem apagar nome ou setor ja cadastrados."""
+def save_email_override(
+    extension: str,
+    email: str,
+    notify: bool = True,
+    sector: str | None = None,
+) -> dict:
+    """Salva o destinatario e, quando informado, o setor local do ramal.
+
+    ``sector=None`` preserva compatibilidade com chamadas antigas e mantem o
+    setor atual. Uma string vazia remove somente a sobrescrita local do setor.
+    """
     extension = str(extension).strip()
     if not extension:
         raise ValueError("Ramal obrigatorio")
@@ -104,6 +113,12 @@ def save_email_override(extension: str, email: str, notify: bool = True) -> dict
             existing = {}
         existing["email"] = str(email).strip().lower()
         existing["notificar"] = bool(notify)
+        if sector is not None:
+            normalized_sector = " ".join(str(sector).split())
+            if normalized_sector:
+                existing["setor"] = normalized_sector
+            else:
+                existing.pop("setor", None)
         raw[extension] = existing
         _write_raw(raw)
         return _normalize({extension: existing})[extension]

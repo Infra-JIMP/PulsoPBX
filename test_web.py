@@ -176,7 +176,7 @@ class ResponsibleManagementTests(unittest.IsolatedAsyncioTestCase):
     async def test_local_email_overrides_mikopbx_and_can_be_cleared(self):
         response = await self.client.put(
             "/api/admin/responsibles/1001",
-            json={"email": "ana.local@example.com", "notify": True},
+            json={"email": "ana.local@example.com", "sector": "Televendas", "notify": True},
             headers=self.headers,
         )
         self.assertEqual(response.status, 200)
@@ -184,6 +184,7 @@ class ResponsibleManagementTests(unittest.IsolatedAsyncioTestCase):
         response = await self.client.get("/api/admin/responsibles", headers=self.headers)
         payload = await response.json()
         self.assertEqual(payload["responsibles"][0]["email"], "ana.local@example.com")
+        self.assertEqual(payload["responsibles"][0]["sector"], "Televendas")
         self.assertEqual(payload["responsibles"][0]["source"], "local")
 
         response = await self.client.delete(
@@ -193,7 +194,17 @@ class ResponsibleManagementTests(unittest.IsolatedAsyncioTestCase):
         response = await self.client.get("/api/admin/responsibles", headers=self.headers)
         payload = await response.json()
         self.assertEqual(payload["responsibles"][0]["email"], "ana@miko.example.com")
+        self.assertEqual(payload["responsibles"][0]["sector"], "Televendas")
         self.assertEqual(payload["responsibles"][0]["source"], "mikopbx")
+
+    async def test_rejects_sector_longer_than_80_characters(self):
+        response = await self.client.put(
+            "/api/admin/responsibles/1001",
+            json={"email": "ana@example.com", "sector": "A" * 81, "notify": True},
+            headers=self.headers,
+        )
+
+        self.assertEqual(response.status, 400)
 
     async def test_rejects_invalid_email_and_cross_origin_write(self):
         response = await self.client.put(
@@ -208,3 +219,17 @@ class ResponsibleManagementTests(unittest.IsolatedAsyncioTestCase):
             headers={**self.headers, "Origin": "https://example.invalid"},
         )
         self.assertEqual(response.status, 403)
+
+
+class StaticManagementUiTests(unittest.TestCase):
+    def test_collaborator_registration_exposes_email_sector_and_search(self):
+        html = (Path(__file__).parent / "static" / "index.html").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("Cadastro de colaboradores", html)
+        self.assertIn('id="responsible-email"', html)
+        self.assertIn('id="responsible-sector-input"', html)
+        self.assertIn('id="responsibles-with-sector"', html)
+        self.assertIn("row.email ||", html)
+        self.assertIn("row.sector ||", html)

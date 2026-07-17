@@ -87,6 +87,34 @@ class WorkCalendar:
             current += timedelta(days=1)
         return result
 
+    def working_seconds(self, start_timestamp: float, end_timestamp: float) -> float:
+        """Conta somente o tempo que intersecta intervalos de expediente."""
+        return sum(
+            interval_end - interval_start
+            for interval_start, interval_end in self.working_intervals(
+                start_timestamp,
+                end_timestamp,
+            )
+        )
+
+    def is_same_local_day(self, first_timestamp: float, second_timestamp: float) -> bool:
+        """Compara datas no fuso do calendario, sem depender do fuso do servidor."""
+        if not self.configured:
+            return False
+        first = datetime.fromtimestamp(first_timestamp, self._timezone)
+        second = datetime.fromtimestamp(second_timestamp, self._timezone)
+        return first.date() == second.date()
+
+    def current_interval_end(self, timestamp: float) -> float | None:
+        """Retorna o fim do intervalo de expediente que contem o instante."""
+        if not self.configured:
+            return None
+        moment = datetime.fromtimestamp(timestamp, self._timezone)
+        for start, end in self.intervals_for_date(moment.date()):
+            if start <= moment < end:
+                return end.timestamp()
+        return None
+
     def exception_count(self, start_timestamp: float, end_timestamp: float) -> int:
         if not self.configured:
             return 0

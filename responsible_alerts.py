@@ -183,6 +183,7 @@ class ResponsibleAlertScheduler:
             "nome": profile.get("nome", ""),
             "setor": profile.get("setor", ""),
             "offline_at": float(job["offline_at"]),
+            "delivery_deadline": self._calendar.current_interval_end(now),
         }
         event = self._alerts.enqueue(
             extension,
@@ -220,6 +221,31 @@ class ResponsibleAlertScheduler:
             )
             return
         if offline_event["sent_count"]:
+            offline_at = float(job["offline_at"])
+            if not self._calendar.configured:
+                await asyncio.to_thread(
+                    self._store.update_job,
+                    incident_id,
+                    "completed",
+                    "return_skipped_calendar_not_configured",
+                )
+                return
+            if not self._calendar.is_same_local_day(offline_at, now):
+                await asyncio.to_thread(
+                    self._store.update_job,
+                    incident_id,
+                    "completed",
+                    "return_skipped_next_workday",
+                )
+                return
+            if not self._calendar.is_working_time(now):
+                await asyncio.to_thread(
+                    self._store.update_job,
+                    incident_id,
+                    "completed",
+                    "return_skipped_outside_working_hours",
+                )
+                return
             _, profile = self._profile_resolver(str(job["extension"]))
             event = self._alerts.enqueue(
                 str(job["extension"]),
@@ -230,7 +256,11 @@ class ResponsibleAlertScheduler:
                     "incident_id": incident_id,
                     "nome": profile.get("nome", ""),
                     "setor": profile.get("setor", ""),
-                    "duration_seconds": max(0, now - float(job["offline_at"])),
+                    "duration_seconds": self._calendar.working_seconds(
+                        offline_at,
+                        now,
+                    ),
+                    "delivery_deadline": self._calendar.current_interval_end(now),
                 },
             )
             await asyncio.to_thread(

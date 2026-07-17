@@ -161,6 +161,23 @@ class AlertDispatcher:
         if delivery is None or delivery["status"] in {"sent", "failed"}:
             return
 
+        delivery_deadline = event.get("context", {}).get("delivery_deadline")
+        if (
+            isinstance(delivery_deadline, (int, float))
+            and not isinstance(delivery_deadline, bool)
+            and time.time() >= float(delivery_deadline)
+        ):
+            delivery["status"] = "failed"
+            delivery["last_error"] = "Entrega expirada no fim do expediente"
+            event["updated_at"] = time.time()
+            self._persist_delivery(event, job.recipient)
+            logger.info(
+                "Alerta %s para %s suprimido porque o expediente terminou",
+                event["extension"],
+                job.recipient,
+            )
+            return
+
         delivery["status"] = "sending"
         delivery["attempts"] += 1
         event["updated_at"] = time.time()

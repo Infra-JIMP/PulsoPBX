@@ -86,6 +86,7 @@ def build_notification_router(config) -> NotificationRouter:
                 recipients=config.email_recipients,
                 username=config.email_smtp_username,
                 password=config.email_smtp_password,
+                subject_brand=config.email_subject_brand,
                 starttls=config.email_starttls,
                 use_ssl=config.email_use_ssl,
                 timeout_seconds=config.email_timeout_seconds,

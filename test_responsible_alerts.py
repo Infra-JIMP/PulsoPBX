@@ -121,6 +121,30 @@ class ResponsibleAlertSchedulerTests(unittest.IsolatedAsyncioTestCase):
         )
         return WorkCalendar(path)
 
+    def _split_calendar(self):
+        path = Path(self.directory.name) / "split-calendar.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "timezone": "America/Sao_Paulo",
+                    "week": {
+                        name: [["08:00", "12:00"], ["13:00", "17:00"]]
+                        for name in (
+                            "monday",
+                            "tuesday",
+                            "wednesday",
+                            "thursday",
+                            "friday",
+                        )
+                    }
+                    | {"saturday": [], "sunday": []},
+                    "exceptions": {},
+                }
+            ),
+            encoding="utf-8",
+        )
+        return WorkCalendar(path)
+
     async def test_reconnection_during_grace_period_cancels_email(self):
         tracker = StateTracker(0)
         tracker.update("1001", False, now=100)
@@ -221,6 +245,67 @@ class ResponsibleAlertSchedulerTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual([change[1] for change in alerts.changes], ["offline", "online"])
         self.assertEqual(self.store.get_job(10)["status"], "completed")
+
+    async def test_recovery_after_working_hours_is_recorded_without_email(self):
+        zone = ZoneInfo("America/Sao_Paulo")
+        opened_at = datetime(2026, 7, 13, 16, 50, tzinfo=zone).timestamp()
+        recovered_at = datetime(2026, 7, 13, 17, 5, tzinfo=zone).timestamp()
+        tracker = StateTracker(0)
+        tracker.update("1001", False, now=opened_at)
+        alerts = _FakeAlerts(offline_sent=True)
+        scheduler = self._scheduler(tracker, alerts)
+        scheduler._calendar = self._limited_calendar()
+        incident = {"id": 20, "opened_at": opened_at}
+
+        await scheduler.schedule_transition("1001", "offline", incident, now=opened_at)
+        await scheduler.process_once(now=opened_at + 120)
+        await scheduler.schedule_transition("1001", "online", incident, now=recovered_at)
+        await scheduler.process_once(now=recovered_at)
+
+        self.assertEqual([change[1] for change in alerts.changes], ["offline"])
+        job = self.store.get_job(20)
+        self.assertEqual(job["status"], "completed")
+        self.assertEqual(job["reason"], "return_skipped_outside_working_hours")
+
+    async def test_recovery_on_next_workday_is_recorded_without_email(self):
+        zone = ZoneInfo("America/Sao_Paulo")
+        opened_at = datetime(2026, 7, 13, 16, 50, tzinfo=zone).timestamp()
+        recovered_at = datetime(2026, 7, 14, 8, 5, tzinfo=zone).timestamp()
+        tracker = StateTracker(0)
+        tracker.update("1001", False, now=opened_at)
+        alerts = _FakeAlerts(offline_sent=True)
+        scheduler = self._scheduler(tracker, alerts)
+        scheduler._calendar = self._limited_calendar()
+        incident = {"id": 21, "opened_at": opened_at}
+
+        await scheduler.schedule_transition("1001", "offline", incident, now=opened_at)
+        await scheduler.process_once(now=opened_at + 120)
+        await scheduler.schedule_transition("1001", "online", incident, now=recovered_at)
+        await scheduler.process_once(now=recovered_at)
+
+        self.assertEqual([change[1] for change in alerts.changes], ["offline"])
+        job = self.store.get_job(21)
+        self.assertEqual(job["status"], "completed")
+        self.assertEqual(job["reason"], "return_skipped_next_workday")
+
+    async def test_same_day_recovery_counts_only_working_minutes(self):
+        zone = ZoneInfo("America/Sao_Paulo")
+        opened_at = datetime(2026, 7, 13, 11, 50, tzinfo=zone).timestamp()
+        recovered_at = datetime(2026, 7, 13, 13, 10, tzinfo=zone).timestamp()
+        tracker = StateTracker(0)
+        tracker.update("1001", False, now=opened_at)
+        alerts = _FakeAlerts(offline_sent=True)
+        scheduler = self._scheduler(tracker, alerts)
+        scheduler._calendar = self._split_calendar()
+        incident = {"id": 22, "opened_at": opened_at}
+
+        await scheduler.schedule_transition("1001", "offline", incident, now=opened_at)
+        await scheduler.process_once(now=opened_at + 120)
+        await scheduler.schedule_transition("1001", "online", incident, now=recovered_at)
+        await scheduler.process_once(now=recovered_at)
+
+        self.assertEqual([change[1] for change in alerts.changes], ["offline", "online"])
+        self.assertEqual(alerts.changes[-1][3]["duration_seconds"], 20 * 60)
 
 
 if __name__ == "__main__":

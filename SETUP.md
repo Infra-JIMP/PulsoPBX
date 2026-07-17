@@ -72,7 +72,7 @@ Para validar os atalhos sem iniciar serviço nem abrir o navegador, acrescente `
 O comando manual completo continua disponível:
 
 ```
-cd \\10.5.0.5\Alma\TI\Ramais\ramais_monitor
+cd C:\Users\eduardo.p\Desktop\Ramais\ramais_monitor
 .venv\Scripts\python.exe main.py
 ```
 
@@ -144,7 +144,7 @@ O histórico cronológico fica em `data/pulsopbx.db`, junto dos incidentes e ent
 
 ## 4. Deploy 24/7 (JA CONFIGURADO)
 
-Para robustez, o servico roda de uma **copia local** em `C:\Users\eduardo.p\ramais_monitor` na `DKS-FG-006` (nao direto do compartilhamento de rede - assim um reboot do servidor de arquivos `10.5.0.5` nao derruba o monitor). O compartilhamento (`\\10.5.0.5\Alma\TI\Ramais\ramais_monitor`) e a copia de **desenvolvimento/fonte**.
+Para robustez, o servico roda de uma **copia de producao** em `C:\Users\eduardo.p\ramais_monitor` na `DKS-FG-006`. O repositorio principal de **desenvolvimento e Git** fica em `C:\Users\eduardo.p\Desktop\Ramais\ramais_monitor`; o compartilhamento `\\10.5.0.5\Alma\TI\Ramais\ramais_monitor` e apenas uma copia secundaria e nao deve ser usado para commits.
 
 ### Como esta rodando hoje
 - Tarefa agendada **`RamaisMonitor`** executada como **SYSTEM**, iniciada no boot e configurada para reiniciar sozinha se cair.
@@ -156,7 +156,7 @@ powershell -ExecutionPolicy Bypass -File C:\Users\eduardo.p\ramais_monitor\insta
 ```
 Isso registra novamente a tarefa como **SYSTEM** e abre no firewall a porta definida em `DASHBOARD_PORT`, restrita à sub-rede local em qualquer perfil de rede ativo.
 
-### Scripts de gerenciamento (na pasta local e no compartilhamento)
+### Scripts de gerenciamento
 - `install_system_task.ps1` - upgrade para servico SYSTEM + firewall (rodar como admin).
 - `uninstall_task.ps1` - remove a tarefa e para o servico.
 - `deploy_local.ps1` (na raiz do projeto local) - valida, cria staging e backup, sincroniza a cópia de produção e reinicia o serviço. Não copia `.env`, `.venv`, `logs`, `data`, `ramais_nomes.json`, `work_calendar.json` ou artefatos locais; se a validação pós-cópia falhar, restaura automaticamente o backup.

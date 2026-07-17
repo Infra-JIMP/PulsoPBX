@@ -1,4 +1,6 @@
 import unittest
+from email import policy
+from email.parser import BytesParser
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -58,6 +60,31 @@ class NotificationRouterTests(unittest.TestCase):
 
 
 class EmailNotifierTests(unittest.TestCase):
+    def test_utf8_subject_round_trip_has_no_replacement_characters_or_test_prefix(self):
+        notifier = EmailNotifier(
+            host="smtp.example.com",
+            port=587,
+            sender="monitor@example.com",
+        )
+
+        message = notifier._build_message(
+            "ana@example.com",
+            "1001",
+            "offline",
+            "16/07/2026 15:00:00",
+            True,
+            context={"nome": "Ana", "setor": "Administração"},
+        )
+        parsed = BytesParser(policy=policy.default).parsebytes(message.as_bytes())
+
+        self.assertEqual(
+            str(parsed["Subject"]),
+            "Joinville Implementos - Teste de notificação do PulsoPBX",
+        )
+        self.assertNotIn("[TESTE]", str(parsed["Subject"]))
+        self.assertNotIn("[PulsoPBX]", str(parsed["Subject"]))
+        self.assertNotIn("?", str(parsed["Subject"]))
+
     @patch("notifications.smtplib.SMTP")
     def test_email_uses_starttls_and_sends_to_one_recipient(self, smtp_class):
         smtp = smtp_class.return_value.__enter__.return_value
@@ -82,8 +109,15 @@ class EmailNotifierTests(unittest.TestCase):
         smtp.login.assert_called_once_with("monitor@example.com", "secret")
         message = smtp.send_message.call_args.args[0]
         self.assertEqual(message["To"], "ti@example.com")
-        self.assertIn("Ramal 1001 desconectado", message["Subject"])
+        self.assertEqual(
+            message["Subject"],
+            "Joinville Implementos - Ramal 1001 desconectado",
+        )
         self.assertEqual(message["Content-Language"], "pt-BR")
+        self.assertIsNotNone(message["Date"])
+        self.assertTrue(str(message["Message-ID"]).endswith("@example.com>"))
+        self.assertEqual(message["Auto-Submitted"], "auto-generated")
+        self.assertEqual(message["X-Auto-Response-Suppress"], "All")
         plain = message.get_body(preferencelist=("plain",)).get_content()
         html = message.get_body(preferencelist=("html",)).get_content()
         self.assertIn("MicroSIP", plain)
@@ -94,6 +128,8 @@ class EmailNotifierTests(unittest.TestCase):
         self.assertNotIn("linear-gradient", html)
         self.assertNotIn("box-shadow", html)
         self.assertNotIn("<ol", html)
+        self.assertNotIn("Mensagem automática enviada pelo PulsoPBX", html)
+        self.assertNotIn("Um único aviso é emitido por incidente", html)
 
         images = [part for part in message.walk() if part.get_content_type() == "image/png"]
         self.assertEqual(len(images), 1)
@@ -146,7 +182,7 @@ class EmailNotifierTests(unittest.TestCase):
         plain = message.get_body(preferencelist=("plain",)).get_content()
         html = message.get_body(preferencelist=("html",)).get_content()
         self.assertIn("Ramal 1001 reconectado", message["Subject"])
-        self.assertIn("aproximadamente 5 minutos", plain)
+        self.assertIn("aproximadamente 5 minutos úteis", plain)
         self.assertIn("CONEXÃO RESTABELECIDA", html)
         self.assertIn("Atenciosamente", html)
 

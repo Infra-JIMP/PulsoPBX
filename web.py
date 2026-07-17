@@ -218,13 +218,21 @@ async def _handle_responsible_save(request: web.Request) -> web.Response:
     notify = body.get("notify", True)
     if not isinstance(notify, bool):
         return web.json_response({"ok": False, "error": "Opcao de notificacao invalida"}, status=400)
+    sector = None
+    if "sector" in body:
+        sector = " ".join(str(body.get("sector") or "").split())
+        if len(sector) > 80:
+            return web.json_response(
+                {"ok": False, "error": "O setor deve ter no maximo 80 caracteres"},
+                status=400,
+            )
     try:
-        await asyncio.to_thread(save_email_override, extension, email, notify)
+        await asyncio.to_thread(save_email_override, extension, email, notify, sector)
     except (OSError, ValueError):
         logger.exception("Falha ao salvar responsavel do ramal %s", extension)
         return web.json_response({"ok": False, "error": "Nao foi possivel salvar o cadastro"}, status=500)
     return web.json_response(
-        {"ok": True, "extension": extension},
+        {"ok": True, "extension": extension, "sector": sector},
         headers={"Cache-Control": "no-store"},
     )
 

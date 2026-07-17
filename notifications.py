@@ -4,6 +4,7 @@ import smtplib
 import ssl
 from email import policy
 from email.message import EmailMessage
+from email.utils import formatdate, make_msgid, parseaddr
 from pathlib import Path
 from typing import Protocol
 
@@ -41,6 +42,7 @@ class EmailNotifier:
         recipients: list[str] | None = None,
         username: str | None = None,
         password: str | None = None,
+        subject_brand: str = "Joinville Implementos",
         starttls: bool = True,
         use_ssl: bool = False,
         timeout_seconds: float = 10,
@@ -52,6 +54,7 @@ class EmailNotifier:
         self._recipients = list(recipients or [])
         self._username = username
         self._password = password
+        self._subject_brand = subject_brand.strip()
         self._starttls = starttls
         self._use_ssl = use_ssl
         self._timeout_seconds = timeout_seconds
@@ -120,9 +123,15 @@ class EmailNotifier:
             include_logo=include_logo,
         )
         message = EmailMessage(policy=policy.SMTP)
-        message["Subject"] = f"[PulsoPBX] {content.subject}"
+        message["Subject"] = f"{self._subject_brand} - {content.subject}"
         message["From"] = self._sender
         message["To"] = recipient
+        sender_address = parseaddr(self._sender)[1]
+        sender_domain = sender_address.rpartition("@")[2] or None
+        message["Date"] = formatdate(localtime=True)
+        message["Message-ID"] = make_msgid(domain=sender_domain)
+        message["Auto-Submitted"] = "auto-generated"
+        message["X-Auto-Response-Suppress"] = "All"
         message.set_content(content.plain_text, charset="utf-8", cte="base64")
         message.add_alternative(
             content.html_text,

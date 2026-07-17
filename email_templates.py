@@ -38,8 +38,8 @@ def _duration_text(context: dict) -> str:
         return ""
     minutes = max(1, round(duration / 60))
     if minutes == 1:
-        return " após aproximadamente 1 minuto"
-    return f" após aproximadamente {minutes} minutos"
+        return " após aproximadamente 1 minuto útil"
+    return f" após aproximadamente {minutes} minutos úteis"
 
 
 def _steps_html(items: tuple[str, ...]) -> str:

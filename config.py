@@ -88,6 +88,7 @@ class Config:
     email_smtp_username: str | None
     email_smtp_password: str | None
     email_sender: str | None
+    email_subject_brand: str
     email_starttls: bool
     email_use_ssl: bool
     email_timeout_seconds: float
@@ -167,6 +168,15 @@ def load_config() -> Config:
     email_smtp_username = _optional_env("EMAIL_SMTP_USERNAME")
     email_smtp_password = _optional_env("EMAIL_SMTP_PASSWORD")
     email_sender = _optional_env("EMAIL_FROM")
+    email_subject_brand = _env_text(
+        "EMAIL_SUBJECT_BRAND", "Joinville Implementos"
+    )
+    if not email_subject_brand or len(email_subject_brand) > 80:
+        raise ConfigError(
+            "EMAIL_SUBJECT_BRAND deve ter entre 1 e 80 caracteres"
+        )
+    if "\r" in email_subject_brand or "\n" in email_subject_brand:
+        raise ConfigError("EMAIL_SUBJECT_BRAND nao pode conter quebra de linha")
     email_recipients = _csv_env("EMAIL_RECIPIENTS")
     email_starttls = _bool_env("EMAIL_SMTP_STARTTLS", True)
     email_use_ssl = _bool_env("EMAIL_SMTP_SSL", False)
@@ -214,6 +224,7 @@ def load_config() -> Config:
         email_smtp_username=email_smtp_username,
         email_smtp_password=email_smtp_password,
         email_sender=email_sender,
+        email_subject_brand=email_subject_brand,
         email_starttls=email_starttls,
         email_use_ssl=email_use_ssl,
         email_timeout_seconds=_float_env("EMAIL_SMTP_TIMEOUT_SECONDS", 10, 1, 120),

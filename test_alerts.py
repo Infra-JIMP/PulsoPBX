@@ -1,5 +1,6 @@
 import asyncio
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -162,6 +163,27 @@ class AlertDispatcherTests(unittest.IsolatedAsyncioTestCase):
         second = dispatcher.enqueue("1001", "offline", now=200, context={"incident_id": 2})
 
         self.assertNotEqual(first["id"], second["id"])
+
+    async def test_delivery_expires_when_working_interval_has_ended(self):
+        notifier = _FakeNotifier()
+        dispatcher = AlertDispatcher(notifier)
+        dispatcher.enqueue(
+            "1001",
+            "offline",
+            context={"delivery_deadline": time.time() - 1},
+        )
+
+        worker = await self._deliver_all(dispatcher)
+        try:
+            status = dispatcher.get_extension_status("1001", "offline")
+            self.assertEqual(status["status"], "failed")
+            self.assertEqual(
+                status["last_error"],
+                "Entrega expirada no fim do expediente",
+            )
+            self.assertEqual(notifier.deliveries, [])
+        finally:
+            await self._stop_worker(worker)
 
 
 if __name__ == "__main__":
