@@ -17,7 +17,7 @@ Acesse `https://192.168.1.254/` com o login admin.
 Depois disso, rode para validar:
 
 ```
-.venv\Scripts\python.exe test_ami_connection.py
+.venv\Scripts\python.exe -m scripts.check_ami_connection
 ```
 
 Deve aparecer `[OK] Login AMI bem-sucedido` e a lista de ramais encontrados.
@@ -166,7 +166,7 @@ Isso registra novamente a tarefa como **SYSTEM** e abre no firewall a porta defi
 ### Scripts de gerenciamento
 - `install_system_task.ps1` - upgrade para servico SYSTEM + firewall (rodar como admin).
 - `uninstall_task.ps1` - remove a tarefa e para o servico.
-- `deploy_local.ps1` (na raiz do projeto local) - valida, cria staging e backup, sincroniza a cópia de produção e reinicia o serviço. Não copia `.env`, `.venv`, `logs`, `data`, `ramais_nomes.json`, `work_calendar.json` ou artefatos locais; se a validação pós-cópia falhar, restaura automaticamente o backup.
+- `deploy_local.ps1` (na raiz do projeto local) - executa os testes da pasta `tests`, cria staging e backup, sincroniza a cópia de produção e reinicia o serviço. Os testes permanecem apenas no projeto de desenvolvimento; também não são copiados `.env`, `.venv`, `logs`, `data`, `ramais_nomes.json`, `work_calendar.json` ou artefatos locais. Se a validação pós-cópia falhar, o backup é restaurado automaticamente. Após uma publicação bem-sucedida, somente os 5 backups mais recentes são preservados.
 
 Por segurança, o deploy normal exige uma árvore Git limpa. Durante uma publicação intencional ainda não commitada, use `-AllowDirty`; as alterações continuam no projeto do Desktop para revisão e commit posterior. O script também sincroniza `requirements.lock.txt` no ambiente de produção antes de reiniciar o serviço.
 
@@ -174,6 +174,12 @@ Para validar sem copiar nem reiniciar:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\deploy_local.ps1 -ValidateOnly
+```
+
+Para executar somente os testes automatizados:
+
+```powershell
+.venv\Scripts\python.exe -m unittest discover -s tests -t . -v
 ```
 
 Para reproduzir exatamente o ambiente validado ao criar uma nova `.venv`, use `python -m pip install -r requirements.lock.txt`. O `requirements.txt` declara somente as dependências diretas.

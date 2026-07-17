@@ -308,7 +308,7 @@ class DirectoryEndpointTests(unittest.IsolatedAsyncioTestCase):
 
 class StaticManagementUiTests(unittest.TestCase):
     def test_collaborator_registration_exposes_email_sector_and_search(self):
-        html = (Path(__file__).parent / "static" / "index.html").read_text(
+        html = (Path(__file__).parent.parent / "static" / "index.html").read_text(
             encoding="utf-8"
         )
 

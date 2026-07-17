@@ -11,9 +11,10 @@ $taskName = "RamaisMonitor"
 $src = $PSScriptRoot
 $dst = "C:\Users\eduardo.p\ramais_monitor"
 $backupRoot = "C:\Users\eduardo.p\ramais_monitor_backups"
+$backupRetention = 5
 $excludedDirectories = @(
     ".git", ".venv", "__pycache__", "logs", "data", "output",
-    ".claude", ".playwright-cli"
+    ".claude", ".playwright-cli", "tests"
 )
 $excludedFiles = @("*.pyc", ".env", "ramais_nomes.json", "work_calendar.json")
 
@@ -37,7 +38,8 @@ function Invoke-SafeRobocopy {
 function Test-RamaisMonitorCode {
     param(
         [Parameter(Mandatory)] [string]$Root,
-        [Parameter(Mandatory)] [string]$Python
+        [Parameter(Mandatory)] [string]$Python,
+        [switch]$SkipUnitTests
     )
     if (-not (Test-Path -LiteralPath $Python -PathType Leaf)) {
         throw "Python do ambiente virtual nao encontrado: $Python"
@@ -46,8 +48,14 @@ function Test-RamaisMonitorCode {
     $env:PYTHONDONTWRITEBYTECODE = "1"
     Push-Location -LiteralPath $Root
     try {
-        & $Python -m unittest discover -s $Root -q
-        if ($LASTEXITCODE -ne 0) { throw "Testes falharam em $Root" }
+        if (-not $SkipUnitTests) {
+            $testsRoot = Join-Path $Root "tests"
+            if (-not (Test-Path -LiteralPath $testsRoot -PathType Container)) {
+                throw "Pasta de testes nao encontrada: $testsRoot"
+            }
+            & $Python -m unittest discover -s $testsRoot -t $Root -q
+            if ($LASTEXITCODE -ne 0) { throw "Testes falharam em $testsRoot" }
+        }
         & $Python -c "from config import load_config; load_config(); import main, web"
         if ($LASTEXITCODE -ne 0) { throw "Smoke test de configuracao/imports falhou em $Root" }
         & $Python -m pip check
@@ -68,6 +76,36 @@ function Stop-RamaisMonitor {
 
 function Start-RamaisMonitor {
     Start-ScheduledTask -TaskName $taskName
+}
+
+function Remove-ExpiredBackups {
+    param(
+        [Parameter(Mandatory)] [string]$Root,
+        [Parameter(Mandatory)] [ValidateRange(1, 100)] [int]$Keep
+    )
+    if (-not (Test-Path -LiteralPath $Root -PathType Container)) {
+        return
+    }
+    $expectedRoot = [IO.Path]::GetFullPath("C:\Users\eduardo.p\ramais_monitor_backups").TrimEnd("\")
+    $actualRoot = [IO.Path]::GetFullPath($Root).TrimEnd("\")
+    if ($actualRoot -ne $expectedRoot) {
+        throw "Raiz de backups recusada por seguranca: $actualRoot"
+    }
+    $expired = @(
+        Get-ChildItem -LiteralPath $actualRoot -Directory |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -Skip $Keep
+    )
+    foreach ($directory in $expired) {
+        $target = [IO.Path]::GetFullPath($directory.FullName).TrimEnd("\")
+        if (-not $target.StartsWith($actualRoot + "\", [StringComparison]::OrdinalIgnoreCase)) {
+            throw "Backup recusado por seguranca: $target"
+        }
+        Remove-Item -LiteralPath $target -Recurse -Force
+    }
+    if ($expired.Count -gt 0) {
+        Write-Output "Retencao de backups: $($expired.Count) copia(s) antiga(s) removida(s); $Keep preservada(s)."
+    }
 }
 
 if (-not (Test-Path -LiteralPath $src -PathType Container)) {
@@ -137,7 +175,7 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw "Nao foi possivel instalar as dependencias fixadas no ambiente de producao."
     }
-    Test-RamaisMonitorCode -Root $dst -Python $destinationPython
+    Test-RamaisMonitorCode -Root $dst -Python $destinationPython -SkipUnitTests
     $dashboardPort = & $destinationPython -c "from config import load_config; print(load_config().dashboard_port)"
     if ($LASTEXITCODE -ne 0 -or -not $dashboardPort) {
         throw "Nao foi possivel determinar DASHBOARD_PORT apos o deploy."
@@ -152,6 +190,12 @@ try {
         throw "Endpoint de saude respondeu sem ready=true."
     }
     Write-Output "Deploy concluido. Backup preservado em: $backup"
+    try {
+        Remove-ExpiredBackups -Root $backupRoot -Keep $backupRetention
+    }
+    catch {
+        Write-Warning "Deploy concluido, mas a retencao de backups falhou: $($_.Exception.Message)"
+    }
 }
 catch {
     Write-Error "Deploy falhou: $($_.Exception.Message)"

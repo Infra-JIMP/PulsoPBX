@@ -1,5 +1,4 @@
-"""Teste isolado: valida login na AMI do MikoPBX e lista os ramais atuais,
-sem rodar o monitor completo. Rode este script primeiro, ao criar/trocar credenciais."""
+"""Diagnóstico isolado da AMI do MikoPBX, sem iniciar o monitor completo."""
 import asyncio
 import sys
 
