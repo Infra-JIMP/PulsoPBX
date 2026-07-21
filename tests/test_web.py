@@ -321,3 +321,13 @@ class StaticManagementUiTests(unittest.TestCase):
         self.assertIn('id="responsibles-with-sector"', html)
         self.assertIn("row.email ||", html)
         self.assertIn("row.sector ||", html)
+
+    def test_call_history_exposes_origin_and_destination_filters(self):
+        html = (Path(__file__).parent.parent / "static" / "index.html").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn('id="calls-origin-filter"', html)
+        self.assertIn('id="calls-destination-filter"', html)
+        self.assertIn('id="calls-filters-clear"', html)
+        self.assertIn("renderFilteredCallHistory", html)

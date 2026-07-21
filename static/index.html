@@ -344,6 +344,15 @@
   .calls-panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 11px; }
   .calls-panel-head h3 { margin: 0; color: white; font-size: .94rem; }
   .calls-panel-head span { color: var(--faint); font-size: .68rem; }
+  .calls-filters { display: grid; grid-template-columns: repeat(2, minmax(145px, 1fr)) auto; gap: 8px; align-items: end; margin: 0 0 12px; padding: 10px; border: 1px solid rgba(123,174,255,.14); border-radius: 15px; background: rgba(3,10,28,.38); }
+  .calls-filter-field { display: grid; gap: 5px; min-width: 0; }
+  .calls-filter-field span { color: var(--faint); font-size: .58rem; font-weight: 850; letter-spacing: .72px; text-transform: uppercase; }
+  .calls-filter-field input { width: 100%; min-height: 38px; padding: 8px 11px; border: 1px solid var(--border); border-radius: 11px; outline: none; background: rgba(0,0,0,.25); color: white; font: 760 .74rem var(--mono); transition: border-color .18s ease, box-shadow .18s ease, background .18s ease; }
+  .calls-filter-field input::placeholder { color: var(--faint); font-family: var(--sans); font-weight: 650; }
+  .calls-filter-field input:focus { border-color: rgba(91,142,255,.68); background: rgba(4,13,36,.72); box-shadow: 0 0 0 3px rgba(91,142,255,.11), 0 0 18px rgba(91,142,255,.08); }
+  .calls-filter-clear { min-height: 38px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 11px; background: rgba(255,255,255,.055); color: var(--muted); cursor: pointer; font: 760 .7rem var(--sans); white-space: nowrap; }
+  .calls-filter-clear:hover:not(:disabled) { color: white; background: rgba(255,255,255,.09); }
+  .calls-filter-clear:disabled { opacity: .38; cursor: default; }
   .calls-table-wrap { max-height: 410px; overflow: auto; scrollbar-width: thin; }
   .calls-table { width: 100%; border-collapse: collapse; font-size: .74rem; }
   .calls-table th { position: sticky; top: 0; z-index: 1; padding: 9px 8px; border-bottom: 1px solid var(--border); background: rgba(4,12,32,.96); color: var(--faint); text-align: left; font-size: .58rem; letter-spacing: .7px; text-transform: uppercase; }
@@ -490,7 +499,7 @@
   @media (max-width: 580px) { .app-nav button { min-width: 108px; padding-inline: 8px; font-size: .7rem; } }
   @keyframes profile-sheet-in { from { opacity: 0; transform: translateY(24px) scale(.975); } to { opacity: 1; transform: translateY(0) scale(1); } }
   @media (max-width: 850px) { .calls-layout { grid-template-columns: 1fr; }.calls-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }.calls-detail-empty { min-height: 160px; } }
-  @media (max-width: 580px) { .calls-dialog { width: calc(100% - 14px); }.calls-dialog .dialog-surface { padding: 18px 13px; }.calls-head { flex-direction: column; padding-right: 38px; }.calls-period { width: 100%; }.calls-period button { flex: 1; }.calls-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }.calls-summary-card:last-child { grid-column: 1 / -1; }.calls-panel { padding: 11px 9px; }.calls-table { min-width: 720px; }.calls-chart { gap: 3px; }.calls-open-button { width: 100%; } }
+  @media (max-width: 580px) { .calls-dialog { width: calc(100% - 14px); }.calls-dialog .dialog-surface { padding: 18px 13px; }.calls-head { flex-direction: column; padding-right: 38px; }.calls-period { width: 100%; }.calls-period button { flex: 1; }.calls-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }.calls-summary-card:last-child { grid-column: 1 / -1; }.calls-panel { padding: 11px 9px; }.calls-filters { grid-template-columns: 1fr; }.calls-filter-clear { width: 100%; }.calls-table { min-width: 720px; }.calls-chart { gap: 3px; }.calls-open-button { width: 100%; } }
   @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) { .topbar, .tile, .operational, .toolbar, .table-wrap, .activity, .availability-report, .dialog-surface, .profile-popover { background-color: rgba(7, 18, 46, .97); } }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
 </style>
@@ -746,6 +755,12 @@
     <div class="calls-layout">
       <section class="calls-panel" aria-labelledby="calls-list-title">
         <div class="calls-panel-head"><div><h3 id="calls-list-title">Últimas chamadas internas</h3><span id="calls-list-caption">Carregando registros…</span></div></div>
+        <div class="calls-filters" role="search" aria-label="Filtrar histórico por ramal">
+          <label class="calls-filter-field" for="calls-origin-filter"><span>Origem</span><input id="calls-origin-filter" type="search" list="calls-extension-options" placeholder="Todos os ramais" autocomplete="off"></label>
+          <label class="calls-filter-field" for="calls-destination-filter"><span>Destino</span><input id="calls-destination-filter" type="search" list="calls-extension-options" placeholder="Todos os ramais" autocomplete="off"></label>
+          <button id="calls-filters-clear" class="calls-filter-clear" type="button" disabled>Limpar filtros</button>
+          <datalist id="calls-extension-options"></datalist>
+        </div>
         <div class="calls-table-wrap">
           <table class="calls-table">
             <thead><tr><th>Horário</th><th>Origem</th><th>Destino</th><th>Situação</th><th>Duração</th><th>Conexão</th></tr></thead>
@@ -915,6 +930,8 @@ let callHistoryDays = 30;
 let callHistoryData = null;
 let selectedCallExtension = null;
 let callHistoryLoading = false;
+let callOriginFilter = "";
+let callDestinationFilter = "";
 const profilePopover = document.getElementById("profile-popover");
 const profileScrim = document.getElementById("profile-scrim");
 
@@ -1941,22 +1958,57 @@ function renderCallSummary(summary) {
   document.getElementById("calls-answer-rate").textContent = summary.answer_rate_percent == null ? "—" : summary.answer_rate_percent + "%";
   document.getElementById("calls-instability").textContent = summary.instability_count || 0;
 }
-function renderCallHistory(data) {
-  callHistoryData = data;
-  renderCallSummary(data.summary);
-  const calls = data.calls || [];
+function normalizeCallFilter(value) {
+  return String(value || "").trim().toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+function callPartyMatches(call, side, filter) {
+  const term = normalizeCallFilter(filter);
+  if (!term) return true;
+  const extension = call[side + "_extension"] || "";
+  const name = call[side + "_name"] || "";
+  return normalizeCallFilter(extension + " " + name).includes(term);
+}
+function populateCallExtensionOptions(calls) {
+  const extensions = new Map();
+  calls.forEach(call => {
+    [[call.source_extension, call.source_name], [call.destination_extension, call.destination_name]].forEach(([extension, name]) => {
+      if (extension && (!extensions.has(extension) || (!extensions.get(extension) && name))) extensions.set(extension, name || "");
+    });
+  });
+  document.getElementById("calls-extension-options").innerHTML = [...extensions.entries()]
+    .sort((left, right) => String(left[0]).localeCompare(String(right[0]), "pt-BR", { numeric: true }))
+    .map(([extension, name]) => '<option value="' + escapeHtml(extension) + '"' + (name ? ' label="' + escapeHtml(name) + '"' : "") + '></option>')
+    .join("");
+}
+function renderFilteredCallHistory() {
+  const calls = (callHistoryData || {}).calls || [];
+  const origin = callOriginFilter.trim();
+  const destination = callDestinationFilter.trim();
+  const filtering = Boolean(origin || destination);
+  const filtered = calls.filter(call => callPartyMatches(call, "source", origin) && callPartyMatches(call, "destination", destination));
   const tbody = document.getElementById("calls-tbody");
   const empty = document.getElementById("calls-empty");
-  document.getElementById("calls-banner").className = "calls-banner";
-  document.getElementById("calls-banner").textContent = "Histórico interno sincronizado com a central · período de " + data.days + " dias";
-  document.getElementById("calls-list-caption").textContent = calls.length + " registro(s) recente(s) de " + ((data.summary || {}).total || 0);
-  if (!calls.length) { tbody.innerHTML = ""; empty.hidden = false; return; }
+  document.getElementById("calls-filters-clear").disabled = !filtering;
+  document.getElementById("calls-list-caption").textContent = filtering
+    ? filtered.length + " de " + calls.length + " registro(s) no período"
+    : calls.length + " registro(s) recente(s) de " + (((callHistoryData || {}).summary || {}).total || 0);
+  empty.textContent = filtering ? "Nenhuma chamada corresponde aos filtros selecionados." : "Nenhuma chamada interna encontrada neste período.";
+  if (!filtered.length) { tbody.innerHTML = ""; empty.hidden = false; return; }
   empty.hidden = true;
-  tbody.innerHTML = calls.map(call => {
+  tbody.innerHTML = filtered.map(call => {
     const result = callResult(call.disposition);
     const connection = callConnection(call.connection_status, call.connection_event_count);
     return '<tr><td>' + formatCallDate(call.started_at) + '</td><td>' + callExtensionButton(call.source_extension, call.source_name) + '</td><td>' + callExtensionButton(call.destination_extension, call.destination_name) + '</td><td><span class="call-result ' + result.className + '">' + result.label + '</span></td><td>' + callDuration(call) + '</td><td><span class="call-connection ' + connection.className + '">' + connection.label + '</span></td></tr>';
   }).join("");
+}
+function renderCallHistory(data) {
+  callHistoryData = data;
+  renderCallSummary(data.summary);
+  const calls = data.calls || [];
+  document.getElementById("calls-banner").className = "calls-banner";
+  document.getElementById("calls-banner").textContent = "Histórico interno sincronizado com a central · período de " + data.days + " dias";
+  populateCallExtensionOptions(calls);
+  renderFilteredCallHistory();
 }
 async function loadCallHistory() {
   if (callHistoryLoading) return;
@@ -2035,6 +2087,22 @@ callsDialog.addEventListener("click", event => { if (event.target === callsDialo
 document.getElementById("calls-tbody").addEventListener("click", event => {
   const button = event.target.closest("[data-call-extension]");
   if (button) loadExtensionCallHistory(button.dataset.callExtension);
+});
+document.getElementById("calls-origin-filter").addEventListener("input", event => {
+  callOriginFilter = event.target.value;
+  renderFilteredCallHistory();
+});
+document.getElementById("calls-destination-filter").addEventListener("input", event => {
+  callDestinationFilter = event.target.value;
+  renderFilteredCallHistory();
+});
+document.getElementById("calls-filters-clear").addEventListener("click", () => {
+  callOriginFilter = "";
+  callDestinationFilter = "";
+  document.getElementById("calls-origin-filter").value = "";
+  document.getElementById("calls-destination-filter").value = "";
+  renderFilteredCallHistory();
+  document.getElementById("calls-origin-filter").focus();
 });
 document.getElementById("calls-detail-back").addEventListener("click", () => {
   selectedCallExtension = null;
