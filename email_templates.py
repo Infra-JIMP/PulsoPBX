@@ -14,7 +14,6 @@ SIGNATURE_TEXT = """Atenciosamente,
 Eduardo Porangaba Leite Ribeiro da Silva
 Assistente de TI Júnior
 Televendas: 0800-641-1133
-Fixo: (47) 3464-1133
 Whats: (47) 99980-2446
 Av. Celso Ramos, 4821 | Distr. Indl Sul | Garuva - SC
 www.joinvilleimplementos.com.br"""
