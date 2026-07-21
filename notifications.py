@@ -132,6 +132,10 @@ class EmailNotifier:
         message["Message-ID"] = make_msgid(domain=sender_domain)
         message["Auto-Submitted"] = "auto-generated"
         message["X-Auto-Response-Suppress"] = "All"
+        if status == "offline" and not is_test:
+            # Exchange/Outlook converte este cabecalho MIME na bandeira vermelha
+            # de acompanhamento exibida como "Sinalizar Item".
+            message["X-Message-Flag"] = "Acompanhar ramal"
         message.set_content(content.plain_text, charset="utf-8", cte="base64")
         message.add_alternative(
             content.html_text,

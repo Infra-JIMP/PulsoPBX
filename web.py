@@ -38,6 +38,7 @@ ALERT_STORE_KEY = web.AppKey("alert_store", object)
 AVAILABILITY_KEY = web.AppKey("availability", object)
 CALENDAR_KEY = web.AppKey("calendar", object)
 DIRECTORY_KEY = web.AppKey("directory", object)
+CALL_HISTORY_KEY = web.AppKey("call_history", object)
 PUBLIC_PROXY_HEADERS = ("CF-Connecting-IP", "CF-Ray", "CF-Visitor")
 
 
@@ -203,6 +204,39 @@ def _directory_rows(request: web.Request, include_inactive: bool) -> list[dict]:
     return rows
 
 
+async def _prune_inactive_directory_extensions(request: web.Request) -> list[str]:
+    """Aplica imediatamente no monitor a situacao salva no diretorio.
+
+    O ciclo regular do MikoPBX tambem reconcilia a lista, mas esta passagem
+    impede que um alerta pendente seja disparado entre a desativacao e a
+    proxima consulta periodica.
+    """
+    tracker = request.app[TRACKER_KEY]
+    if tracker is None or not mikopbx_api.is_cache_ready():
+        return []
+    directory = request.app[DIRECTORY_KEY]
+    suppressed = directory.suppressed_extensions() if directory is not None else set()
+    active_names = {
+        extension: name
+        for extension, name in mikopbx_api.get_cached_names().items()
+        if extension not in suppressed and load_profiles().get(extension, {}).get("ativo") is not False
+    }
+    removed = tracker.retain_extensions(active_names)
+    if not removed:
+        return []
+    incidents = request.app[INCIDENTS_KEY]
+    availability = request.app[AVAILABILITY_KEY]
+    if incidents is not None:
+        await asyncio.to_thread(incidents.resolve_removed_extensions, removed)
+    if availability is not None:
+        await asyncio.to_thread(
+            availability.suppress_pending_for_extensions,
+            removed,
+            "collaborator_deactivated",
+        )
+    return removed
+
+
 async def _handle_directory_public(request: web.Request) -> web.Response:
     if (
         not _is_internal_management_request(request)
@@ -293,7 +327,12 @@ async def _handle_directory_create(request: web.Request) -> web.Response:
         person = await asyncio.to_thread(directory.save_person, body)
     except ValueError as exc:
         return web.json_response({"ok": False, "error": str(exc)}, status=400)
-    return web.json_response({"ok": True, "person": person}, status=201, headers={"Cache-Control": "no-store"})
+    removed = await _prune_inactive_directory_extensions(request)
+    return web.json_response(
+        {"ok": True, "person": person, "removed": removed},
+        status=201,
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 async def _handle_directory_update(request: web.Request) -> web.Response:
@@ -309,7 +348,11 @@ async def _handle_directory_update(request: web.Request) -> web.Response:
         person = await asyncio.to_thread(directory.save_person, body, person_id)
     except (TypeError, ValueError) as exc:
         return web.json_response({"ok": False, "error": str(exc) or "Cadastro invalido"}, status=400)
-    return web.json_response({"ok": True, "person": person}, headers={"Cache-Control": "no-store"})
+    removed = await _prune_inactive_directory_extensions(request)
+    return web.json_response(
+        {"ok": True, "person": person, "removed": removed},
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 async def _handle_directory_reset_email(request: web.Request) -> web.Response:
@@ -654,6 +697,48 @@ async def _handle_availability_report(request: web.Request) -> web.Response:
     return web.json_response(report, headers={"Cache-Control": "no-store"})
 
 
+def _call_history_days(request: web.Request) -> int:
+    try:
+        days = int(request.query.get("days", "30"))
+    except ValueError as exc:
+        raise web.HTTPBadRequest(text="Periodo invalido") from exc
+    if days not in {7, 30, 90}:
+        raise web.HTTPBadRequest(text="Periodo deve ser 7, 30 ou 90 dias")
+    return days
+
+
+async def _handle_call_history(request: web.Request) -> web.Response:
+    history = request.app[CALL_HISTORY_KEY]
+    if history is None:
+        return web.json_response(
+            {"ok": False, "error": "Historico de chamadas indisponivel"},
+            status=503,
+        )
+    days = _call_history_days(request)
+    result = await asyncio.to_thread(history.history, days, 300)
+    result["ok"] = True
+    return web.json_response(result, headers={"Cache-Control": "no-store"})
+
+
+async def _handle_extension_call_history(request: web.Request) -> web.Response:
+    history = request.app[CALL_HISTORY_KEY]
+    if history is None:
+        return web.json_response(
+            {"ok": False, "error": "Historico de chamadas indisponivel"},
+            status=503,
+        )
+    extension = request.match_info["extension"].strip()
+    if not extension.isdigit() or not 1 <= len(extension) <= 10:
+        return web.json_response({"ok": False, "error": "Ramal invalido"}, status=400)
+    profile = load_profiles().get(extension)
+    if not profile or profile.get("ativo") is False:
+        return web.json_response({"ok": False, "error": "Ramal nao encontrado"}, status=404)
+    days = _call_history_days(request)
+    result = await asyncio.to_thread(history.extension_history, extension, days)
+    result["ok"] = True
+    return web.json_response(result, headers={"Cache-Control": "no-store"})
+
+
 def create_app(
     tracker,
     client,
@@ -664,6 +749,7 @@ def create_app(
     availability=None,
     calendar=None,
     directory=None,
+    call_history=None,
 ) -> web.Application:
     app = web.Application(middlewares=[_dashboard_auth_middleware])
     app[TRACKER_KEY] = tracker
@@ -675,6 +761,7 @@ def create_app(
     app[AVAILABILITY_KEY] = availability
     app[CALENDAR_KEY] = calendar
     app[DIRECTORY_KEY] = directory
+    app[CALL_HISTORY_KEY] = call_history
     app.router.add_get("/", _handle_index)
     app.router.add_get("/assets/pulsopbx-logo.png", _handle_brand_logo)
     app.router.add_get("/favicon.ico", _handle_favicon)
@@ -697,6 +784,10 @@ def create_app(
         _handle_directory_reset_email,
     )
     app.router.add_get("/api/reports/availability", _handle_availability_report)
+    app.router.add_get("/api/calls/history", _handle_call_history)
+    app.router.add_get(
+        "/api/calls/extensions/{extension}", _handle_extension_call_history
+    )
     app.router.add_post("/api/alerts/test", _handle_test_alert)
     return app
 
@@ -711,6 +802,7 @@ async def run_dashboard(
     availability=None,
     calendar=None,
     directory=None,
+    call_history=None,
 ) -> None:
     app = create_app(
         tracker,
@@ -722,6 +814,7 @@ async def run_dashboard(
         availability,
         calendar,
         directory,
+        call_history,
     )
     runner = web.AppRunner(app, access_log=None)
     await runner.setup()

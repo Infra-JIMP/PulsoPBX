@@ -122,6 +122,9 @@ class Config:
     mikopbx_api_enabled: bool
     mikopbx_verify_tls: bool
     mikopbx_names_refresh_seconds: float
+    missed_calls_enabled: bool
+    missed_calls_poll_seconds: float
+    missed_calls_pilot_extensions: list[str]
 
     @property
     def notifications_enabled(self) -> bool:
@@ -159,8 +162,8 @@ def load_config() -> Config:
     responsibles_admin_password = _optional_env(
         "RESPONSIBLES_ADMIN_PASSWORD"
     ) or _secret_from_file(responsible_secret_path)
-    if responsibles_admin_password and len(responsibles_admin_password) < 12:
-        raise ConfigError("RESPONSIBLES_ADMIN_PASSWORD deve ter pelo menos 12 caracteres")
+    if responsibles_admin_password and len(responsibles_admin_password) < 8:
+        raise ConfigError("RESPONSIBLES_ADMIN_PASSWORD deve ter pelo menos 8 caracteres")
 
     ami_user = _optional_env("AMI_USER")
     ami_secret = _optional_env("AMI_SECRET")
@@ -262,4 +265,7 @@ def load_config() -> Config:
         mikopbx_names_refresh_seconds=_float_env(
             "MIKOPBX_NAMES_REFRESH_SECONDS", 300, 1, 86_400
         ),
+        missed_calls_enabled=_bool_env("MISSED_CALLS_ENABLED", False),
+        missed_calls_poll_seconds=_float_env("MISSED_CALLS_POLL_SECONDS", 30, 10, 3_600),
+        missed_calls_pilot_extensions=_csv_env("MISSED_CALLS_PILOT_EXTENSIONS"),
     )

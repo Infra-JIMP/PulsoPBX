@@ -135,6 +135,7 @@ class AlertStore:
                 SELECT id, extension, change, kind, context_json, created_at, updated_at
                 FROM alert_events AS current
                 WHERE kind = 'status'
+                  AND context_json NOT LIKE '%"event_type": "missed_call"%'
                   AND id = (
                     SELECT id FROM alert_events
                     WHERE extension = current.extension AND kind = 'status'

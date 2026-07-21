@@ -95,6 +95,27 @@ class AlertDispatcher:
         self._latest_test_event = event
         return self._serialize(event)
 
+    def enqueue_missed_call(
+        self,
+        extension: str,
+        recipients: list[str],
+        context: dict | None = None,
+        now: float | None = None,
+    ) -> dict:
+        """Agenda uma chamada perdida sem interferir no estado online/offline do ramal."""
+        now = now if now is not None else time.time()
+        details = dict(context or {})
+        details["event_type"] = "missed_call"
+        event = self._create_event(
+            extension,
+            "offline",
+            "status",
+            now,
+            recipients=recipients,
+            context=details,
+        )
+        return self._serialize(event)
+
     def _create_event(
         self,
         extension: str,

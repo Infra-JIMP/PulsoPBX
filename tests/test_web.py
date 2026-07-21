@@ -125,6 +125,9 @@ class _FakeTracker:
             }
         ]
 
+    def retain_extensions(self, extensions):
+        return []
+
 
 class ResponsibleManagementTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):

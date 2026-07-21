@@ -403,16 +403,38 @@ class DirectoryStore:
             return [dict(row) for row in rows]
 
     def profile_overrides(self) -> dict[str, dict]:
-        return {
-            row["extension"]: {
+        """Retorna a camada corporativa que complementa o MikoPBX.
+
+        Registros inativos tambem sao retornados para que o monitor e as
+        notificacoes consigam suprimir o ramal, em vez de voltar a herdar o
+        e-mail do MikoPBX. Quando houver um registro ativo e um historico
+        inativo para o mesmo ramal, o ativo tem prioridade.
+        """
+        profiles: dict[str, dict] = {}
+        for row in self.list_people(include_inactive=True):
+            extension = str(row.get("extension") or "").strip()
+            if not extension:
+                continue
+            current = profiles.get(extension)
+            if current is not None and current["ativo"]:
+                continue
+            profiles[extension] = {
                 "nome": row["name"],
+                "cargo": row["role"],
                 "setor": row["sector"],
                 "email": row["email"],
                 "notificar": row["notify"],
+                "ativo": row["active"],
             }
-            for row in self.list_people(include_inactive=False)
-            if row["extension"]
-        }
+        return profiles
+
+    def suppressed_extensions(self) -> set[str]:
+        """Ramais removidos ou desativados manualmente no diretorio."""
+        with self._lock:
+            rows = self._require_connection().execute(
+                "SELECT extension FROM directory_suppressed_extensions"
+            ).fetchall()
+        return {str(row["extension"]) for row in rows if row["extension"]}
 
     def save_person(self, payload: dict, person_id: int | None = None, actor: str = "administrator") -> dict:
         name = " ".join(str(payload.get("name") or "").split())

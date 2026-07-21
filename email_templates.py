@@ -14,6 +14,7 @@ SIGNATURE_TEXT = """Atenciosamente,
 Eduardo Porangaba Leite Ribeiro da Silva
 Assistente de TI Júnior
 Televendas: 0800-641-1133
+Fixo: (47) 3464-1133
 Whats: (47) 99980-2446
 Av. Celso Ramos, 4821 | Distr. Indl Sul | Garuva - SC
 www.joinvilleimplementos.com.br"""
@@ -115,6 +116,22 @@ def build_email_content(
             "Esta é uma mensagem de teste. Os alertas reais continuam seguindo as "
             "regras de expediente, confirmação e tolerância."
         )
+    elif context.get("event_type") == "missed_call":
+        caller = str(context.get("caller") or "Numero nao identificado").strip()
+        caller_name = str(context.get("caller_name") or "").strip()
+        caller_text = f"{caller} ({caller_name})" if caller_name else caller
+        subject = f"Chamada perdida no ramal {extension}"
+        eyebrow = "CHAMADA PERDIDA"
+        title = "Voce recebeu uma chamada nao atendida"
+        status_label = "Chamada perdida"
+        status_color = "#d64232"
+        timestamp_label = "RECEBIDA EM"
+        message = (
+            f"O PulsoPBX identificou uma chamada interna nao atendida no ramal {extension}. "
+            f"Origem: {caller_text}."
+        )
+        steps = ()
+        callout = "Se necessario, retorne a ligacao pelo numero informado."
     elif status == "offline":
         subject = f"Ramal {extension} desconectado"
         eyebrow = "QUEDA CONFIRMADA"

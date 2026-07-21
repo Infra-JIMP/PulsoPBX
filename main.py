@@ -13,6 +13,7 @@ from availability import AvailabilityStore
 from config import ConfigError, load_config
 from directory import DirectoryStore
 from incidents import IncidentStore
+from missed_calls import MissedCallMonitor
 from names import load_names
 from notifications import EmailNotifier, NotificationRouter
 from profiles import load_profiles, set_directory_store
@@ -30,12 +31,20 @@ async def _apply_employee_snapshot(
     incidents: IncidentStore | None,
     names: dict[str, str],
     availability: AvailabilityStore | None = None,
+    directory: DirectoryStore | None = None,
 ) -> None:
-    removed = tracker.retain_extensions(names)
+    profiles = load_profiles()
+    suppressed = directory.suppressed_extensions() if directory is not None else set()
+    active_names = {
+        extension: name
+        for extension, name in names.items()
+        if extension not in suppressed and profiles.get(extension, {}).get("ativo") is not False
+    }
+    removed = tracker.retain_extensions(active_names)
     if not removed:
         return
     logging.getLogger("main").info(
-        "%d ramal(is) removido(s) do monitoramento por nao constarem mais no MikoPBX",
+        "%d ramal(is) removido(s) do monitoramento por nao constarem na base corporativa ativa",
         len(removed),
     )
     if incidents is not None:
@@ -64,7 +73,7 @@ async def mikopbx_names_loop(
                     directory.synchronize_mikopbx,
                     mikopbx_api.get_cached_profiles(),
                 )
-            await _apply_employee_snapshot(tracker, incidents, names, availability)
+            await _apply_employee_snapshot(tracker, incidents, names, availability, directory)
         await asyncio.sleep(config.mikopbx_names_refresh_seconds)
 
 
@@ -258,21 +267,26 @@ async def run() -> None:
 
     async def on_snapshot(extension: str, online: bool) -> None:
         # Filtra "ramais" que nao sao telefones de pessoas (filas, conferencias,
-        # aplicacoes de teste): so rastreamos numeros que tem funcionario vinculado
-        # no MikoPBX. Se a lista de funcionarios ainda nao carregou (cache vazio),
-        # nao filtra - rastreia tudo ate a lista chegar.
+        # aplicacoes de teste) e os registros inativos do diretorio. Se a lista
+        # de funcionarios ainda nao carregou (cache vazio), nao filtra - rastreia
+        # tudo ate a lista chegar.
         known = mikopbx_api.get_cached_names()
+        suppressed = directory.suppressed_extensions() if directory is not None else set()
+        profile = load_profiles().get(extension, {})
         if (
             config.mikopbx_api_enabled
             and mikopbx_api.is_cache_ready()
-            and extension not in known
+            and (
+                extension not in known
+                or extension in suppressed
+                or profile.get("ativo") is False
+            )
         ):
             return
         observed_at = time.time()
         is_baseline = tracker.update(extension, online, now=observed_at)
         if not is_baseline:
             return
-        profile = load_profiles().get(extension, {})
         if availability is not None:
             try:
                 await asyncio.to_thread(
@@ -334,7 +348,29 @@ async def run() -> None:
                     directory.synchronize_mikopbx,
                     mikopbx_api.get_cached_profiles(),
                 )
-            await _apply_employee_snapshot(tracker, incidents, names, availability)
+            await _apply_employee_snapshot(tracker, incidents, names, availability, directory)
+
+    missed_calls: MissedCallMonitor | None = None
+    if config.missed_calls_enabled and not config.demo_mode:
+        if not config.mikopbx_api_enabled:
+            logger.warning("Piloto de chamadas perdidas desativado: MIKOPBX_API_KEY ausente")
+        elif alerts is None:
+            logger.warning("Piloto de chamadas perdidas desativado: e-mail nao configurado")
+        else:
+            missed_calls = MissedCallMonitor(
+                config,
+                alerts,
+                config.incidents_db_path,
+            )
+            try:
+                await asyncio.to_thread(missed_calls.initialize)
+                logger.info(
+                    "Monitor de chamadas internas nao atendidas ativo para colaboradores cadastrados",
+                )
+            except Exception:
+                logger.exception("Piloto de chamadas perdidas indisponivel")
+                missed_calls.close()
+                missed_calls = None
 
     client: AmiClient | None = None
     # Demonstracao precisa ser totalmente isolada: mesmo que o .env local tenha
@@ -377,6 +413,7 @@ async def run() -> None:
             availability,
             calendar,
             directory,
+            missed_calls,
         ),
     ]
     if alerts is not None:
@@ -400,6 +437,8 @@ async def run() -> None:
             "MIKOPBX_API_KEY ausente no .env - nomes dos ramais nao serao buscados "
             "automaticamente (use ramais_nomes.json manualmente, se quiser)"
         )
+    if missed_calls is not None:
+        tasks.append(missed_calls.run())
 
     try:
         await asyncio.gather(*tasks)
@@ -414,6 +453,8 @@ async def run() -> None:
             availability.close()
         if directory is not None:
             directory.close()
+        if missed_calls is not None:
+            missed_calls.close()
         set_directory_store(None)
 
 

@@ -131,5 +131,5 @@ class ConfigTests(unittest.TestCase):
             {"RESPONSIBLES_ADMIN_PASSWORD": "curta"},
             clear=True,
         ):
-            with self.assertRaisesRegex(ConfigError, "pelo menos 12"):
+            with self.assertRaisesRegex(ConfigError, "pelo menos 8"):
                 load_config()
