@@ -22,7 +22,29 @@ class ConfigTests(unittest.TestCase):
         self.assertFalse(config.email_enabled)
         self.assertFalse(config.notifications_enabled)
         self.assertFalse(config.responsibles_admin_enabled)
+        self.assertFalse(config.cloud_sync_enabled)
         self.assertEqual(config.email_subject_brand, "Joinville Implementos")
+
+    def test_cloud_sync_requires_url_and_token_together(self):
+        with patch.dict(
+            os.environ,
+            {
+                "CLOUD_SYNC_URL": "https://pulsopbx.vercel.app",
+                "CLOUD_SYNC_TOKEN_FILE": "data/token-inexistente-no-teste.txt",
+            },
+            clear=True,
+        ):
+            with self.assertRaisesRegex(ConfigError, "CLOUD_SYNC_TOKEN"):
+                load_config()
+
+    def test_cloud_sync_requires_https(self):
+        with patch.dict(
+            os.environ,
+            {"CLOUD_SYNC_URL": "http://example.test", "CLOUD_SYNC_TOKEN": "segredo"},
+            clear=True,
+        ):
+            with self.assertRaisesRegex(ConfigError, "HTTPS"):
+                load_config()
 
     def test_zero_reconcile_interval_is_rejected(self):
         with patch.dict(os.environ, {"RECONCILE_SECONDS": "0"}, clear=True):
