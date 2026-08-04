@@ -5,8 +5,6 @@ logs/
 .venv/
 output/
 .playwright-cli/
-.vercel/
-!package-lock.json
 data/
 ramais_nomes.json
 work_calendar.json

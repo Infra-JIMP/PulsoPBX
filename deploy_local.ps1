@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [switch]$ValidateOnly,
-    [switch]$AllowDirty
+    [switch]$AllowDirty,
+    [switch]$KeepServiceStopped
 )
 
 # Publica o codigo versionado na copia local com preflight, backup e rollback.
@@ -181,13 +182,18 @@ try {
         throw "Nao foi possivel determinar DASHBOARD_PORT apos o deploy."
     }
 
-    Write-Output "Iniciando o servico e validando o endpoint de saude..."
-    Start-RamaisMonitor
-    $serviceStopped = $false
-    Start-Sleep -Seconds 5
-    $health = Invoke-RestMethod -Uri "http://127.0.0.1:$dashboardPort/api/health" -TimeoutSec 10
-    if ($health.ready -ne $true) {
-        throw "Endpoint de saude respondeu sem ready=true."
+    if ($KeepServiceStopped) {
+        Write-Output "Codigo instalado e validado. Servico mantido parado por solicitacao."
+    }
+    else {
+        Write-Output "Iniciando o servico e validando o endpoint de saude..."
+        Start-RamaisMonitor
+        $serviceStopped = $false
+        Start-Sleep -Seconds 5
+        $health = Invoke-RestMethod -Uri "http://127.0.0.1:$dashboardPort/api/health" -TimeoutSec 10
+        if ($health.ready -ne $true) {
+            throw "Endpoint de saude respondeu sem ready=true."
+        }
     }
     Write-Output "Deploy concluido. Backup preservado em: $backup"
     try {
@@ -203,14 +209,19 @@ catch {
         Write-Output "Restaurando a versao anterior..."
         Stop-RamaisMonitor
         Invoke-SafeRobocopy -Source $backup -Destination $dst -Mode "/MIR"
-        Start-RamaisMonitor
-        $serviceStopped = $false
-        Write-Output "Rollback concluido."
+        if ($KeepServiceStopped) {
+            Write-Output "Rollback concluido. Servico mantido parado por solicitacao."
+        }
+        else {
+            Start-RamaisMonitor
+            $serviceStopped = $false
+            Write-Output "Rollback concluido."
+        }
     }
     throw
 }
 finally {
-    if ($serviceStopped) {
+    if ($serviceStopped -and -not $KeepServiceStopped) {
         Start-RamaisMonitor
     }
     if (

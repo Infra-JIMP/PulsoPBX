@@ -11,7 +11,6 @@ from alerts import AlertDispatcher
 from ami_client import AmiClient
 from availability import AvailabilityStore
 from config import ConfigError, load_config
-from cloud_sync import run_cloud_sync
 from directory import DirectoryStore
 from incidents import IncidentStore
 from missed_calls import MissedCallMonitor
@@ -440,13 +439,6 @@ async def run() -> None:
         )
     if missed_calls is not None:
         tasks.append(missed_calls.run())
-    if config.cloud_sync_enabled:
-        logger.info(
-            "Sincronizacao segura com o painel Vercel ativa a cada %.0fs",
-            config.cloud_sync_interval_seconds,
-        )
-        tasks.append(run_cloud_sync(config))
-
     try:
         await asyncio.gather(*tasks)
     finally:
