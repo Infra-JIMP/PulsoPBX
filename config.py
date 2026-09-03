@@ -2,6 +2,7 @@
 import math
 import os
 from dataclasses import dataclass
+from email.utils import parseaddr
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -65,6 +66,17 @@ def _csv_env(name: str) -> list[str]:
     return list(dict.fromkeys(item for item in values if item))
 
 
+def _email_csv_env(name: str) -> list[str]:
+    """Igual ao _csv_env, mas recusa endereco invalido em vez de enviar para o nada."""
+    addresses = [item.lower() for item in _csv_env(name)]
+    for address in addresses:
+        _, parsed = parseaddr(address)
+        local, separator, domain = parsed.partition("@")
+        if parsed != address or not separator or not local or "." not in domain:
+            raise ConfigError(f"{name} contem um e-mail invalido: {address!r}")
+    return addresses
+
+
 def _secret_from_file(path: Path) -> str | None:
     try:
         value = path.read_text(encoding="utf-8").strip()
@@ -94,6 +106,8 @@ class Config:
     email_timeout_seconds: float
     email_recipients: list[str]
     email_enabled: bool
+    welcome_email_enabled: bool
+    welcome_email_copy_recipients: list[str]
 
     debounce_seconds: float
     reconcile_seconds: float
@@ -200,6 +214,13 @@ def load_config() -> Config:
         )
         raise ConfigError(f"Configuracao parcial de E-mail; faltando: {missing}")
 
+    welcome_email_enabled = _bool_env("WELCOME_EMAIL_ENABLED", False)
+    welcome_email_copy_recipients = _email_csv_env("WELCOME_EMAIL_COPY")
+    if welcome_email_enabled and not (email_smtp_host and email_sender):
+        raise ConfigError(
+            "WELCOME_EMAIL_ENABLED exige EMAIL_SMTP_HOST e EMAIL_FROM configurados"
+        )
+
     mikopbx_api_key = _optional_env("MIKOPBX_API_KEY")
     mikopbx_api_url = _env_text(
         "MIKOPBX_API_URL", "https://192.168.1.254/pbxcore/api/v3"
@@ -235,6 +256,10 @@ def load_config() -> Config:
         # Os destinatarios globais sao opcionais: alertas reais usam o e-mail
         # individual trazido pelo perfil do ramal no MikoPBX.
         email_enabled=bool(email_smtp_host and email_sender),
+        # Boas-vindas comeca desligado de proposito: so envia depois que o
+        # cadastro estiver revisado e alguem ligar a chave conscientemente.
+        welcome_email_enabled=welcome_email_enabled,
+        welcome_email_copy_recipients=welcome_email_copy_recipients,
         debounce_seconds=_float_env("DEBOUNCE_SECONDS", 30, 0, 86_400),
         reconcile_seconds=_float_env("RECONCILE_SECONDS", 60, 1, 86_400),
         alert_max_attempts=_int_env("ALERT_MAX_ATTEMPTS", 3, 1, 20),

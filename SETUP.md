@@ -34,7 +34,20 @@ O fluxo é: 30 segundos para confirmar a mudança de estado, mais 2 minutos de t
 
 O monitor coloca cada entrega em uma fila separada. Se o SMTP ou a rede falhar, ele tenta novamente sem interromper a AMI. Por padrão são 3 tentativas, com espera de 15s e 30s; ajuste `ALERT_MAX_ATTEMPTS` e `ALERT_RETRY_BASE_SECONDS` se necessário. Eventos, tentativas e jobs pendentes ficam no SQLite local e sobrevivem a reinícios. Cinco quedas na mesma janela de 60 segundos são tratadas como indisponibilidade coletiva (`MASS_OUTAGE_THRESHOLD` / `MASS_OUTAGE_WINDOW_SECONDS`) e não geram uma sequência de e-mails individuais.
 
-### 2.1. Configurar expediente, feriados e folgas
+### 2.1. E-mail de boas-vindas ao cadastrar um colaborador
+
+Ao criar um cadastro novo em **Colaboradores → Gerenciar cadastros**, o PulsoPBX pode enviar automaticamente uma mensagem de boas-vindas ao próprio colaborador, com o ramal atribuído, o setor, os códigos de atalho cadastrados (`*3`, `*8`) e a orientação de manter o MicroSIP aberto.
+
+Ative com `WELCOME_EMAIL_ENABLED=true`. Use `WELCOME_EMAIL_COPY` para mandar uma cópia a TI ou RH (endereços separados por vírgula). A chave começa desligada e exige `EMAIL_SMTP_HOST` e `EMAIL_FROM` configurados; sem isso o serviço recusa iniciar em vez de falhar silenciosamente.
+
+Regras do envio:
+
+- dispara apenas no **cadastro manual** pela tela administrativa. Registros que o MikoPBX importa sozinho não geram mensagem;
+- cada cadastro recebe **no máximo uma** mensagem: a data fica em `directory_people.welcome_email_sent_at` e a ação aparece no histórico de alterações como `welcome_email`;
+- cadastro sem e-mail, com avisos desligados ou já arquivado é salvo normalmente, apenas sem envio — o motivo aparece na própria tela;
+- a mensagem entra na mesma fila com repetição dos demais alertas, então uma falha de SMTP não trava o cadastro nem a AMI.
+
+### 2.2. Configurar expediente, feriados e folgas
 
 Copie `work_calendar.example.json` para `work_calendar.json` e substitua os horários de exemplo pelos horários oficiais. O arquivo não é versionado e é recarregado automaticamente, sem reiniciar o serviço.
 

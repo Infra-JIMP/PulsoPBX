@@ -135,7 +135,9 @@ class AlertStore:
                 SELECT id, extension, change, kind, context_json, created_at, updated_at
                 FROM alert_events AS current
                 WHERE kind = 'status'
-                  AND context_json NOT LIKE '%"event_type": "missed_call"%'
+                  -- Chamada perdida e boas-vindas viajam pela mesma fila, mas nao
+                  -- descrevem o estado do ramal; so eventos sem event_type contam.
+                  AND context_json NOT LIKE '%"event_type"%'
                   AND id = (
                     SELECT id FROM alert_events
                     WHERE extension = current.extension AND kind = 'status'

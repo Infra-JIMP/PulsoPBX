@@ -42,7 +42,7 @@ def _duration_text(context: dict) -> str:
     return f" após aproximadamente {minutes} minutos úteis"
 
 
-def _steps_html(items: tuple[str, ...]) -> str:
+def _steps_html(items: tuple[str, ...], heading: str = "Como tentar reconectar") -> str:
     if not items:
         return ""
     rows = "".join(
@@ -56,8 +56,8 @@ def _steps_html(items: tuple[str, ...]) -> str:
     return (
         '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">'
         '<tr><td style="padding:21px 0 8px;color:#0b1c3d;font-family:Arial,Helvetica,'
-        'sans-serif;font-size:16px;font-weight:bold;line-height:22px;">Como tentar '
-        'reconectar</td></tr></table><table role="presentation" width="100%" '
+        f'sans-serif;font-size:16px;font-weight:bold;line-height:22px;">{escape(heading)}'
+        '</td></tr></table><table role="presentation" width="100%" '
         f'cellspacing="0" cellpadding="0" border="0">{rows}</table>'
     )
 
@@ -102,6 +102,9 @@ def build_email_content(
     name = str(context.get("nome") or "").strip()
     sector = str(context.get("setor") or "Não informado").strip()
     greeting = f"Olá, {name}." if name else "Olá."
+    steps_heading = "Como tentar reconectar"
+    # Selo do cabecalho: aviso por padrao, confirmacao nas mensagens positivas.
+    icon, icon_background, icon_border = "!", "#fff0ed", "#ffd0c8"
 
     if is_test:
         subject = "Teste de notificação do PulsoPBX"
@@ -115,6 +118,32 @@ def build_email_content(
         callout = (
             "Esta é uma mensagem de teste. Os alertas reais continuam seguindo as "
             "regras de expediente, confirmação e tolerância."
+        )
+    elif context.get("event_type") == "welcome":
+        role = str(context.get("cargo") or "").strip()
+        extension_text = extension or "ainda não atribuído"
+        introduction = f"Você foi cadastrado(a) como {role}" if role else "Você foi cadastrado(a)"
+        subject = (
+            f"Bem-vindo(a) - seu ramal é {extension}"
+            if extension
+            else "Bem-vindo(a) - seu cadastro de telefonia"
+        )
+        eyebrow = "CADASTRO CONCLUÍDO"
+        title = "Boas-vindas: seu ramal está ativo"
+        status_label = "Cadastro ativo"
+        status_color = "#118b4e"
+        timestamp_label = "CADASTRADO EM"
+        message = (
+            f"{introduction} no setor {sector}, com o ramal {extension_text}. "
+            "A partir de agora o PulsoPBX acompanha a conexão do seu ramal durante "
+            "o expediente e avisa você por e-mail se ele ficar fora do ar."
+        )
+        steps_heading = "Primeiros passos"
+        steps = tuple(context.get("steps") or ())
+        icon, icon_background, icon_border = "✓", "#eef9f2", "#bfe3cd"
+        callout = (
+            "Guarde este e-mail: ele traz o seu ramal e os códigos de atalho. "
+            "Em caso de dúvida ou problema na conexão, procure a equipe de TI."
         )
     elif context.get("event_type") == "missed_call":
         caller = str(context.get("caller") or "Numero nao identificado").strip()
@@ -168,6 +197,7 @@ def build_email_content(
         )
         steps = ()
         callout = "Nenhuma ação adicional é necessária."
+        icon, icon_background, icon_border = "✓", "#eef9f2", "#bfe3cd"
 
     plain_lines = [
         greeting,
@@ -175,12 +205,12 @@ def build_email_content(
         message,
         "",
         f"Situação: {status_label}",
-        f"Ramal: {extension}",
+        f"Ramal: {extension or 'Não atribuído'}",
         f"Setor: {sector}",
         f"{timestamp_label.title()}: {timestamp}",
     ]
     if steps:
-        plain_lines.extend(["", "Como tentar reconectar:"])
+        plain_lines.extend(["", f"{steps_heading}:"])
         plain_lines.extend(f"{index}. {item}" for index, item in enumerate(steps, 1))
     plain_lines.extend(["", callout, "", SIGNATURE_TEXT])
 
@@ -193,11 +223,14 @@ def build_email_content(
             "MESSAGE": escape(message),
             "STATUS_LABEL": escape(status_label),
             "STATUS_COLOR": status_color,
-            "EXTENSION": escape(extension),
+            "ICON": escape(icon),
+            "ICON_BACKGROUND": icon_background,
+            "ICON_BORDER": icon_border,
+            "EXTENSION": escape(extension or "Não atribuído"),
             "SECTOR": escape(sector),
             "TIMESTAMP_LABEL": escape(timestamp_label),
             "TIMESTAMP": escape(timestamp),
-            "STEPS": _steps_html(steps),
+            "STEPS": _steps_html(steps, steps_heading),
             "CALLOUT": escape(callout),
             "LOGO_CELL": _logo_cell(include_logo),
         },

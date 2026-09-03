@@ -315,6 +315,73 @@ async def _directory_body(request: web.Request) -> dict:
     return body
 
 
+def _welcome_steps(quick_dials: list[dict]) -> tuple[str, ...]:
+    steps = [
+        "Abra o MicroSIP no computador e confirme que o ramal aparece como registrado.",
+        "Mantenha o MicroSIP aberto durante o expediente: é por ele que as ligações chegam.",
+    ]
+    steps.extend(
+        f"{str(dial.get('label') or '').capitalize()}: disque {dial.get('code')}."
+        for dial in quick_dials
+        if dial.get("code") and dial.get("label")
+    )
+    return tuple(steps)
+
+
+async def _dispatch_welcome_email(request: web.Request, person: dict) -> dict:
+    """Envia as boas-vindas de um cadastro novo uma unica vez, quando habilitado.
+
+    Falha aqui nunca invalida o cadastro: o colaborador ja esta salvo e o motivo
+    de nao ter enviado volta no proprio corpo da resposta.
+    """
+    config = request.app[CONFIG_KEY]
+    alerts = request.app[ALERTS_KEY]
+    directory = request.app[DIRECTORY_KEY]
+    if not getattr(config, "welcome_email_enabled", False):
+        return {"sent": False, "reason": "disabled"}
+    if alerts is None or directory is None:
+        return {"sent": False, "reason": "email_channel_not_configured"}
+    if not person.get("active"):
+        return {"sent": False, "reason": "inactive"}
+    if person.get("welcome_email_sent_at"):
+        return {"sent": False, "reason": "already_sent"}
+    email = validate_email(person.get("email", ""))
+    if not email:
+        return {"sent": False, "reason": "email_missing"}
+    if not person.get("notify"):
+        return {"sent": False, "reason": "notifications_disabled"}
+
+    quick_dials = await asyncio.to_thread(directory.list_quick_dials)
+    copies = getattr(config, "welcome_email_copy_recipients", []) or []
+    recipients = list(
+        dict.fromkeys([f"email:{email}"] + [f"email:{copy}" for copy in copies])
+    )
+    context = {
+        "nome": person.get("name") or "",
+        "cargo": person.get("role") or "",
+        "setor": person.get("sector") or "Não informado",
+        "steps": _welcome_steps(quick_dials),
+    }
+    try:
+        event = alerts.enqueue_welcome(
+            str(person.get("extension") or ""), recipients, context
+        )
+    except ValueError:
+        logger.exception(
+            "Boas-vindas do cadastro %s nao enfileiradas: destinatario invalido",
+            person.get("id"),
+        )
+        return {"sent": False, "reason": "invalid_recipient"}
+    await asyncio.to_thread(directory.mark_welcome_sent, int(person["id"]))
+    logger.info(
+        "Boas-vindas do colaborador %s enfileiradas para %d destinatario(s) (alerta %s)",
+        person.get("name"),
+        len(recipients),
+        event["id"],
+    )
+    return {"sent": True, "event_id": event["id"], "recipient_count": len(recipients)}
+
+
 async def _handle_directory_create(request: web.Request) -> web.Response:
     error = _management_error(request)
     if error is not None:
@@ -328,8 +395,13 @@ async def _handle_directory_create(request: web.Request) -> web.Response:
     except ValueError as exc:
         return web.json_response({"ok": False, "error": str(exc)}, status=400)
     removed = await _prune_inactive_directory_extensions(request)
+    try:
+        welcome = await _dispatch_welcome_email(request, person)
+    except Exception:
+        logger.exception("Falha ao preparar as boas-vindas do cadastro %s", person.get("id"))
+        welcome = {"sent": False, "reason": "dispatch_failed"}
     return web.json_response(
-        {"ok": True, "person": person, "removed": removed},
+        {"ok": True, "person": person, "removed": removed, "welcome": welcome},
         status=201,
         headers={"Cache-Control": "no-store"},
     )

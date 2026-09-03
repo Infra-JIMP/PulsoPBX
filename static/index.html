@@ -1668,6 +1668,21 @@ async function loadResponsibles(password) {
   } finally { responsibleRequestInFlight = false; }
 }
 
+function welcomeFeedback(welcome) {
+  if (!welcome) return "";
+  if (welcome.sent) return " E-mail de boas-vindas enviado ao colaborador.";
+  const reasons = {
+    email_missing: " Boas-vindas não enviadas: o cadastro está sem e-mail.",
+    notifications_disabled: " Boas-vindas não enviadas: os avisos estão desligados para este cadastro.",
+    already_sent: " Boas-vindas já haviam sido enviadas antes.",
+    inactive: " Boas-vindas não enviadas: o cadastro está inativo.",
+    email_channel_not_configured: " Boas-vindas não enviadas: canal de e-mail indisponível no servidor.",
+    invalid_recipient: " Boas-vindas não enviadas: destinatário recusado pelo servidor.",
+    dispatch_failed: " Boas-vindas não enviadas: falha ao preparar a mensagem (veja o log).",
+  };
+  return reasons[welcome.reason] || "";
+}
+
 async function saveResponsible(event) {
   event.preventDefault();
   if (selectedResponsibleId === null || responsibleRequestInFlight) return;
@@ -1696,7 +1711,7 @@ async function saveResponsible(event) {
     selectedResponsibleId = payload.person.id;
     responsibleRequestInFlight = false;
     await loadResponsibles(responsiblesPassword);
-    feedback.className = "admin-feedback ok"; feedback.textContent = "Cadastro salvo e sincronizado com o monitor e as listas.";
+    feedback.className = "admin-feedback ok"; feedback.textContent = "Cadastro salvo e sincronizado com o monitor e as listas." + welcomeFeedback(payload.welcome);
     await loadDirectoryPublic(true);
     refresh(); refreshReport();
   } catch (error) {
