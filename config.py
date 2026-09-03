@@ -106,6 +106,7 @@ class Config:
     email_timeout_seconds: float
     email_recipients: list[str]
     email_enabled: bool
+    outage_alert_recipients: list[str]
     welcome_email_enabled: bool
     welcome_email_copy_recipients: list[str]
 
@@ -214,6 +215,15 @@ def load_config() -> Config:
         )
         raise ConfigError(f"Configuracao parcial de E-mail; faltando: {missing}")
 
+    # Quedas e retornos sao assunto da equipe de TI, nao do colaborador: uma
+    # unica caixa operacional recebe os avisos e o painel segue como consulta
+    # diaria de todo mundo. Lista vazia = nenhum e-mail de queda sai.
+    outage_alert_recipients = _email_csv_env("OUTAGE_ALERT_RECIPIENTS") or (
+        ["ti@joinvilleimplementos.com.br"]
+        if "OUTAGE_ALERT_RECIPIENTS" not in os.environ
+        else []
+    )
+
     welcome_email_enabled = _bool_env("WELCOME_EMAIL_ENABLED", False)
     welcome_email_copy_recipients = _email_csv_env("WELCOME_EMAIL_COPY")
     if welcome_email_enabled and not (email_smtp_host and email_sender):
@@ -256,6 +266,7 @@ def load_config() -> Config:
         # Os destinatarios globais sao opcionais: alertas reais usam o e-mail
         # individual trazido pelo perfil do ramal no MikoPBX.
         email_enabled=bool(email_smtp_host and email_sender),
+        outage_alert_recipients=outage_alert_recipients,
         # Boas-vindas comeca desligado de proposito: so envia depois que o
         # cadastro estiver revisado e alguem ligar a chave conscientemente.
         welcome_email_enabled=welcome_email_enabled,

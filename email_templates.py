@@ -101,7 +101,11 @@ def build_email_content(
     timestamp = str(timestamp).strip()
     name = str(context.get("nome") or "").strip()
     sector = str(context.get("setor") or "Não informado").strip()
-    greeting = f"Olá, {name}." if name else "Olá."
+    # Avisos de queda e retorno vao para a equipe de TI, entao falam do ramal
+    # na terceira pessoa; boas-vindas e teste continuam falando com a pessoa.
+    for_operations = context.get("audience") == "operations"
+    owner = f"{name} · {sector}" if name else f"setor {sector}"
+    greeting = "Olá, equipe." if for_operations else (f"Olá, {name}." if name else "Olá.")
     steps_heading = "Como tentar reconectar"
     # Selo do cabecalho: aviso por padrao, confirmacao nas mensagens positivas.
     icon, icon_background, icon_border = "!", "#fff0ed", "#ffd0c8"
@@ -162,41 +166,76 @@ def build_email_content(
         steps = ()
         callout = "Se necessario, retorne a ligacao pelo numero informado."
     elif status == "offline":
-        subject = f"Ramal {extension} desconectado"
+        subject = (
+            f"Ramal {extension} desconectado - {name}"
+            if for_operations and name
+            else f"Ramal {extension} desconectado"
+        )
         eyebrow = "QUEDA CONFIRMADA"
-        title = "Seu ramal está desconectado"
         status_label = "Desconectado"
         status_color = "#d64232"
         timestamp_label = "DETECTADO EM"
-        message = (
-            "O PulsoPBX identificou que o seu ramal permanece desconectado durante "
-            "o horário de trabalho. A queda foi confirmada e continuou ativa após o "
-            "período de tolerância de 2 minutos."
-        )
-        steps = (
-            "Verifique se o MicroSIP está aberto.",
-            "Confirme se a internet do computador está funcionando.",
-            "Confira se o ramal aparece como registrado/conectado no MicroSIP.",
-        )
-        callout = (
-            "Se a indisponibilidade persistir, entre em contato com a equipe de TI. "
-            "Caso o ramal já tenha reconectado, desconsidere esta mensagem; o retorno "
-            "será registrado automaticamente."
-        )
+        if for_operations:
+            title = f"Ramal {extension} está desconectado"
+            message = (
+                f"O PulsoPBX confirmou que o ramal {extension} ({owner}) permanece "
+                "desconectado durante o horário de trabalho. A queda passou pelo "
+                "período de confirmação e pela tolerância antes deste aviso."
+            )
+            steps_heading = "O que verificar"
+            steps = (
+                "Confirme no painel se a queda continua ativa.",
+                "Verifique a rede e o MicroSIP do computador do colaborador.",
+                "Confira se o ramal aparece registrado na central.",
+            )
+            callout = (
+                "Este aviso vai somente para a equipe de TI; o colaborador não "
+                "recebe cópia. O retorno do ramal é registrado automaticamente."
+            )
+        else:
+            title = "Seu ramal está desconectado"
+            message = (
+                "O PulsoPBX identificou que o seu ramal permanece desconectado durante "
+                "o horário de trabalho. A queda foi confirmada e continuou ativa após o "
+                "período de tolerância de 2 minutos."
+            )
+            steps = (
+                "Verifique se o MicroSIP está aberto.",
+                "Confirme se a internet do computador está funcionando.",
+                "Confira se o ramal aparece como registrado/conectado no MicroSIP.",
+            )
+            callout = (
+                "Se a indisponibilidade persistir, entre em contato com a equipe de TI. "
+                "Caso o ramal já tenha reconectado, desconsidere esta mensagem; o retorno "
+                "será registrado automaticamente."
+            )
     else:
         duration_text = _duration_text(context)
-        subject = f"Ramal {extension} reconectado"
+        subject = (
+            f"Ramal {extension} reconectado - {name}"
+            if for_operations and name
+            else f"Ramal {extension} reconectado"
+        )
         eyebrow = "CONEXÃO RESTABELECIDA"
-        title = "Seu ramal voltou a ficar conectado"
         status_label = "Conectado"
         status_color = "#118b4e"
         timestamp_label = "RECONECTADO EM"
+        title = (
+            f"Ramal {extension} voltou a ficar conectado"
+            if for_operations
+            else "Seu ramal voltou a ficar conectado"
+        )
+        detail = f" ({owner})" if for_operations else ""
         message = (
-            f"O ramal {extension} voltou a ficar conectado em {timestamp}"
+            f"O ramal {extension}{detail} voltou a ficar conectado em {timestamp}"
             f"{duration_text}."
         )
         steps = ()
-        callout = "Nenhuma ação adicional é necessária."
+        callout = (
+            "Incidente encerrado. Nenhuma ação adicional é necessária."
+            if for_operations
+            else "Nenhuma ação adicional é necessária."
+        )
         icon, icon_background, icon_border = "✓", "#eef9f2", "#bfe3cd"
 
     plain_lines = [

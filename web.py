@@ -600,6 +600,7 @@ async def _handle_status(request: web.Request) -> web.Response:
     else:
         profiles = load_profiles()
 
+    alert_recipients = list(getattr(config, "outage_alert_recipients", []) or [])
     extensions = tracker.snapshot()
     if alerts is not None:
         recent_alerts = alerts.recent_events()
@@ -615,6 +616,7 @@ async def _handle_status(request: web.Request) -> web.Response:
         ext["nome"] = meta.get("nome", "")
         ext["setor"] = meta.get("setor", "")
         ext["responsible_email_configured"] = bool(meta.get("email"))
+        ext["alerts_muted"] = meta.get("notificar") is False
         if alerts is None:
             ext["alert"] = {"status": "not_configured", "sent_count": 0, "total_recipients": 0}
         else:
@@ -623,7 +625,11 @@ async def _handle_status(request: web.Request) -> web.Response:
             ) or {
                 "status": "idle",
                 "sent_count": 0,
-                "total_recipients": int(bool(meta.get("email") and config.email_enabled)),
+                "total_recipients": (
+                    0
+                    if ext["alerts_muted"] or not config.email_enabled
+                    else len(alert_recipients)
+                ),
             }
         ext["incident"] = open_incidents.get(ext["extension"])
 
@@ -645,6 +651,10 @@ async def _handle_status(request: web.Request) -> web.Response:
         bool(profiles.get(extension, {}).get("email"))
         for extension in monitored_extensions
     )
+    muted_extension_count = sum(
+        profiles.get(extension, {}).get("notificar") is False
+        for extension in monitored_extensions
+    )
     job_summary = (
         await asyncio.to_thread(availability.notification_summary)
         if availability is not None
@@ -659,8 +669,16 @@ async def _handle_status(request: web.Request) -> web.Response:
             "data_freshness": data_freshness,
             "notifications": {
                 "configured": config.notifications_enabled,
+                # Contadores do diretorio: quantos cadastros tem e-mail. Nao
+                # definem mais o envio, que agora tem destino operacional fixo.
                 "target_count": responsible_email_count,
                 "missing_target_count": max(0, len(monitored_extensions) - responsible_email_count),
+                "alert_routing": "operations",
+                "alert_recipient_count": len(alert_recipients),
+                "alert_recipients": (
+                    alert_recipients if _is_internal_management_request(request) else []
+                ),
+                "muted_extension_count": muted_extension_count,
                 "test_target_count": config.notification_target_count,
                 "test_available": alerts is not None and bool(config.email_recipients),
                 "test_cooldown_seconds": config.alert_test_cooldown_seconds,
