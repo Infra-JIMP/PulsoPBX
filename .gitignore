@@ -1,0 +1,12 @@
+.env
+__pycache__/
+*.pyc
+logs/
+.venv/
+output/
+.playwright-cli/
+data/
+ramais_nomes.json
+work_calendar.json
+
+.vercel
