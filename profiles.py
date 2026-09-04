@@ -36,6 +36,8 @@ def load_profiles() -> dict[str, dict]:
             "email": validate_email(profile.get("email", "")),
             "notificar": True,
             "ativo": True,
+            "pausado": False,
+            "motivo_pausa": "",
         }
         for extension, profile in mikopbx_api.get_cached_profiles().items()
     }
@@ -49,6 +51,8 @@ def load_profiles() -> dict[str, dict]:
                 "email": "",
                 "notificar": True,
                 "ativo": True,
+                "pausado": False,
+                "motivo_pausa": "",
             },
         )
         for field in ("nome", "cargo", "setor"):
@@ -71,6 +75,8 @@ def load_profiles() -> dict[str, dict]:
                     "email": "",
                     "notificar": True,
                     "ativo": True,
+                    "pausado": False,
+                    "motivo_pausa": "",
                 },
             )
             profile.update(override)
@@ -80,6 +86,11 @@ def load_profiles() -> dict[str, dict]:
 def notification_target(extension: str) -> tuple[str | None, dict]:
     profile = load_profiles().get(str(extension), {})
     email = str(profile.get("email") or "").strip().lower()
-    if not email or profile.get("notificar") is False or profile.get("ativo") is False:
+    if (
+        not email
+        or profile.get("notificar") is False
+        or profile.get("ativo") is False
+        or profile.get("pausado") is True
+    ):
         return None, profile
     return f"email:{email}", profile

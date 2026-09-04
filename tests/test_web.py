@@ -308,6 +308,34 @@ class DirectoryEndpointTests(unittest.IsolatedAsyncioTestCase):
         admin = await response.json()
         self.assertTrue(any(change["action"] == "archive" for change in admin["changes"]))
 
+    async def test_admin_can_pause_and_resume_monitoring_without_archiving(self):
+        response = await self.client.get("/api/admin/directory", headers=self.headers)
+        payload = await response.json()
+        person = payload["people"][0]
+
+        response = await self.client.put(
+            f"/api/admin/directory/{person['id']}",
+            json={
+                **person,
+                "monitoring_paused": True,
+                "pause_reason": "Férias",
+            },
+            headers=self.headers,
+        )
+        paused = await response.json()
+        self.assertEqual(response.status, 200)
+        self.assertTrue(paused["person"]["active"])
+        self.assertTrue(paused["person"]["monitoring_paused"])
+
+        response = await self.client.put(
+            f"/api/admin/directory/{person['id']}",
+            json={**paused["person"], "monitoring_paused": False},
+            headers=self.headers,
+        )
+        resumed = await response.json()
+        self.assertEqual(response.status, 200)
+        self.assertFalse(resumed["person"]["monitoring_paused"])
+
 
 class StaticManagementUiTests(unittest.TestCase):
     def test_collaborator_registration_exposes_email_sector_and_search(self):
@@ -319,6 +347,8 @@ class StaticManagementUiTests(unittest.TestCase):
         self.assertIn('id="responsible-email"', html)
         self.assertIn('id="responsible-sector-input"', html)
         self.assertIn('id="responsibles-with-sector"', html)
+        self.assertIn('id="responsible-monitoring-paused"', html)
+        self.assertIn('id="responsible-pause-reason"', html)
         self.assertIn("row.email ||", html)
         self.assertIn("row.sector ||", html)
 

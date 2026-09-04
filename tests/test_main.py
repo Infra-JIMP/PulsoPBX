@@ -1,7 +1,11 @@
 import asyncio
+import tempfile
 import unittest
+from pathlib import Path
 
-from main import maintain_ami_connection
+from directory import DirectoryStore
+from main import _apply_employee_snapshot, maintain_ami_connection
+from state import StateTracker
 
 
 class _BlockingClient:
@@ -27,6 +31,35 @@ class AmiStartupTests(unittest.IsolatedAsyncioTestCase):
         task.cancel()
         with self.assertRaises(asyncio.CancelledError):
             await task
+
+    async def test_directory_is_used_when_mikopbx_snapshot_is_unavailable(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = DirectoryStore(Path(temporary) / "pulsopbx.db")
+            try:
+                directory.initialize()
+                directory.save_person(
+                    {
+                        "name": "Pessoa Conhecida",
+                        "role": "Analista",
+                        "sector": "T.I.",
+                        "extension": "8008",
+                        "email": "pessoa@example.com",
+                        "active": True,
+                        "notify": True,
+                    }
+                )
+                tracker = StateTracker(30)
+                tracker.update("8008", True)
+                tracker.update("2200100", True)
+
+                await _apply_employee_snapshot(tracker, None, {}, directory=directory)
+
+                self.assertEqual(
+                    [item["extension"] for item in tracker.snapshot()],
+                    ["8008"],
+                )
+            finally:
+                directory.close()
 
 
 if __name__ == "__main__":

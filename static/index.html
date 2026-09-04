@@ -396,7 +396,7 @@
   .responsibles-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 18px 0 11px; }
   .responsibles-toolbar .search { min-width: 0; }
   .responsibles-count { flex: 0 0 auto; color: var(--faint); font: 700 .7rem var(--mono); }
-  .responsibles-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 11px; }
+  .responsibles-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 11px; }
   .responsibles-summary-item { min-height: 54px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 12px; border: 1px solid rgba(139, 166, 230, .13); border-radius: 14px; background: rgba(255, 255, 255, .035); box-shadow: inset 0 1px rgba(255, 255, 255, .045); }
   .responsibles-summary-item span { color: var(--faint); font-size: .65rem; font-weight: 750; }
   .responsibles-summary-item strong { color: white; font: 850 .92rem var(--mono); }
@@ -407,6 +407,7 @@
   .responsible-row.active { background: linear-gradient(90deg, rgba(255, 119, 0, .13), rgba(50, 78, 145, .17)); box-shadow: inset 3px 0 var(--orange); }
   .responsible-row-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
   .responsible-row-dot.configured { background: var(--green); box-shadow: 0 0 8px rgba(53, 207, 108, .32); }
+  .responsible-row-dot.paused { background: var(--amber); box-shadow: 0 0 8px rgba(243,179,59,.4); }
   .responsible-row-extension { color: white; font: 800 .83rem var(--mono); }
   .responsible-row-copy { min-width: 0; }
   .responsible-row-copy strong, .responsible-row-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -426,6 +427,7 @@
   .responsible-form-field { display: block; margin-top: 18px; }
   .responsible-help { display: block; margin-top: 7px; color: var(--faint); font-size: .7rem; line-height: 1.4; }
   .switch-row { min-height: 56px; display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 16px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 14px; background: rgba(255, 255, 255, .03); }
+  .switch-row.paused { border-color: rgba(243,179,59,.34); background: rgba(243,179,59,.07); }
   .switch-copy strong, .switch-copy small { display: block; }.switch-copy strong { color: var(--text); font-size: .78rem; }.switch-copy small { margin-top: 2px; color: var(--faint); font-size: .67rem; }
   .switch { position: relative; width: 44px; height: 25px; flex: 0 0 auto; }
   .switch input { position: absolute; opacity: 0; pointer-events: none; }
@@ -469,6 +471,7 @@
   .directory-table tr[data-person-id]:hover { background: rgba(255,255,255,.045); }
   .directory-status { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border: 1px solid rgba(47,209,111,.28); border-radius: 999px; color: var(--green); background: rgba(47,209,111,.08); font-size: .64rem; font-weight: 800; }
   .directory-status.inactive { border-color: rgba(160,174,205,.2); color: var(--faint); background: rgba(160,174,205,.06); }
+  .directory-status.paused { border-color: rgba(243,179,59,.34); color: var(--amber); background: rgba(243,179,59,.09); }
   .directory-empty { padding: 42px 20px; color: var(--faint); text-align: center; }
   .list-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 16px 22px; border-bottom: 1px solid var(--border); }
   .list-tabs { display: inline-flex; gap: 4px; padding: 4px; border: 1px solid var(--border); border-radius: 14px; background: rgba(1,7,22,.45); }
@@ -837,6 +840,7 @@
         <div class="responsibles-summary-item"><span>Ramais cadastrados</span><strong id="responsibles-total">0</strong></div>
         <div class="responsibles-summary-item"><span>Com e-mail</span><strong id="responsibles-with-email">0</strong></div>
         <div class="responsibles-summary-item"><span>Com setor</span><strong id="responsibles-with-sector">0</strong></div>
+        <div class="responsibles-summary-item"><span>Em pausa</span><strong id="responsibles-paused">0</strong></div>
       </div>
       <div class="responsibles-layout">
         <div id="responsibles-list" class="responsibles-list" aria-label="Ramais monitorados"></div>
@@ -876,6 +880,15 @@
           <label class="switch-row">
             <span class="switch-copy"><strong>Colaborador ativo</strong><small>Desative para preservar o histórico sem exibir a pessoa nas listas atuais.</small></span>
             <span class="switch"><input id="responsible-active" type="checkbox" checked disabled><span class="switch-track" aria-hidden="true"></span></span>
+          </label>
+          <label id="responsible-pause-switch-row" class="switch-row">
+            <span class="switch-copy"><strong>Pausar monitoramento temporariamente</strong><small>Use durante férias ou afastamentos. O cadastro e o histórico permanecem preservados.</small></span>
+            <span class="switch"><input id="responsible-monitoring-paused" type="checkbox" disabled><span class="switch-track" aria-hidden="true"></span></span>
+          </label>
+          <label id="responsible-pause-reason-row" class="responsible-form-field" hidden>
+            <span class="field-label">Motivo da pausa</span>
+            <input id="responsible-pause-reason" class="glass-input" type="text" maxlength="80" placeholder="Ex.: Férias" disabled>
+            <small class="responsible-help">O ramal sai dos contadores e não recebe alertas até ser reativado.</small>
           </label>
           <label class="switch-row">
             <span class="switch-copy"><strong>Enviar alertas automáticos</strong><small>Queda confirmada e retorno, conforme as regras do monitor.</small></span>
@@ -1542,6 +1555,22 @@ function resetResponsibleClear() {
   document.getElementById("responsible-clear").textContent = "Usar e-mail do MikoPBX";
 }
 
+function syncResponsiblePauseControls() {
+  const active = document.getElementById("responsible-active");
+  const paused = document.getElementById("responsible-monitoring-paused");
+  const reason = document.getElementById("responsible-pause-reason");
+  const reasonRow = document.getElementById("responsible-pause-reason-row");
+  const switchRow = document.getElementById("responsible-pause-switch-row");
+  const editable = !document.getElementById("responsible-save").disabled;
+  if (!active.checked) paused.checked = false;
+  paused.disabled = !editable || !active.checked;
+  const isPaused = editable && active.checked && paused.checked;
+  reasonRow.hidden = !isPaused;
+  reason.disabled = !isPaused;
+  switchRow.classList.toggle("paused", isPaused);
+  if (isPaused && !reason.value.trim()) reason.value = "Férias";
+}
+
 function renderResponsibleEditor() {
   const row = responsibleRows.find(item => item.id === selectedResponsibleId);
   const inputs = {
@@ -1552,6 +1581,8 @@ function renderResponsibleEditor() {
     email: document.getElementById("responsible-email"),
     active: document.getElementById("responsible-active"),
     notify: document.getElementById("responsible-notify"),
+    paused: document.getElementById("responsible-monitoring-paused"),
+    pauseReason: document.getElementById("responsible-pause-reason"),
   };
   const save = document.getElementById("responsible-save");
   const clear = document.getElementById("responsible-clear");
@@ -1564,10 +1595,11 @@ function renderResponsibleEditor() {
     source.textContent = "Sem cadastro"; source.className = "source-badge";
     Object.values(inputs).forEach(input => { input.disabled = true; if (input.type === "checkbox") input.checked = false; else input.value = ""; });
     save.disabled = true; clear.disabled = true;
+    syncResponsiblePauseControls();
     return;
   }
   const isNew = selectedResponsibleId === "new";
-  const current = row || { name: "", role: "", extension: "", sector: "", email: "", active: true, notify: true, source: "local" };
+  const current = row || { name: "", role: "", extension: "", sector: "", email: "", active: true, notify: true, monitoring_paused: false, pause_reason: "", source: "local" };
   const sourceInfo = isNew ? ["Novo cadastro", "local"] : responsibleSource(current.source);
   document.getElementById("responsible-extension").textContent = isNew ? "Novo colaborador" : (current.extension ? "Ramal " + current.extension : "Sem ramal");
   document.getElementById("responsible-name").textContent = isNew ? "Preencha os dados principais" : (current.name || "Responsável não identificado");
@@ -1580,9 +1612,12 @@ function renderResponsibleEditor() {
   inputs.email.value = current.email || "";
   inputs.active.checked = current.active !== false;
   inputs.notify.checked = current.notify !== false;
+  inputs.paused.checked = current.monitoring_paused === true;
+  inputs.pauseReason.value = current.pause_reason || "";
   Object.values(inputs).forEach(input => { input.disabled = false; });
   save.disabled = false;
   clear.disabled = isNew || current.email_source !== "manual" || !current.extension;
+  syncResponsiblePauseControls();
   if (isNew) requestAnimationFrame(() => inputs.name.focus());
 }
 
@@ -1599,12 +1634,13 @@ function renderResponsibleSummary() {
   document.getElementById("responsibles-total").textContent = activeRows.length;
   document.getElementById("responsibles-with-email").textContent = activeRows.filter(row => Boolean(row.email)).length;
   document.getElementById("responsibles-with-sector").textContent = activeRows.filter(row => Boolean((row.sector || "").trim())).length;
+  document.getElementById("responsibles-paused").textContent = activeRows.filter(row => row.monitoring_paused === true).length;
 }
 
 function renderResponsibleList() {
   const list = document.getElementById("responsibles-list");
   const query = responsibleSearchTerm.toLocaleLowerCase("pt-BR");
-  const rows = responsibleRows.filter(row => ((row.extension || "") + " " + (row.name || "") + " " + (row.role || "") + " " + (row.email || "") + " " + (row.sector || "")).toLocaleLowerCase("pt-BR").includes(query));
+  const rows = responsibleRows.filter(row => ((row.extension || "") + " " + (row.name || "") + " " + (row.role || "") + " " + (row.email || "") + " " + (row.sector || "") + " " + (row.pause_reason || "")).toLocaleLowerCase("pt-BR").includes(query));
   document.getElementById("responsibles-count").textContent = rows.length + " de " + responsibleRows.length + " colaboradores";
   if (!rows.length) {
     list.innerHTML = '<div class="responsibles-empty">Nenhum ramal corresponde à busca atual.</div>';
@@ -1612,10 +1648,10 @@ function renderResponsibleList() {
   }
   list.innerHTML = rows.map(row => {
     const active = row.id === selectedResponsibleId ? " active" : "";
-    const configured = row.email ? " configured" : "";
+    const configured = row.monitoring_paused === true ? " paused" : (row.email ? " configured" : "");
     const sector = row.sector || "Setor não informado";
     const email = row.email || "E-mail não cadastrado";
-    const state = row.active === false ? " · Inativo" : "";
+    const state = row.active === false ? " · Inativo" : (row.monitoring_paused === true ? " · " + (row.pause_reason || "Pausado") : "");
     return '<button class="responsible-row' + active + '" type="button" data-person-id="' + row.id + '"><span class="responsible-row-dot' + configured + '" aria-hidden="true"></span><span class="responsible-row-extension">' + escapeHtml(row.extension || "—") + '</span><span class="responsible-row-copy"><strong>' + escapeHtml(row.name || "Sem identificação") + '</strong><small class="responsible-row-sector">' + escapeHtml(sector + state) + '</small><small class="responsible-row-email">' + escapeHtml(email) + '</small></span></button>';
   }).join("");
 }
@@ -1682,6 +1718,8 @@ async function saveResponsible(event) {
     email: document.getElementById("responsible-email").value.trim(),
     active: document.getElementById("responsible-active").checked,
     notify: document.getElementById("responsible-notify").checked,
+    monitoring_paused: document.getElementById("responsible-monitoring-paused").checked,
+    pause_reason: document.getElementById("responsible-pause-reason").value.trim(),
   };
   const feedback = document.getElementById("responsible-feedback");
   responsibleRequestInFlight = true; feedback.className = "admin-feedback"; feedback.textContent = "Salvando dados…";
@@ -1792,14 +1830,14 @@ function renderDirectory() {
   const rows = all.filter(row => {
     const activeMatch = directoryStatus === "all" || (directoryStatus === "active" ? row.active !== false : row.active === false);
     const sectorMatch = !directorySector || row.sector === directorySector;
-    const haystack = [row.name, row.role, row.sector, row.extension, row.email].join(" ").toLocaleLowerCase("pt-BR");
+    const haystack = [row.name, row.role, row.sector, row.extension, row.email, row.pause_reason].join(" ").toLocaleLowerCase("pt-BR");
     return activeMatch && sectorMatch && haystack.includes(query);
   });
   const tbody = document.getElementById("directory-tbody");
   const empty = document.getElementById("directory-empty");
   tbody.innerHTML = rows.map(row => {
-    const statusClass = row.active === false ? " inactive" : "";
-    const statusText = row.active === false ? "Inativo" : "Ativo";
+    const statusClass = row.active === false ? " inactive" : (row.monitoring_paused === true ? " paused" : "");
+    const statusText = row.active === false ? "Inativo" : (row.monitoring_paused === true ? (row.pause_reason || "Pausado") : "Ativo");
     return '<tr data-person-id="' + row.id + '"><td><strong>' + escapeHtml(row.name || "—") + '</strong></td><td>' + (row.role ? escapeHtml(row.role) : blank()) + '</td><td>' + (row.sector ? escapeHtml(row.sector) : blank()) + '</td><td><strong>' + (row.extension ? escapeHtml(row.extension) : "—") + '</strong></td><td>' + (row.email ? escapeHtml(row.email) : blank()) + '</td><td><span class="directory-status' + statusClass + '">' + statusText + '</span></td></tr>';
   }).join("");
   empty.hidden = rows.length !== 0;
@@ -2182,6 +2220,8 @@ document.getElementById("responsibles-list").addEventListener("click", event => 
 document.getElementById("responsibles-new").addEventListener("click", () => selectResponsible("new"));
 document.getElementById("responsible-form").addEventListener("submit", saveResponsible);
 document.getElementById("responsible-clear").addEventListener("click", clearResponsible);
+document.getElementById("responsible-active").addEventListener("change", syncResponsiblePauseControls);
+document.getElementById("responsible-monitoring-paused").addEventListener("change", syncResponsiblePauseControls);
 document.querySelector(".app-nav").addEventListener("click", event => {
   const button = event.target.closest("[data-app-view]");
   if (button && !button.hidden) switchAppView(button.dataset.appView);

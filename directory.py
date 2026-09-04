@@ -138,6 +138,9 @@ class DirectoryStore:
                     email TEXT NOT NULL DEFAULT '',
                     active INTEGER NOT NULL DEFAULT 1,
                     notify INTEGER NOT NULL DEFAULT 1,
+                    monitoring_paused INTEGER NOT NULL DEFAULT 0,
+                    pause_reason TEXT NOT NULL DEFAULT '',
+                    paused_at REAL,
                     name_source TEXT NOT NULL DEFAULT 'manual',
                     email_source TEXT NOT NULL DEFAULT 'manual',
                     sector_source TEXT NOT NULL DEFAULT 'manual',
@@ -181,6 +184,22 @@ class DirectoryStore:
                 );
                 """
             )
+            people_columns = {
+                row["name"]
+                for row in connection.execute("PRAGMA table_info(directory_people)")
+            }
+            if "monitoring_paused" not in people_columns:
+                connection.execute(
+                    "ALTER TABLE directory_people ADD COLUMN monitoring_paused INTEGER NOT NULL DEFAULT 0"
+                )
+            if "pause_reason" not in people_columns:
+                connection.execute(
+                    "ALTER TABLE directory_people ADD COLUMN pause_reason TEXT NOT NULL DEFAULT ''"
+                )
+            if "paused_at" not in people_columns:
+                connection.execute(
+                    "ALTER TABLE directory_people ADD COLUMN paused_at REAL"
+                )
             now = time.time()
             connection.executemany(
                 """
@@ -425,16 +444,43 @@ class DirectoryStore:
                 "email": row["email"],
                 "notificar": row["notify"],
                 "ativo": row["active"],
+                "pausado": row["monitoring_paused"],
+                "motivo_pausa": row["pause_reason"],
             }
         return profiles
 
     def suppressed_extensions(self) -> set[str]:
-        """Ramais removidos ou desativados manualmente no diretorio."""
+        """Ramais removidos, desativados ou pausados no diretorio."""
         with self._lock:
             rows = self._require_connection().execute(
-                "SELECT extension FROM directory_suppressed_extensions"
+                "SELECT extension FROM directory_suppressed_extensions "
+                "UNION SELECT extension FROM directory_people "
+                "WHERE active = 1 AND monitoring_paused = 1 AND extension <> ''"
             ).fetchall()
         return {str(row["extension"]) for row in rows if row["extension"]}
+
+    def paused_extensions(self) -> set[str]:
+        """Ramais temporariamente fora do monitoramento, sem arquivar a pessoa."""
+        with self._lock:
+            rows = self._require_connection().execute(
+                "SELECT extension FROM directory_people "
+                "WHERE active = 1 AND monitoring_paused = 1 AND extension <> ''"
+            ).fetchall()
+        return {str(row["extension"]) for row in rows if row["extension"]}
+
+    def monitored_extensions(self) -> dict[str, str]:
+        """Base local segura para o monitor quando a central estiver indisponivel.
+
+        Somente colaboradores ativos e sem pausa temporaria entram no retorno.
+        Assim, identificadores tecnicos recebidos pela AMI nao sao tratados como
+        ramais de pessoas durante uma falha momentanea da API do MikoPBX.
+        """
+        rows = self.list_people(include_inactive=False)
+        return {
+            str(row["extension"]): str(row["name"])
+            for row in rows
+            if row.get("extension") and not row.get("monitoring_paused")
+        }
 
     def save_person(self, payload: dict, person_id: int | None = None, actor: str = "administrator") -> dict:
         name = " ".join(str(payload.get("name") or "").split())
@@ -445,6 +491,8 @@ class DirectoryStore:
         email = _valid_email(email_input)
         active = payload.get("active", True)
         notify = payload.get("notify", True)
+        monitoring_paused = payload.get("monitoring_paused", False)
+        pause_reason = " ".join(str(payload.get("pause_reason") or "").split())
         if not name or len(name) > 120:
             raise ValueError("Informe um nome com até 120 caracteres")
         if len(role) > 120:
@@ -455,8 +503,20 @@ class DirectoryStore:
             raise ValueError("Informe um ramal numérico válido")
         if email_input and not email:
             raise ValueError("Informe um e-mail válido")
-        if not isinstance(active, bool) or not isinstance(notify, bool):
+        if (
+            not isinstance(active, bool)
+            or not isinstance(notify, bool)
+            or not isinstance(monitoring_paused, bool)
+        ):
             raise ValueError("Status do cadastro inválido")
+        if len(pause_reason) > 80:
+            raise ValueError("O motivo da pausa deve ter no máximo 80 caracteres")
+        if not active:
+            monitoring_paused = False
+        if monitoring_paused:
+            pause_reason = pause_reason or "Férias"
+        else:
+            pause_reason = ""
 
         with self._lock:
             connection = self._require_connection()
@@ -470,9 +530,10 @@ class DirectoryStore:
                         """
                         INSERT INTO directory_people(
                             name, role, sector_id, extension, email, active, notify,
+                            monitoring_paused, pause_reason, paused_at,
                             name_source, email_source, sector_source, sort_order,
                             created_at, updated_at, archived_at
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'manual', 'manual', 'manual', ?, ?, ?, ?)
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual', 'manual', 'manual', ?, ?, ?, ?)
                         """,
                         (
                             name,
@@ -482,6 +543,9 @@ class DirectoryStore:
                             email,
                             int(active),
                             int(notify),
+                            int(monitoring_paused),
+                            pause_reason,
+                            now if monitoring_paused else None,
                             self._next_people_order(connection),
                             now,
                             now,
@@ -493,11 +557,17 @@ class DirectoryStore:
                     before = self._person(connection, person_id)
                     if before is None:
                         raise ValueError("Colaborador não encontrado")
+                    paused_at = (
+                        before.get("paused_at") or now
+                        if monitoring_paused
+                        else None
+                    )
                     connection.execute(
                         """
                         UPDATE directory_people
                         SET name = ?, role = ?, sector_id = ?, extension = ?, email = ?,
-                            active = ?, notify = ?, name_source = 'manual',
+                            active = ?, notify = ?, monitoring_paused = ?,
+                            pause_reason = ?, paused_at = ?, name_source = 'manual',
                             email_source = 'manual', sector_source = 'manual',
                             updated_at = ?, archived_at = ?
                         WHERE id = ?
@@ -510,12 +580,22 @@ class DirectoryStore:
                             email,
                             int(active),
                             int(notify),
+                            int(monitoring_paused),
+                            pause_reason,
+                            paused_at,
                             now,
                             None if active else now,
                             person_id,
                         ),
                     )
-                    action = "update" if active else "archive"
+                    if not active:
+                        action = "archive"
+                    elif monitoring_paused and not before.get("monitoring_paused"):
+                        action = "pause_monitoring"
+                    elif not monitoring_paused and before.get("monitoring_paused"):
+                        action = "resume_monitoring"
+                    else:
+                        action = "update"
                 previous_extension = str((before or {}).get("extension") or "")
                 if previous_extension and (not active or previous_extension != extension):
                     connection.execute(
@@ -616,6 +696,8 @@ class DirectoryStore:
         data = dict(row)
         data["active"] = bool(data["active"])
         data["notify"] = bool(data["notify"])
+        data["monitoring_paused"] = bool(data.get("monitoring_paused", 0))
+        data["pause_reason"] = data.get("pause_reason") or ""
         data["sector"] = data.get("sector") or ""
         data["sector_short"] = data.get("sector_short") or ""
         return data

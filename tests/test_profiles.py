@@ -34,6 +34,25 @@ class ProfileTests(unittest.TestCase):
         self.assertIsNone(target)
         self.assertFalse(profile["notificar"])
 
+    @patch(
+        "profiles.load_profiles",
+        return_value={
+            "1001": {
+                "nome": "Ana",
+                "email": "ana@example.com",
+                "notificar": True,
+                "ativo": True,
+                "pausado": True,
+                "motivo_pausa": "Férias",
+            }
+        },
+    )
+    def test_temporarily_paused_extension_has_no_notification_target(self, _profiles):
+        target, profile = notification_target("1001")
+
+        self.assertIsNone(target)
+        self.assertTrue(profile["pausado"])
+
 
 if __name__ == "__main__":
     unittest.main()

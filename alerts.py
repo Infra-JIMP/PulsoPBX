@@ -293,6 +293,23 @@ class AlertDispatcher:
             logger.info("Alerta %s cancelado: %s", event_id, reason)
         return self._serialize(event)
 
+    def cancel_pending_for_extension(self, extension: str, reason: str) -> int:
+        """Cancela entregas ainda pendentes de um ramal pausado."""
+        cancelled = 0
+        for event in list(self._events_by_id.values()):
+            if str(event.get("extension")) != str(extension):
+                continue
+            pending = sum(
+                1
+                for delivery in event["deliveries"].values()
+                if delivery["status"] in {"queued", "retrying"}
+            )
+            if not pending:
+                continue
+            self.cancel_event(event["id"], reason)
+            cancelled += pending
+        return cancelled
+
     def _restore_history(self) -> None:
         if self._store is None:
             return

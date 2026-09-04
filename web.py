@@ -74,7 +74,9 @@ async def _dashboard_auth_middleware(request: web.Request, handler):
 
 
 async def _handle_index(request: web.Request) -> web.FileResponse:
-    return web.FileResponse(INDEX_FILE)
+    # O painel e atualizado junto com o monitor local. Nao permita que uma
+    # aba antiga mantenha uma interface anterior apos um deploy.
+    return web.FileResponse(INDEX_FILE, headers={"Cache-Control": "no-store"})
 
 
 async def _handle_brand_logo(request: web.Request) -> web.FileResponse:
@@ -212,13 +214,17 @@ async def _prune_inactive_directory_extensions(request: web.Request) -> list[str
     proxima consulta periodica.
     """
     tracker = request.app[TRACKER_KEY]
-    if tracker is None or not mikopbx_api.is_cache_ready():
+    if tracker is None:
         return []
     directory = request.app[DIRECTORY_KEY]
     suppressed = directory.suppressed_extensions() if directory is not None else set()
+    paused = directory.paused_extensions() if directory is not None else set()
+    directory_names = directory.monitored_extensions() if directory is not None else {}
+    cached_names = mikopbx_api.get_cached_names()
+    source_names = cached_names if mikopbx_api.is_cache_ready() else directory_names
     active_names = {
         extension: name
-        for extension, name in mikopbx_api.get_cached_names().items()
+        for extension, name in source_names.items()
         if extension not in suppressed and load_profiles().get(extension, {}).get("ativo") is not False
     }
     removed = tracker.retain_extensions(active_names)
@@ -226,14 +232,32 @@ async def _prune_inactive_directory_extensions(request: web.Request) -> list[str
         return []
     incidents = request.app[INCIDENTS_KEY]
     availability = request.app[AVAILABILITY_KEY]
+    paused_removed = [extension for extension in removed if extension in paused]
+    inactive_removed = [extension for extension in removed if extension not in paused]
     if incidents is not None:
         await asyncio.to_thread(incidents.resolve_removed_extensions, removed)
     if availability is not None:
-        await asyncio.to_thread(
-            availability.suppress_pending_for_extensions,
-            removed,
-            "collaborator_deactivated",
-        )
+        if paused_removed:
+            await asyncio.to_thread(
+                availability.suppress_pending_for_extensions,
+                paused_removed,
+                "monitoring_temporarily_paused",
+            )
+        if inactive_removed:
+            await asyncio.to_thread(
+                availability.suppress_pending_for_extensions,
+                inactive_removed,
+                "collaborator_deactivated",
+            )
+    alerts = request.app[ALERTS_KEY]
+    if alerts is not None:
+        for extension in removed:
+            reason = (
+                "Monitoramento temporariamente pausado"
+                if extension in paused
+                else "Colaborador desativado"
+            )
+            alerts.cancel_pending_for_extension(extension, reason)
     return removed
 
 

@@ -35,9 +35,13 @@ async def _apply_employee_snapshot(
 ) -> None:
     profiles = load_profiles()
     suppressed = directory.suppressed_extensions() if directory is not None else set()
+    directory_names = directory.monitored_extensions() if directory is not None else {}
+    # Quando a API do MikoPBX esta fora, o diretorio local ja sincronizado e a
+    # fonte segura. Nao deixe hints tecnicos da AMI virarem ramais monitorados.
+    source_names = names or directory_names
     active_names = {
         extension: name
-        for extension, name in names.items()
+        for extension, name in source_names.items()
         if extension not in suppressed and profiles.get(extension, {}).get("ativo") is not False
     }
     removed = tracker.retain_extensions(active_names)
@@ -73,7 +77,12 @@ async def mikopbx_names_loop(
                     directory.synchronize_mikopbx,
                     mikopbx_api.get_cached_profiles(),
                 )
-            await _apply_employee_snapshot(tracker, incidents, names, availability, directory)
+        # Mesmo quando a API falhar, reconcilia com o diretorio corporativo
+        # local para retirar imediatamente identificadores tecnicos da AMI.
+        if names is not None or directory is not None:
+            await _apply_employee_snapshot(
+                tracker, incidents, names or {}, availability, directory
+            )
         await asyncio.sleep(config.mikopbx_names_refresh_seconds)
 
 
@@ -262,6 +271,12 @@ async def run() -> None:
             store=alert_store,
             test_cooldown_seconds=config.alert_test_cooldown_seconds,
         )
+        if directory is not None:
+            for extension in directory.paused_extensions():
+                alerts.cancel_pending_for_extension(
+                    extension,
+                    "Monitoramento temporariamente pausado",
+                )
 
     responsible_scheduler: ResponsibleAlertScheduler | None = None
 
@@ -272,7 +287,12 @@ async def run() -> None:
         # tudo ate a lista chegar.
         known = mikopbx_api.get_cached_names()
         suppressed = directory.suppressed_extensions() if directory is not None else set()
+        directory_known = directory.monitored_extensions() if directory is not None else {}
         profile = load_profiles().get(extension, {})
+        # Se a API ainda nao forneceu uma lista valida, o diretorio ativo e a
+        # barreira local contra filas, conferencias e outros hints tecnicos.
+        if directory_known and extension not in directory_known:
+            return
         if (
             config.mikopbx_api_enabled
             and mikopbx_api.is_cache_ready()
@@ -348,7 +368,10 @@ async def run() -> None:
                     directory.synchronize_mikopbx,
                     mikopbx_api.get_cached_profiles(),
                 )
-            await _apply_employee_snapshot(tracker, incidents, names, availability, directory)
+        if names is not None or directory is not None:
+            await _apply_employee_snapshot(
+                tracker, incidents, names or {}, availability, directory
+            )
 
     missed_calls: MissedCallMonitor | None = None
     if config.missed_calls_enabled and not config.demo_mode:

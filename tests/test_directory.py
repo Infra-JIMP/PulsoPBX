@@ -29,6 +29,45 @@ class DirectoryStoreTests(unittest.TestCase):
             ["*3", "*8"],
         )
 
+    def test_monitored_extensions_excludes_archived_and_paused_people(self):
+        active = self.store.save_person(
+            {
+                "name": "Pessoa Ativa",
+                "role": "Analista",
+                "sector": "T.I.",
+                "extension": "8008",
+                "email": "ativa@example.com",
+                "active": True,
+                "notify": True,
+            }
+        )
+        paused = self.store.save_person(
+            {
+                "name": "Pessoa Em Ferias",
+                "role": "Analista",
+                "sector": "RH",
+                "extension": "1003",
+                "email": "ferias@example.com",
+                "active": True,
+                "notify": True,
+                "monitoring_paused": True,
+            }
+        )
+        self.store.save_person(
+            {
+                "name": "Pessoa Desligada",
+                "role": "Analista",
+                "sector": "Comercial",
+                "extension": "9001",
+                "email": "desligada@example.com",
+                "active": False,
+                "notify": False,
+            }
+        )
+
+        self.assertEqual(self.store.monitored_extensions(), {"8008": active["name"]})
+        self.assertNotIn(paused["extension"], self.store.monitored_extensions())
+
     def test_imports_legacy_overrides_once_and_preserves_them_from_mikopbx(self):
         overrides = {
             "1001": {
@@ -117,6 +156,44 @@ class DirectoryStoreTests(unittest.TestCase):
         )
         self.assertEqual(self.store.list_people(False), [])
         self.assertEqual(len(self.store.list_people(True)), 1)
+
+    def test_temporarily_pauses_and_resumes_monitoring_without_archiving(self):
+        person = self.store.save_person(
+            {
+                "name": "Pessoa em férias",
+                "role": "Analista",
+                "sector": "Financeiro",
+                "extension": "1010",
+                "email": "ferias@example.com",
+                "active": True,
+                "notify": True,
+                "monitoring_paused": False,
+            }
+        )
+
+        paused = self.store.save_person(
+            {
+                **person,
+                "monitoring_paused": True,
+                "pause_reason": "Férias",
+            },
+            person["id"],
+        )
+        self.assertTrue(paused["active"])
+        self.assertTrue(paused["monitoring_paused"])
+        self.assertEqual(paused["pause_reason"], "Férias")
+        self.assertIn("1010", self.store.suppressed_extensions())
+        self.assertEqual(self.store.recent_changes()[0]["action"], "pause_monitoring")
+        self.assertTrue(self.store.list_people(False)[0]["active"])
+
+        resumed = self.store.save_person(
+            {**paused, "monitoring_paused": False},
+            person["id"],
+        )
+        self.assertFalse(resumed["monitoring_paused"])
+        self.assertEqual(resumed["pause_reason"], "")
+        self.assertNotIn("1010", self.store.suppressed_extensions())
+        self.assertEqual(self.store.recent_changes()[0]["action"], "resume_monitoring")
 
     def test_changed_extension_is_not_recreated_from_stale_mikopbx_data(self):
         self.store.synchronize_mikopbx(

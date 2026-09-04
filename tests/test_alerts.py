@@ -185,6 +185,20 @@ class AlertDispatcherTests(unittest.IsolatedAsyncioTestCase):
         finally:
             await self._stop_worker(worker)
 
+    async def test_pending_delivery_is_cancelled_when_extension_is_paused(self):
+        notifier = _FakeNotifier()
+        dispatcher = AlertDispatcher(notifier)
+        dispatcher.enqueue("1010", "offline", now=100)
+
+        cancelled = dispatcher.cancel_pending_for_extension(
+            "1010", "Monitoramento temporariamente pausado"
+        )
+        status = dispatcher.get_extension_status("1010", "offline")
+
+        self.assertEqual(cancelled, 1)
+        self.assertEqual(status["status"], "failed")
+        self.assertEqual(status["last_error"], "Monitoramento temporariamente pausado")
+
 
 if __name__ == "__main__":
     unittest.main()
