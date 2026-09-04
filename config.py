@@ -126,6 +126,12 @@ class Config:
     missed_calls_poll_seconds: float
     missed_calls_pilot_extensions: list[str]
 
+    cloud_sync_url: str | None
+    cloud_sync_token: str | None
+    cloud_sync_enabled: bool
+    cloud_sync_interval_seconds: float
+    cloud_sync_verify_tls: bool
+
     @property
     def notifications_enabled(self) -> bool:
         return self.email_enabled
@@ -207,6 +213,23 @@ def load_config() -> Config:
     if mikopbx_api_key and not mikopbx_api_url:
         raise ConfigError("MIKOPBX_API_URL nao pode ficar vazia quando MIKOPBX_API_KEY estiver configurada")
 
+    cloud_secret_path = Path(
+        _env_text(
+            "CLOUD_SYNC_TOKEN_FILE",
+            str(PROJECT_DIR / "data" / "cloud_sync_token.txt"),
+        )
+    )
+    if not cloud_secret_path.is_absolute():
+        cloud_secret_path = PROJECT_DIR / cloud_secret_path
+    cloud_sync_url = _optional_env("CLOUD_SYNC_URL")
+    cloud_sync_token = _optional_env("CLOUD_SYNC_TOKEN")
+    if cloud_sync_url and not cloud_sync_token:
+        cloud_sync_token = _secret_from_file(cloud_secret_path)
+    if bool(cloud_sync_url) != bool(cloud_sync_token):
+        raise ConfigError("CLOUD_SYNC_URL e CLOUD_SYNC_TOKEN devem ser configurados juntos")
+    if cloud_sync_url and not cloud_sync_url.lower().startswith("https://"):
+        raise ConfigError("CLOUD_SYNC_URL deve usar HTTPS")
+
     incidents_path = Path(_env_text("INCIDENTS_DB_PATH", "data/pulsopbx.db"))
     if not incidents_path.is_absolute():
         incidents_path = PROJECT_DIR / incidents_path
@@ -268,4 +291,11 @@ def load_config() -> Config:
         missed_calls_enabled=_bool_env("MISSED_CALLS_ENABLED", False),
         missed_calls_poll_seconds=_float_env("MISSED_CALLS_POLL_SECONDS", 30, 10, 3_600),
         missed_calls_pilot_extensions=_csv_env("MISSED_CALLS_PILOT_EXTENSIONS"),
+        cloud_sync_url=cloud_sync_url.rstrip("/") if cloud_sync_url else None,
+        cloud_sync_token=cloud_sync_token,
+        cloud_sync_enabled=bool(cloud_sync_url and cloud_sync_token),
+        cloud_sync_interval_seconds=_float_env(
+            "CLOUD_SYNC_INTERVAL_SECONDS", 15, 5, 3_600
+        ),
+        cloud_sync_verify_tls=_bool_env("CLOUD_SYNC_VERIFY_TLS", True),
     )
