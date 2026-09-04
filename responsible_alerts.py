@@ -13,7 +13,12 @@ logger = logging.getLogger(__name__)
 
 
 class ResponsibleAlertScheduler:
-    """Transforma incidentes confirmados em e-mails seguros para o responsavel."""
+    """Transforma incidentes confirmados em avisos para a caixa operacional.
+
+    O colaborador nao recebe aviso de queda nem de retorno do proprio ramal: o
+    painel e os relatorios sao a consulta diaria dele. Somente os enderecos de
+    ``alert_recipients`` (a equipe de TI) recebem e-mail.
+    """
 
     def __init__(
         self,
@@ -27,6 +32,7 @@ class ResponsibleAlertScheduler:
         mass_outage_window_seconds: float = 60,
         profile_resolver=notification_target,
         poll_seconds: float = 5,
+        alert_recipients: list[str] | None = None,
     ):
         self._store = store
         self._calendar = calendar
@@ -38,6 +44,10 @@ class ResponsibleAlertScheduler:
         self._mass_outage_window_seconds = mass_outage_window_seconds
         self._profile_resolver = profile_resolver
         self._poll_seconds = poll_seconds
+        self._alert_recipients = [
+            recipient if ":" in recipient else f"email:{recipient}"
+            for recipient in dict.fromkeys(alert_recipients or [])
+        ]
 
     async def schedule_transition(
         self,
@@ -170,15 +180,27 @@ class ResponsibleAlertScheduler:
                 cohort,
             )
             return
-        target, profile = self._profile_resolver(extension)
-        if target is None:
-            await self._suppress(incident_id, "responsible_email_missing")
+        _, profile = self._profile_resolver(extension)
+        # Uma pausa ligada depois da queda ainda encontra este job pendente; ela
+        # tem de valer aqui tambem, senao a TI recebe aviso de um ramal que
+        # alguem suspendeu de proposito.
+        if profile.get("pausado") is True:
+            await self._suppress(incident_id, "monitoring_paused")
+            return
+        # "notificar" continua sendo o interruptor por ramal: com ele desligado
+        # o ramal segue no painel e nos relatorios, apenas sem gerar e-mail.
+        if profile.get("notificar") is False or profile.get("ativo") is False:
+            await self._suppress(incident_id, "extension_alerts_disabled")
+            return
+        if not self._alert_recipients:
+            await self._suppress(incident_id, "alert_recipient_not_configured")
             return
         if self._alerts is None:
             await self._suppress(incident_id, "email_channel_not_configured")
             return
 
         context = {
+            "audience": "operations",
             "incident_id": incident_id,
             "nome": profile.get("nome", ""),
             "setor": profile.get("setor", ""),
@@ -189,7 +211,7 @@ class ResponsibleAlertScheduler:
             extension,
             "offline",
             now=now,
-            recipients=[target],
+            recipients=list(self._alert_recipients),
             context=context,
         )
         await asyncio.to_thread(
@@ -197,7 +219,7 @@ class ResponsibleAlertScheduler:
             incident_id,
             "dispatched",
             "offline_notification_queued",
-            target,
+            ",".join(self._alert_recipients),
             event["id"],
         )
 
@@ -247,12 +269,28 @@ class ResponsibleAlertScheduler:
                 )
                 return
             _, profile = self._profile_resolver(str(job["extension"]))
+            # O retorno vai para os mesmos enderecos que receberam a queda,
+            # mesmo que a configuracao tenha mudado no meio do incidente.
+            recipients = [
+                recipient
+                for recipient in str(job["target"] or "").split(",")
+                if recipient
+            ]
+            if not recipients:
+                await asyncio.to_thread(
+                    self._store.update_job,
+                    incident_id,
+                    "completed",
+                    "return_skipped_without_recipient",
+                )
+                return
             event = self._alerts.enqueue(
                 str(job["extension"]),
                 "online",
                 now=now,
-                recipients=[job["target"]],
+                recipients=recipients,
                 context={
+                    "audience": "operations",
                     "incident_id": incident_id,
                     "nome": profile.get("nome", ""),
                     "setor": profile.get("setor", ""),

@@ -200,6 +200,10 @@ class DirectoryStore:
                 connection.execute(
                     "ALTER TABLE directory_people ADD COLUMN paused_at REAL"
                 )
+            if "welcome_email_sent_at" not in people_columns:
+                connection.execute(
+                    "ALTER TABLE directory_people ADD COLUMN welcome_email_sent_at REAL"
+                )
             now = time.time()
             connection.executemany(
                 """
@@ -658,6 +662,25 @@ class DirectoryStore:
             )
             after = self._person(connection, person_id)
             self._record_change(connection, person_id, "reset_email_mikopbx", "administrator", before, after, now)
+            connection.commit()
+            return after
+
+    def mark_welcome_sent(self, person_id: int, when: float | None = None) -> dict | None:
+        """Marca as boas-vindas como enviadas para que o cadastro nunca receba duas."""
+        when = when if when is not None else time.time()
+        with self._lock:
+            connection = self._require_connection()
+            before = self._person(connection, person_id)
+            if before is None:
+                raise ValueError("Colaborador não encontrado")
+            connection.execute(
+                "UPDATE directory_people SET welcome_email_sent_at = ? WHERE id = ?",
+                (when, person_id),
+            )
+            after = self._person(connection, person_id)
+            self._record_change(
+                connection, person_id, "welcome_email", "system", before, after, when
+            )
             connection.commit()
             return after
 

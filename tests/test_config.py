@@ -25,6 +25,37 @@ class ConfigTests(unittest.TestCase):
         self.assertFalse(config.cloud_sync_enabled)
         self.assertEqual(config.email_subject_brand, "Joinville Implementos")
 
+    def test_outage_alerts_default_to_the_it_mailbox(self):
+        with patch.dict(os.environ, {}, clear=True):
+            config = load_config()
+
+        self.assertEqual(
+            config.outage_alert_recipients, ["ti@joinvilleimplementos.com.br"]
+        )
+
+    def test_outage_alert_recipients_can_be_replaced_or_emptied(self):
+        with patch.dict(
+            os.environ, {"OUTAGE_ALERT_RECIPIENTS": "Infra@Example.com, ti@example.com"}, clear=True
+        ):
+            config = load_config()
+        self.assertEqual(
+            config.outage_alert_recipients, ["infra@example.com", "ti@example.com"]
+        )
+
+        with patch.dict(os.environ, {"OUTAGE_ALERT_RECIPIENTS": ""}, clear=True):
+            silent = load_config()
+        self.assertEqual(silent.outage_alert_recipients, [])
+
+    def test_invalid_outage_alert_recipient_is_rejected(self):
+        with patch.dict(os.environ, {"OUTAGE_ALERT_RECIPIENTS": "ti@sem-dominio"}, clear=True):
+            with self.assertRaisesRegex(ConfigError, "OUTAGE_ALERT_RECIPIENTS"):
+                load_config()
+
+    def test_welcome_email_requires_smtp_configuration(self):
+        with patch.dict(os.environ, {"WELCOME_EMAIL_ENABLED": "true"}, clear=True):
+            with self.assertRaisesRegex(ConfigError, "WELCOME_EMAIL_ENABLED"):
+                load_config()
+
     def test_cloud_sync_requires_url_and_token_together(self):
         with patch.dict(
             os.environ,

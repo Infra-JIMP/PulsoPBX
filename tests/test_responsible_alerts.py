@@ -76,15 +76,40 @@ class ResponsibleAlertSchedulerTests(unittest.IsolatedAsyncioTestCase):
         )
         return WorkCalendar(path)
 
+    OPERATIONS_MAILBOX = "email:ti@joinvilleimplementos.com.br"
+
     @staticmethod
     def _resolver(extension):
         return f"email:{extension}@example.com", {
             "nome": f"Pessoa {extension}",
             "setor": "TI",
             "email": f"{extension}@example.com",
+            "notificar": True,
+            "ativo": True,
         }
 
-    def _scheduler(self, tracker, alerts, threshold=5):
+    @staticmethod
+    def _muted_resolver(extension):
+        return None, {
+            "nome": f"Pessoa {extension}",
+            "setor": "TI",
+            "email": f"{extension}@example.com",
+            "notificar": False,
+            "ativo": True,
+        }
+
+    @staticmethod
+    def _paused_resolver(extension):
+        return None, {
+            "nome": f"Pessoa {extension}",
+            "setor": "TI",
+            "email": f"{extension}@example.com",
+            "notificar": True,
+            "ativo": True,
+            "pausado": True,
+        }
+
+    def _scheduler(self, tracker, alerts, threshold=5, recipients=None, resolver=None):
         return ResponsibleAlertScheduler(
             self.store,
             self.calendar,
@@ -94,7 +119,10 @@ class ResponsibleAlertSchedulerTests(unittest.IsolatedAsyncioTestCase):
             delay_seconds=120,
             mass_outage_threshold=threshold,
             mass_outage_window_seconds=60,
-            profile_resolver=self._resolver,
+            profile_resolver=resolver or self._resolver,
+            alert_recipients=(
+                ["ti@joinvilleimplementos.com.br"] if recipients is None else recipients
+            ),
         )
 
     def _limited_calendar(self):
@@ -158,7 +186,7 @@ class ResponsibleAlertSchedulerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.store.get_job(1)["status"], "cancelled")
         self.assertEqual(alerts.changes, [])
 
-    async def test_due_alert_goes_only_to_the_extension_responsible(self):
+    async def test_due_alert_goes_to_operations_and_never_to_the_collaborator(self):
         tracker = StateTracker(0)
         tracker.update("1001", False, now=100)
         alerts = _FakeAlerts()
@@ -170,7 +198,88 @@ class ResponsibleAlertSchedulerTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(self.store.get_job(1)["status"], "dispatched")
         self.assertEqual(alerts.changes[0][1], "offline")
-        self.assertEqual(alerts.changes[0][2], ["email:1001@example.com"])
+        self.assertEqual(alerts.changes[0][2], [self.OPERATIONS_MAILBOX])
+        self.assertNotIn("email:1001@example.com", alerts.changes[0][2])
+        self.assertEqual(alerts.changes[0][3]["audience"], "operations")
+        self.assertEqual(alerts.changes[0][3]["nome"], "Pessoa 1001")
+
+    async def test_return_also_stays_inside_the_operations_mailbox(self):
+        tracker = StateTracker(0)
+        tracker.update("1001", False, now=100)
+        alerts = _FakeAlerts(offline_sent=True)
+        scheduler = self._scheduler(tracker, alerts)
+        incident = {"id": 30, "opened_at": 100}
+
+        await scheduler.schedule_transition("1001", "offline", incident, now=100)
+        await scheduler.process_once(now=220)
+        await scheduler.schedule_transition("1001", "online", incident, now=250)
+        await scheduler.process_once(now=250)
+
+        self.assertEqual([change[1] for change in alerts.changes], ["offline", "online"])
+        for change in alerts.changes:
+            self.assertEqual(change[2], [self.OPERATIONS_MAILBOX])
+            self.assertEqual(change[3]["audience"], "operations")
+
+    async def test_multiple_operations_recipients_all_receive_the_outage(self):
+        tracker = StateTracker(0)
+        tracker.update("1001", False, now=100)
+        alerts = _FakeAlerts()
+        scheduler = self._scheduler(
+            tracker, alerts, recipients=["ti@example.com", "infra@example.com"]
+        )
+
+        await scheduler.schedule_transition("1001", "offline", {"id": 31, "opened_at": 100}, now=100)
+        await scheduler.process_once(now=220)
+
+        self.assertEqual(
+            alerts.changes[0][2], ["email:ti@example.com", "email:infra@example.com"]
+        )
+        self.assertEqual(
+            self.store.get_job(31)["target"], "email:ti@example.com,email:infra@example.com"
+        )
+
+    async def test_without_configured_recipient_nothing_is_sent(self):
+        tracker = StateTracker(0)
+        tracker.update("1001", False, now=100)
+        alerts = _FakeAlerts()
+        scheduler = self._scheduler(tracker, alerts, recipients=[])
+
+        await scheduler.schedule_transition("1001", "offline", {"id": 32, "opened_at": 100}, now=100)
+        await scheduler.process_once(now=220)
+
+        self.assertEqual(alerts.changes, [])
+        job = self.store.get_job(32)
+        self.assertEqual(job["status"], "suppressed")
+        self.assertEqual(job["reason"], "alert_recipient_not_configured")
+
+    async def test_extension_with_alerts_turned_off_is_suppressed(self):
+        tracker = StateTracker(0)
+        tracker.update("1001", False, now=100)
+        alerts = _FakeAlerts()
+        scheduler = self._scheduler(tracker, alerts, resolver=self._muted_resolver)
+
+        await scheduler.schedule_transition("1001", "offline", {"id": 33, "opened_at": 100}, now=100)
+        await scheduler.process_once(now=220)
+
+        self.assertEqual(alerts.changes, [])
+        self.assertEqual(self.store.get_job(33)["reason"], "extension_alerts_disabled")
+
+    async def test_extension_paused_after_the_outage_does_not_alert_operations(self):
+        # A pausa pode ser ligada depois que a queda ja abriu incidente: o job
+        # pendente precisa respeita-la, senao a TI recebe aviso de um ramal
+        # deliberadamente suspenso.
+        tracker = StateTracker(0)
+        tracker.update("1001", False, now=100)
+        alerts = _FakeAlerts()
+        scheduler = self._scheduler(tracker, alerts, resolver=self._paused_resolver)
+
+        await scheduler.schedule_transition("1001", "offline", {"id": 34, "opened_at": 100}, now=100)
+        await scheduler.process_once(now=220)
+
+        self.assertEqual(alerts.changes, [])
+        job = self.store.get_job(34)
+        self.assertEqual(job["status"], "suppressed")
+        self.assertEqual(job["reason"], "monitoring_paused")
 
     async def test_collective_outage_suppresses_all_individual_emails(self):
         tracker = StateTracker(0)

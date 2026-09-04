@@ -980,10 +980,17 @@ function renderPills(data) {
   const notifyDot = document.getElementById("notify-dot"); const notifyText = document.getElementById("notify-text"); notifyDot.className = "dot";
   const notifications = data.notifications || {}; const latest = notifications.latest_status;
   if (!notifications.configured) { notifyDot.classList.add("warn"); notifyText.textContent = "E-mail não configurado"; }
+  else if (!notifications.alert_recipient_count) { notifyDot.classList.add("warn"); notifyText.textContent = "Sem destino para alertas de queda"; }
   else if (latest === "failed" || latest === "partial_failure") { notifyDot.classList.add("bad"); notifyText.textContent = "E-mail com falha"; }
   else if (["queued", "sending", "retrying"].includes(latest)) { notifyDot.classList.add("warn"); notifyText.textContent = "E-mail em envio"; }
-  else if (notifications.missing_target_count) { notifyDot.classList.add("warn"); notifyText.textContent = notifications.target_count + "/" + data.total + " responsáveis com e-mail"; }
-  else { notifyDot.classList.add("ok"); notifyText.textContent = latest === "sent" ? "E-mail operacional" : "Responsáveis configurados"; }
+  else { notifyDot.classList.add("ok"); notifyText.textContent = "Alertas para " + alertRoutingLabel(notifications); }
+}
+
+function alertRoutingLabel(notifications) {
+  const recipients = notifications.alert_recipients || [];
+  if (recipients.length === 1) return recipients[0];
+  const count = notifications.alert_recipient_count || recipients.length;
+  return count + " destino(s) de TI";
 }
 
 function renderStats(data) {
@@ -1012,8 +1019,8 @@ function statusLabel(ext) {
   if (ext.pending_status === "online") return "Confirmando retorno";
   return ext.online ? "Online" : "Offline";
 }
-function alertLabel(alert, emailConfigured = true) {
-  if (!emailConfigured) return "Responsável sem e-mail";
+function alertLabel(alert, muted = false) {
+  if (muted) return "Alertas desligados";
   if (!alert || alert.status === "not_configured") return "E-mail não configurado";
   const labels = { idle: "Aguardando evento", queued: "E-mail na fila", sending: "Enviando E-mail", retrying: "Nova tentativa", sent: "E-mail enviado", failed: "Falha no E-mail", partial_failure: "Envio parcial" };
   return labels[alert.status] || "Sem alerta neste ciclo";
@@ -1023,7 +1030,7 @@ function columnValue(ext, column) {
   if (column === "extension") return String(ext.extension || "");
   if (column === "nome") return String(ext.nome || "");
   if (column === "setor") return String(ext.setor || "");
-  if (column === "alert") return alertLabel(ext.alert, ext.responsible_email_configured);
+  if (column === "alert") return alertLabel(ext.alert, ext.alerts_muted);
   if (column === "duration") return ext.pending_status ? Number(ext.confirmation_remaining_seconds || 0) : Math.max(0, Date.now() / 1000 - Number(ext.since || 0));
   return "";
 }
@@ -1186,8 +1193,8 @@ function stateIndicator(className) {
   return className === "off" ? offlineGlyph : '<span class="dot" aria-hidden="true"></span>';
 }
 
-function alertMarkup(alert, emailConfigured = true) {
-  if (!emailConfigured) return '<span class="alert-status">Responsável sem e-mail</span>';
+function alertMarkup(alert, muted = false) {
+  if (muted) return '<span class="alert-status">Alertas desligados</span>';
   if (!alert || alert.status === "not_configured") return '<span class="alert-status">E-mail não configurado</span>';
   const labels = { idle: "Aguardando evento", queued: "E-mail na fila", sending: "Enviando E-mail", retrying: "Nova tentativa", sent: "E-mail enviado", failed: "Falha no E-mail", partial_failure: "Envio parcial" };
   const label = labels[alert.status] || "Sem alerta neste ciclo";
@@ -1232,14 +1239,16 @@ function profileIncident(ext) {
 }
 
 function profileAlertDetail(ext) {
-  if (!ext.responsible_email_configured) return { text: "Aguardando e-mail do responsável", tone: "warn" };
-  if (!(lastData.notifications || {}).configured) return { text: "Canal de e-mail não configurado", tone: "warn" };
+  const notifications = lastData.notifications || {};
+  if (ext.alerts_muted) return { text: "Alertas desligados para este ramal", tone: "warn" };
+  if (!notifications.configured) return { text: "Canal de e-mail não configurado", tone: "warn" };
+  if (!notifications.alert_recipient_count) return { text: "Sem destino para alertas de queda", tone: "warn" };
   const alert = ext.alert;
   if (!alert || alert.status === "idle") return { text: "Pronto para o próximo incidente", tone: "ok" };
   if (alert.status === "not_configured") return { text: "Nenhuma entrega configurada", tone: "warn" };
   const age = alert.created_at ? " · há " + humanDuration(Date.now() / 1000 - alert.created_at) : "";
   const tone = ["failed", "partial_failure"].includes(alert.status) ? "bad" : (["queued", "sending", "retrying"].includes(alert.status) ? "warn" : "ok");
-  return { text: alertLabel(alert, true) + age, tone };
+  return { text: alertLabel(alert, false) + age, tone };
 }
 
 function setProfileLiveValue(id, value, tone = "") {
@@ -1322,7 +1331,7 @@ function updateProfilePopover(ext) {
   document.getElementById("profile-duration").textContent = state.detail;
   document.getElementById("profile-sector").textContent = ext.setor || "Não informado";
   const notification = document.getElementById("profile-notification");
-  notification.textContent = ext.responsible_email_configured ? "Responsável com e-mail" : "Responsável sem e-mail";
+  notification.textContent = ext.responsible_email_configured ? "E-mail cadastrado" : "Sem e-mail cadastrado";
   notification.classList.toggle("configured", Boolean(ext.responsible_email_configured));
   document.getElementById("profile-state").className = "profile-state " + state.tone;
   const transitionAt = ext.pending_status ? ext.pending_since : ext.since;
@@ -1410,7 +1419,7 @@ function renderTable(data) {
     const expanded = selectedProfileExtension === String(ext.extension) && !profilePopover.hidden;
     const nome = ext.nome ? '<button class="profile-trigger" type="button" data-profile-extension="' + escapeHtml(ext.extension) + '" aria-haspopup="dialog" aria-controls="profile-popover" aria-expanded="' + String(expanded) + '" aria-label="Abrir perfil de ' + escapeHtml(ext.nome) + '"><span>' + escapeHtml(ext.nome) + '</span></button>' : blank();
     const setor = ext.setor ? escapeHtml(ext.setor) : blank();
-    return '<tr class="' + state.row + '"><td><span class="st ' + state.className + '">' + stateIndicator(state.className) + state.label + '</span></td><td class="col-ramal">' + escapeHtml(ext.extension) + '</td><td class="col-nome">' + nome + '</td><td class="col-setor">' + setor + '</td><td>' + alertMarkup(ext.alert, ext.responsible_email_configured) + '</td><td class="col-tempo">' + state.duration + '</td></tr>';
+    return '<tr class="' + state.row + '"><td><span class="st ' + state.className + '">' + stateIndicator(state.className) + state.label + '</span></td><td class="col-ramal">' + escapeHtml(ext.extension) + '</td><td class="col-nome">' + nome + '</td><td class="col-setor">' + setor + '</td><td>' + alertMarkup(ext.alert, ext.alerts_muted) + '</td><td class="col-tempo">' + state.duration + '</td></tr>';
   }).join("");
 }
 
@@ -1526,8 +1535,11 @@ function renderAlerts(data) {
   const config = data.notifications || {}; const alerts = (data.recent_alerts || []).slice(0, 3);
   button.disabled = !config.test_available || testInFlight;
   button.textContent = testInFlight ? "Enviando…" : "Enviar teste";
-  const totalResponsible = Number(config.target_count || 0) + Number(config.missing_target_count || 0);
-  summary.textContent = config.configured ? config.target_count + "/" + totalResponsible + " responsável(is) com e-mail · tolerância de " + humanDuration(config.responsible_alert_delay_seconds || 120) : "E-mail ainda não configurado";
+  const muted = Number(config.muted_extension_count || 0);
+  const mutedText = muted ? " · " + muted + " ramal(is) com alertas desligados" : "";
+  if (!config.configured) summary.textContent = "E-mail ainda não configurado";
+  else if (!config.alert_recipient_count) summary.textContent = "Nenhum destino de alerta configurado · quedas ficam somente no painel";
+  else summary.textContent = "Quedas e retornos vão para " + alertRoutingLabel(config) + " · tolerância de " + humanDuration(config.responsible_alert_delay_seconds || 120) + mutedText;
   if (!alerts.length) { holder.innerHTML = '<div class="activity-empty">Ainda não há entregas registradas. Configure o E-mail para habilitar o envio de teste.</div>'; return; }
   const labels = { queued: "Na fila", sending: "Enviando", retrying: "Nova tentativa", sent: "Enviado", failed: "Falhou", partial_failure: "Envio parcial", not_configured: "Sem destinatários" };
   holder.innerHTML = alerts.map(alert => {
@@ -1704,6 +1716,21 @@ async function loadResponsibles(password) {
   } finally { responsibleRequestInFlight = false; }
 }
 
+function welcomeFeedback(welcome) {
+  if (!welcome) return "";
+  if (welcome.sent) return " E-mail de boas-vindas enviado ao colaborador.";
+  const reasons = {
+    email_missing: " Boas-vindas não enviadas: o cadastro está sem e-mail.",
+    notifications_disabled: " Boas-vindas não enviadas: os avisos estão desligados para este cadastro.",
+    already_sent: " Boas-vindas já haviam sido enviadas antes.",
+    inactive: " Boas-vindas não enviadas: o cadastro está inativo.",
+    email_channel_not_configured: " Boas-vindas não enviadas: canal de e-mail indisponível no servidor.",
+    invalid_recipient: " Boas-vindas não enviadas: destinatário recusado pelo servidor.",
+    dispatch_failed: " Boas-vindas não enviadas: falha ao preparar a mensagem (veja o log).",
+  };
+  return reasons[welcome.reason] || "";
+}
+
 async function saveResponsible(event) {
   event.preventDefault();
   if (selectedResponsibleId === null || responsibleRequestInFlight) return;
@@ -1734,7 +1761,7 @@ async function saveResponsible(event) {
     selectedResponsibleId = payload.person.id;
     responsibleRequestInFlight = false;
     await loadResponsibles(responsiblesPassword);
-    feedback.className = "admin-feedback ok"; feedback.textContent = "Cadastro salvo e sincronizado com o monitor e as listas.";
+    feedback.className = "admin-feedback ok"; feedback.textContent = "Cadastro salvo e sincronizado com o monitor e as listas." + welcomeFeedback(payload.welcome);
     await loadDirectoryPublic(true);
     refresh(); refreshReport();
   } catch (error) {

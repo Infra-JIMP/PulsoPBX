@@ -42,7 +42,7 @@ def _duration_text(context: dict) -> str:
     return f" após aproximadamente {minutes} minutos úteis"
 
 
-def _steps_html(items: tuple[str, ...]) -> str:
+def _steps_html(items: tuple[str, ...], heading: str = "Como tentar reconectar") -> str:
     if not items:
         return ""
     rows = "".join(
@@ -56,8 +56,8 @@ def _steps_html(items: tuple[str, ...]) -> str:
     return (
         '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">'
         '<tr><td style="padding:21px 0 8px;color:#0b1c3d;font-family:Arial,Helvetica,'
-        'sans-serif;font-size:16px;font-weight:bold;line-height:22px;">Como tentar '
-        'reconectar</td></tr></table><table role="presentation" width="100%" '
+        f'sans-serif;font-size:16px;font-weight:bold;line-height:22px;">{escape(heading)}'
+        '</td></tr></table><table role="presentation" width="100%" '
         f'cellspacing="0" cellpadding="0" border="0">{rows}</table>'
     )
 
@@ -101,7 +101,14 @@ def build_email_content(
     timestamp = str(timestamp).strip()
     name = str(context.get("nome") or "").strip()
     sector = str(context.get("setor") or "Não informado").strip()
-    greeting = f"Olá, {name}." if name else "Olá."
+    # Avisos de queda e retorno vao para a equipe de TI, entao falam do ramal
+    # na terceira pessoa; boas-vindas e teste continuam falando com a pessoa.
+    for_operations = context.get("audience") == "operations"
+    owner = f"{name} · {sector}" if name else f"setor {sector}"
+    greeting = "Olá, equipe." if for_operations else (f"Olá, {name}." if name else "Olá.")
+    steps_heading = "Como tentar reconectar"
+    # Selo do cabecalho: aviso por padrao, confirmacao nas mensagens positivas.
+    icon, icon_background, icon_border = "!", "#fff0ed", "#ffd0c8"
 
     if is_test:
         subject = "Teste de notificação do PulsoPBX"
@@ -115,6 +122,32 @@ def build_email_content(
         callout = (
             "Esta é uma mensagem de teste. Os alertas reais continuam seguindo as "
             "regras de expediente, confirmação e tolerância."
+        )
+    elif context.get("event_type") == "welcome":
+        role = str(context.get("cargo") or "").strip()
+        extension_text = extension or "ainda não atribuído"
+        introduction = f"Você foi cadastrado(a) como {role}" if role else "Você foi cadastrado(a)"
+        subject = (
+            f"Bem-vindo(a) - seu ramal é {extension}"
+            if extension
+            else "Bem-vindo(a) - seu cadastro de telefonia"
+        )
+        eyebrow = "CADASTRO CONCLUÍDO"
+        title = "Boas-vindas: seu ramal está ativo"
+        status_label = "Cadastro ativo"
+        status_color = "#118b4e"
+        timestamp_label = "CADASTRADO EM"
+        message = (
+            f"{introduction} no setor {sector}, com o ramal {extension_text}. "
+            "A partir de agora o PulsoPBX acompanha a conexão do seu ramal durante "
+            "o expediente e avisa você por e-mail se ele ficar fora do ar."
+        )
+        steps_heading = "Primeiros passos"
+        steps = tuple(context.get("steps") or ())
+        icon, icon_background, icon_border = "✓", "#eef9f2", "#bfe3cd"
+        callout = (
+            "Guarde este e-mail: ele traz o seu ramal e os códigos de atalho. "
+            "Em caso de dúvida ou problema na conexão, procure a equipe de TI."
         )
     elif context.get("event_type") == "missed_call":
         caller = str(context.get("caller") or "Numero nao identificado").strip()
@@ -133,41 +166,77 @@ def build_email_content(
         steps = ()
         callout = "Se necessario, retorne a ligacao pelo numero informado."
     elif status == "offline":
-        subject = f"Ramal {extension} desconectado"
+        subject = (
+            f"Ramal {extension} desconectado - {name}"
+            if for_operations and name
+            else f"Ramal {extension} desconectado"
+        )
         eyebrow = "QUEDA CONFIRMADA"
-        title = "Seu ramal está desconectado"
         status_label = "Desconectado"
         status_color = "#d64232"
         timestamp_label = "DETECTADO EM"
-        message = (
-            "O PulsoPBX identificou que o seu ramal permanece desconectado durante "
-            "o horário de trabalho. A queda foi confirmada e continuou ativa após o "
-            "período de tolerância de 2 minutos."
-        )
-        steps = (
-            "Verifique se o MicroSIP está aberto.",
-            "Confirme se a internet do computador está funcionando.",
-            "Confira se o ramal aparece como registrado/conectado no MicroSIP.",
-        )
-        callout = (
-            "Se a indisponibilidade persistir, entre em contato com a equipe de TI. "
-            "Caso o ramal já tenha reconectado, desconsidere esta mensagem; o retorno "
-            "será registrado automaticamente."
-        )
+        if for_operations:
+            title = f"Ramal {extension} está desconectado"
+            message = (
+                f"O PulsoPBX confirmou que o ramal {extension} ({owner}) permanece "
+                "desconectado durante o horário de trabalho. A queda passou pelo "
+                "período de confirmação e pela tolerância antes deste aviso."
+            )
+            steps_heading = "O que verificar"
+            steps = (
+                "Confirme no painel se a queda continua ativa.",
+                "Verifique a rede e o MicroSIP do computador do colaborador.",
+                "Confira se o ramal aparece registrado na central.",
+            )
+            callout = (
+                "Este aviso vai somente para a equipe de TI; o colaborador não "
+                "recebe cópia. O retorno do ramal é registrado automaticamente."
+            )
+        else:
+            title = "Seu ramal está desconectado"
+            message = (
+                "O PulsoPBX identificou que o seu ramal permanece desconectado durante "
+                "o horário de trabalho. A queda foi confirmada e continuou ativa após o "
+                "período de tolerância de 2 minutos."
+            )
+            steps = (
+                "Verifique se o MicroSIP está aberto.",
+                "Confirme se a internet do computador está funcionando.",
+                "Confira se o ramal aparece como registrado/conectado no MicroSIP.",
+            )
+            callout = (
+                "Se a indisponibilidade persistir, entre em contato com a equipe de TI. "
+                "Caso o ramal já tenha reconectado, desconsidere esta mensagem; o retorno "
+                "será registrado automaticamente."
+            )
     else:
         duration_text = _duration_text(context)
-        subject = f"Ramal {extension} reconectado"
+        subject = (
+            f"Ramal {extension} reconectado - {name}"
+            if for_operations and name
+            else f"Ramal {extension} reconectado"
+        )
         eyebrow = "CONEXÃO RESTABELECIDA"
-        title = "Seu ramal voltou a ficar conectado"
         status_label = "Conectado"
         status_color = "#118b4e"
         timestamp_label = "RECONECTADO EM"
+        title = (
+            f"Ramal {extension} voltou a ficar conectado"
+            if for_operations
+            else "Seu ramal voltou a ficar conectado"
+        )
+        detail = f" ({owner})" if for_operations else ""
         message = (
-            f"O ramal {extension} voltou a ficar conectado em {timestamp}"
+            f"O ramal {extension}{detail} voltou a ficar conectado em {timestamp}"
             f"{duration_text}."
         )
         steps = ()
-        callout = "Nenhuma ação adicional é necessária."
+        callout = (
+            "Incidente encerrado. Nenhuma ação adicional é necessária."
+            if for_operations
+            else "Nenhuma ação adicional é necessária."
+        )
+        icon, icon_background, icon_border = "✓", "#eef9f2", "#bfe3cd"
 
     plain_lines = [
         greeting,
@@ -175,12 +244,12 @@ def build_email_content(
         message,
         "",
         f"Situação: {status_label}",
-        f"Ramal: {extension}",
+        f"Ramal: {extension or 'Não atribuído'}",
         f"Setor: {sector}",
         f"{timestamp_label.title()}: {timestamp}",
     ]
     if steps:
-        plain_lines.extend(["", "Como tentar reconectar:"])
+        plain_lines.extend(["", f"{steps_heading}:"])
         plain_lines.extend(f"{index}. {item}" for index, item in enumerate(steps, 1))
     plain_lines.extend(["", callout, "", SIGNATURE_TEXT])
 
@@ -193,11 +262,14 @@ def build_email_content(
             "MESSAGE": escape(message),
             "STATUS_LABEL": escape(status_label),
             "STATUS_COLOR": status_color,
-            "EXTENSION": escape(extension),
+            "ICON": escape(icon),
+            "ICON_BACKGROUND": icon_background,
+            "ICON_BORDER": icon_border,
+            "EXTENSION": escape(extension or "Não atribuído"),
             "SECTOR": escape(sector),
             "TIMESTAMP_LABEL": escape(timestamp_label),
             "TIMESTAMP": escape(timestamp),
-            "STEPS": _steps_html(steps),
+            "STEPS": _steps_html(steps, steps_heading),
             "CALLOUT": escape(callout),
             "LOGO_CELL": _logo_cell(include_logo),
         },

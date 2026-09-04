@@ -423,7 +423,18 @@ async def run() -> None:
             delay_seconds=config.responsible_alert_delay_seconds,
             mass_outage_threshold=config.mass_outage_threshold,
             mass_outage_window_seconds=config.mass_outage_window_seconds,
+            alert_recipients=config.outage_alert_recipients,
         )
+        if config.outage_alert_recipients:
+            logger.info(
+                "Avisos de queda e retorno vao somente para: %s",
+                ", ".join(config.outage_alert_recipients),
+            )
+        else:
+            logger.warning(
+                "OUTAGE_ALERT_RECIPIENTS vazio; nenhum e-mail de queda sera enviado "
+                "(painel e relatorios seguem completos)"
+            )
 
     tasks = [
         tick_loop(tracker, responsible_scheduler, incidents, availability),

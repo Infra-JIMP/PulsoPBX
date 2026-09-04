@@ -116,6 +116,27 @@ class AlertDispatcher:
         )
         return self._serialize(event)
 
+    def enqueue_welcome(
+        self,
+        extension: str,
+        recipients: list[str],
+        context: dict | None = None,
+        now: float | None = None,
+    ) -> dict:
+        """Agenda as boas-vindas de um cadastro novo, fora do fluxo online/offline."""
+        now = now if now is not None else time.time()
+        details = dict(context or {})
+        details["event_type"] = "welcome"
+        event = self._create_event(
+            extension,
+            "online",
+            "status",
+            now,
+            recipients=recipients,
+            context=details,
+        )
+        return self._serialize(event)
+
     def _create_event(
         self,
         extension: str,

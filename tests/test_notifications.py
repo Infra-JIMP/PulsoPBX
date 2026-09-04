@@ -186,6 +186,76 @@ class EmailNotifierTests(unittest.TestCase):
         self.assertIn("CONEXÃO RESTABELECIDA", html)
         self.assertIn("Atenciosamente", html)
 
+    def test_outage_email_to_operations_speaks_about_the_extension(self):
+        notifier = EmailNotifier(
+            host="smtp.example.com",
+            port=587,
+            sender="monitor@example.com",
+        )
+
+        message = notifier._build_message(
+            "ti@joinvilleimplementos.com.br",
+            "1001",
+            "offline",
+            "14/07/2026 10:00:00",
+            context={"audience": "operations", "nome": "Ana", "setor": "Financeiro"},
+        )
+
+        plain = message.get_body(preferencelist=("plain",)).get_content()
+        self.assertIn("Ramal 1001 desconectado - Ana", message["Subject"])
+        self.assertIn("Olá, equipe.", plain)
+        self.assertIn("ramal 1001 (Ana · Financeiro)", plain)
+        # O texto nunca pode tratar quem le como dono do ramal.
+        self.assertNotIn("Olá, Ana.", plain)
+        self.assertNotIn("seu ramal", plain.lower())
+        self.assertIn("o colaborador não", plain.lower())
+        self.assertIn("O que verificar:", plain)
+        self.assertNotIn("Como tentar reconectar", plain)
+
+    def test_recovery_email_to_operations_closes_the_incident(self):
+        notifier = EmailNotifier(
+            host="smtp.example.com",
+            port=587,
+            sender="monitor@example.com",
+        )
+
+        message = notifier._build_message(
+            "ti@joinvilleimplementos.com.br",
+            "1001",
+            "online",
+            "14/07/2026 10:05:00",
+            context={
+                "audience": "operations",
+                "nome": "Ana",
+                "setor": "Financeiro",
+                "duration_seconds": 300,
+            },
+        )
+
+        plain = message.get_body(preferencelist=("plain",)).get_content()
+        self.assertIn("Ramal 1001 reconectado - Ana", message["Subject"])
+        self.assertIn("Incidente encerrado", plain)
+        self.assertNotIn("Seu ramal", plain)
+
+    def test_collaborator_wording_is_kept_for_non_operations_messages(self):
+        notifier = EmailNotifier(
+            host="smtp.example.com",
+            port=587,
+            sender="monitor@example.com",
+        )
+
+        message = notifier._build_message(
+            "ana@example.com",
+            "1001",
+            "offline",
+            "14/07/2026 10:00:00",
+            context={"nome": "Ana", "setor": "Financeiro"},
+        )
+
+        plain = message.get_body(preferencelist=("plain",)).get_content()
+        self.assertIn("Olá, Ana.", plain)
+        self.assertIn("o seu ramal", plain)
+
     def test_dynamic_fields_are_html_escaped(self):
         notifier = EmailNotifier(
             host="smtp.example.com",

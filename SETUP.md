@@ -26,15 +26,34 @@ Deve aparecer `[OK] Login AMI bem-sucedido` e a lista de ramais encontrados.
 
 Preencha `EMAIL_SMTP_HOST`, `EMAIL_SMTP_PORT` e `EMAIL_FROM`. Se o servidor exigir autenticação, configure também `EMAIL_SMTP_USERNAME` e `EMAIL_SMTP_PASSWORD`. Use `EMAIL_SMTP_STARTTLS=true` para a porta 587 ou `EMAIL_SMTP_SSL=true` para SSL direto, normalmente na porta 465; não ative os dois ao mesmo tempo.
 
-`EMAIL_RECIPIENTS` é opcional e serve apenas para o botão **Enviar teste** do painel. Os avisos reais usam o e-mail individual vinculado ao ramal. O MikoPBX continua sendo a fonte automática inicial, mas o diretório corporativo local assume prioridade depois que um cadastro é revisado. O endereço não é devolvido pela API pública do monitor; fica disponível apenas nas telas internas do diretório.
+`EMAIL_RECIPIENTS` é opcional e serve apenas para o botão **Enviar teste** do painel.
+
+**Quem recebe aviso de queda.** Somente os endereços de `OUTAGE_ALERT_RECIPIENTS` — por padrão `ti@joinvilleimplementos.com.br`. O colaborador **não** recebe e-mail de queda nem de retorno do próprio ramal: para ele, a consulta é o painel e os relatórios, verificados na rotina diária. Aceita mais de um endereço separado por vírgula; definir a variável vazia desliga o e-mail de queda por completo, sem alterar nada no painel, no histórico ou nos relatórios.
+
+O e-mail cadastrado por colaborador continua existindo no diretório — ele alimenta a lista de e-mails, as boas-vindas e a identificação nas telas —, mas não é mais destino de alerta. O interruptor **Receber avisos** de cada cadastro segue valendo: com ele desligado, aquele ramal não gera aviso nenhum, mesmo para a TI.
+
+O MikoPBX continua sendo a fonte automática inicial dos cadastros, mas o diretório corporativo local assume prioridade depois que um cadastro é revisado. O endereço do colaborador não é devolvido pela API pública do monitor; fica disponível apenas nas telas internas do diretório.
 
 Para habilitar **Gerenciar cadastros**, configure `RESPONSIBLES_ADMIN_PASSWORD` com pelo menos 12 caracteres ou salve a senha isoladamente em `data/responsibles_admin_password.txt`. A tela deve ser usada somente por acesso direto pela rede interna. A senha fica apenas na memória da aba do navegador. Nome, cargo, setor, ramal, e-mail, situação e preferência de alerta são gravados no SQLite `data/pulsopbx.db`, entram em vigor sem reiniciar o serviço e mantêm histórico de alterações. O botão **Usar e-mail do MikoPBX** restaura apenas o endereço herdado da central.
 
-O fluxo é: 30 segundos para confirmar a mudança de estado, mais 2 minutos de tolerância (`RESPONSIBLE_ALERT_DELAY_SECONDS=120`). Se o ramal reconectar nesse período, o e-mail é cancelado. Se continuar offline, estiver dentro do expediente e não fizer parte de uma queda coletiva, um único aviso amigável pede para verificar MicroSIP, internet e registro do ramal. O retorno só é avisado se o e-mail de queda realmente tiver sido entregue.
+O fluxo é: 30 segundos para confirmar a mudança de estado, mais 2 minutos de tolerância (`RESPONSIBLE_ALERT_DELAY_SECONDS=120`). Se o ramal reconectar nesse período, o e-mail é cancelado. Se continuar offline, estiver dentro do expediente e não fizer parte de uma queda coletiva, a TI recebe um único aviso identificando ramal, colaborador e setor, com os pontos a verificar. O retorno só é avisado se o e-mail de queda realmente tiver sido entregue, e vai para os mesmos endereços que receberam a queda.
 
 O monitor coloca cada entrega em uma fila separada. Se o SMTP ou a rede falhar, ele tenta novamente sem interromper a AMI. Por padrão são 3 tentativas, com espera de 15s e 30s; ajuste `ALERT_MAX_ATTEMPTS` e `ALERT_RETRY_BASE_SECONDS` se necessário. Eventos, tentativas e jobs pendentes ficam no SQLite local e sobrevivem a reinícios. Cinco quedas na mesma janela de 60 segundos são tratadas como indisponibilidade coletiva (`MASS_OUTAGE_THRESHOLD` / `MASS_OUTAGE_WINDOW_SECONDS`) e não geram uma sequência de e-mails individuais.
 
-### 2.1. Configurar expediente, feriados e folgas
+### 2.1. E-mail de boas-vindas ao cadastrar um colaborador
+
+Ao criar um cadastro novo em **Colaboradores → Gerenciar cadastros**, o PulsoPBX pode enviar automaticamente uma mensagem de boas-vindas ao próprio colaborador, com o ramal atribuído, o setor, os códigos de atalho cadastrados (`*3`, `*8`) e a orientação de manter o MicroSIP aberto.
+
+Ative com `WELCOME_EMAIL_ENABLED=true`. Use `WELCOME_EMAIL_COPY` para mandar uma cópia a TI ou RH (endereços separados por vírgula). A chave começa desligada e exige `EMAIL_SMTP_HOST` e `EMAIL_FROM` configurados; sem isso o serviço recusa iniciar em vez de falhar silenciosamente.
+
+Regras do envio:
+
+- dispara apenas no **cadastro manual** pela tela administrativa. Registros que o MikoPBX importa sozinho não geram mensagem;
+- cada cadastro recebe **no máximo uma** mensagem: a data fica em `directory_people.welcome_email_sent_at` e a ação aparece no histórico de alterações como `welcome_email`;
+- cadastro sem e-mail, com avisos desligados ou já arquivado é salvo normalmente, apenas sem envio — o motivo aparece na própria tela;
+- a mensagem entra na mesma fila com repetição dos demais alertas, então uma falha de SMTP não trava o cadastro nem a AMI.
+
+### 2.2. Configurar expediente, feriados e folgas
 
 Copie `work_calendar.example.json` para `work_calendar.json` e substitua os horários de exemplo pelos horários oficiais. O arquivo não é versionado e é recarregado automaticamente, sem reiniciar o serviço.
 
