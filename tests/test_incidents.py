@@ -57,3 +57,57 @@ class IncidentStoreTests(unittest.TestCase):
                 self.assertEqual(incident["duration_seconds"], 25)
             finally:
                 store.close()
+
+
+class _CalendarDeDuasJanelas:
+    """Expediente ficticio: instantes 0-100 e 200-300 sao horario util."""
+
+    configured = True
+    JANELAS = ((0, 100), (200, 300))
+
+    def is_working_time(self, timestamp: float) -> bool:
+        return any(inicio <= timestamp < fim for inicio, fim in self.JANELAS)
+
+    def working_seconds(self, start: float, end: float) -> float:
+        total = 0.0
+        for inicio, fim in self.JANELAS:
+            total += max(0.0, min(end, fim) - max(start, inicio))
+        return total
+
+
+class IncidentCalendarTests(unittest.TestCase):
+    def test_queda_fora_do_expediente_nao_vira_incidente(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = IncidentStore(Path(directory) / "incidents.db", _CalendarDeDuasJanelas())
+            store.initialize()
+            try:
+                # 150 cai no vao entre as duas janelas: empresa fechada.
+                self.assertIsNone(store.record_transition("1001", "offline", now=150))
+                self.assertEqual(store.recent(now=150), [])
+            finally:
+                store.close()
+
+    def test_duracao_conta_apenas_o_tempo_dentro_do_expediente(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = IncidentStore(Path(directory) / "incidents.db", _CalendarDeDuasJanelas())
+            store.initialize()
+            try:
+                # Cai as 90 (util), volta as 250: 160 segundos corridos, mas so
+                # 10 antes do fim da janela + 50 depois da reabertura = 60 uteis.
+                store.record_transition("1001", "offline", now=90)
+                resolvido = store.record_transition("1001", "online", now=250)
+                self.assertEqual(resolvido["duration_seconds"], 60)
+            finally:
+                store.close()
+
+    def test_sem_calendario_o_historico_segue_registrando_sempre(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = IncidentStore(Path(directory) / "incidents.db")
+            store.initialize()
+            try:
+                aberto = store.record_transition("1001", "offline", now=150)
+                self.assertIsNotNone(aberto)
+                resolvido = store.record_transition("1001", "online", now=250)
+                self.assertEqual(resolvido["duration_seconds"], 100)
+            finally:
+                store.close()

@@ -199,7 +199,19 @@ async def run() -> None:
 
     tracker = StateTracker(debounce_seconds=config.debounce_seconds)
 
-    incidents: IncidentStore | None = IncidentStore(config.incidents_db_path)
+    # Criado antes do IncidentStore porque agora ele decide o que entra no
+    # historico: queda fora do expediente nao vira incidente, e a duracao conta
+    # so o tempo util. Sem calendario configurado, o historico volta a ser 24h.
+    calendar = WorkCalendar(config.work_calendar_path)
+    if calendar.configured:
+        logger.info("Calendario de expediente carregado de %s", config.work_calendar_path)
+    else:
+        logger.warning(
+            "Calendario de expediente ainda nao configurado; historico sera coletado, "
+            "mas avisos individuais ficarao suspensos"
+        )
+
+    incidents: IncidentStore | None = IncidentStore(config.incidents_db_path, calendar)
     try:
         await asyncio.to_thread(incidents.initialize)
         logger.info("Historico de incidentes em %s", config.incidents_db_path)
@@ -241,15 +253,6 @@ async def run() -> None:
         logger.exception("Diretorio corporativo indisponivel; cadastros seguirao pelo MikoPBX")
         directory = None
         set_directory_store(None)
-
-    calendar = WorkCalendar(config.work_calendar_path)
-    if calendar.configured:
-        logger.info("Calendario de expediente carregado de %s", config.work_calendar_path)
-    else:
-        logger.warning(
-            "Calendario de expediente ainda nao configurado; historico sera coletado, "
-            "mas avisos individuais ficarao suspensos"
-        )
 
     notifier = build_notification_router(config)
     if notifier.channel_names:

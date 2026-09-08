@@ -8,10 +8,21 @@ from pathlib import Path
 class IncidentStore:
     """Armazena incidentes localmente sem depender de banco ou servico externo."""
 
-    def __init__(self, database_path: Path):
+    def __init__(self, database_path: Path, calendar=None):
         self._database_path = database_path
+        # Calendario de expediente. Opcional de proposito: sem ele o historico
+        # volta a registrar 24h por dia, que e o comportamento esperado pelos
+        # testes e por qualquer uso fora do monitor de producao.
+        self._calendar = calendar
         self._connection: sqlite3.Connection | None = None
         self._lock = threading.Lock()
+
+    def _fora_do_expediente(self, moment: float) -> bool:
+        return (
+            self._calendar is not None
+            and self._calendar.configured
+            and not self._calendar.is_working_time(moment)
+        )
 
     def initialize(self) -> None:
         self._database_path.parent.mkdir(parents=True, exist_ok=True)
@@ -60,6 +71,12 @@ class IncidentStore:
             if status == "offline":
                 if open_row is not None:
                     return self._serialize(open_row, now)
+                # Fora do expediente o ramal cai porque o MicroSIP foi fechado no
+                # fim do turno, nao porque houve indisponibilidade. Sem este
+                # filtro, um terco dos incidentes era ruido de madrugada, almoco
+                # e fim de tarde, e o historico ficava impossivel de avaliar.
+                if self._fora_do_expediente(now):
+                    return None
                 cursor = connection.execute(
                     "INSERT INTO incidents(extension, status, opened_at) VALUES (?, 'open', ?)",
                     (extension, now),
@@ -73,7 +90,13 @@ class IncidentStore:
 
             if open_row is None:
                 return None
-            duration = max(0, now - open_row["opened_at"])
+            # Conta apenas o tempo dentro do expediente: uma queda as 17:20 que
+            # so volta as 8:00 do dia seguinte vale os 13 minutos uteis, nao as
+            # 14 horas corridas em que a empresa estava fechada.
+            if self._calendar is not None and self._calendar.configured:
+                duration = self._calendar.working_seconds(open_row["opened_at"], now)
+            else:
+                duration = max(0, now - open_row["opened_at"])
             connection.execute(
                 "UPDATE incidents SET status = 'resolved', resolved_at = ?, duration_seconds = ?, resolution_reason = 'online' WHERE id = ?",
                 (now, duration, open_row["id"]),
