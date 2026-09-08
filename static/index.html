@@ -1758,6 +1758,20 @@ async function saveResponsible(event) {
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.error || "HTTP " + response.status);
+    // Painel na nuvem (Vercel): a gravacao nao acontece aqui. O
+    // api/index.js so enfileira o comando e devolve 202 {ok, queued,
+    // command_id} - sem "person". Quem aplica de fato e o agente local, no
+    // proximo /api/sync. Sem este ramo, o codigo caia direto no
+    // payload.person.id e estourava "Cannot read properties of undefined".
+    // Nao recarrega a lista de proposito: o snapshot ainda e o antigo, e
+    // mostrar "salvo" com o valor velho na tela seria pior que o erro.
+    if (payload.queued) {
+      responsibleRequestInFlight = false;
+      feedback.className = "admin-feedback ok";
+      feedback.textContent = "Alteracao enviada para o servidor local. Ela aparece aqui na proxima sincronizacao.";
+      return;
+    }
+    if (!payload.person) throw new Error("Resposta do servidor sem os dados do cadastro.");
     selectedResponsibleId = payload.person.id;
     responsibleRequestInFlight = false;
     await loadResponsibles(responsiblesPassword);
@@ -1785,6 +1799,16 @@ async function clearResponsible() {
     const response = await fetch("/api/admin/directory/" + encodeURIComponent(row.id) + "/reset-email", { method: "POST", headers: responsibleHeaders() });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.error || "HTTP " + response.status);
+    // Mesmo caminho enfileirado do saveResponsible: aqui nao estourava erro
+    // (nada le payload.person), mas anunciava "e-mail atualizado" enquanto a
+    // lista continuava com o valor antigo - falso positivo.
+    if (payload.queued) {
+      responsibleRequestInFlight = false;
+      responsibleClearArmed = false;
+      feedback.className = "admin-feedback ok";
+      feedback.textContent = "Pedido enviado para o servidor local. O e-mail volta ao valor do MikoPBX na proxima sincronizacao.";
+      return;
+    }
     responsibleRequestInFlight = false;
     await loadResponsibles(responsiblesPassword);
     feedback.className = "admin-feedback ok"; feedback.textContent = "E-mail atualizado com o valor disponível no MikoPBX.";
