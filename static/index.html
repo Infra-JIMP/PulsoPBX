@@ -62,16 +62,10 @@
   .brand-subtitle { color: rgba(239, 245, 255, .67); font-size: .78rem; font-weight: 600; letter-spacing: .35px; }
   .topbar-status { display: flex; align-items: center; justify-content: flex-end; gap: 20px; }
   .system-state { display: flex; align-items: center; gap: 10px; padding-right: 20px; border-right: 1px solid var(--border); }
-  .state-dot { position: relative; width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; background: var(--faint); transition: background .4s ease; }
-  .state-dot::after { content: ""; position: absolute; inset: -5px; border-radius: 50%; border: 1px solid transparent; }
-  .system-state[data-state="ok"] .state-dot { background: var(--green); }
-  .system-state[data-state="ok"] .state-dot::after { border-color: rgba(53, 207, 108, .55); animation: state-breathe 3.2s cubic-bezier(.16, 1, .3, 1) infinite; }
-  .system-state[data-state="warn"] .state-dot { background: var(--amber); }
-  .system-state[data-state="bad"] .state-dot { background: var(--red); }
   .state-label { color: var(--muted); font-size: .82rem; font-weight: 600; letter-spacing: .2px; transition: color .4s ease; }
+  .system-state[data-state="ok"] .state-label { color: rgba(210, 224, 245, .92); }
   .system-state[data-state="warn"] .state-label { color: rgba(248, 214, 152, .92); }
   .system-state[data-state="bad"] .state-label { color: rgba(255, 183, 179, .95); }
-  @keyframes state-breathe { 0% { transform: scale(.55); opacity: .9; } 75%, 100% { transform: scale(1.9); opacity: 0; } }
   .clock-block { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.14; }
   .clock { color: var(--text); font-size: 1.58rem; font-weight: 300; font-variant-numeric: tabular-nums; letter-spacing: .4px; }
   .clock-date { color: var(--muted); font-size: .75rem; font-weight: 500; letter-spacing: .3px; }
@@ -532,7 +526,6 @@
     </div>
     <div class="topbar-status">
       <div class="system-state" id="system-state" data-state="loading">
-        <span class="state-dot" aria-hidden="true"></span>
         <span class="state-label" id="state-label">Verificando sistemas…</span>
       </div>
       <div class="clock-block">
