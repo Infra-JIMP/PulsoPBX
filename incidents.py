@@ -158,14 +158,23 @@ class IncidentStore:
         connection = self._require_connection()
         placeholders = ",".join("?" for _ in extension_list)
         with self._lock:
-            cursor = connection.execute(
-                "UPDATE incidents SET status = 'resolved', resolved_at = ?, "
-                "duration_seconds = MAX(0, ? - opened_at), resolution_reason = 'removed' "
+            open_rows = connection.execute(
+                f"SELECT id, opened_at FROM incidents "
                 f"WHERE status = 'open' AND extension IN ({placeholders})",
-                (now, now, *extension_list),
-            )
+                extension_list,
+            ).fetchall()
+            for row in open_rows:
+                if self._calendar is not None and self._calendar.configured:
+                    duration = self._calendar.working_seconds(row["opened_at"], now)
+                else:
+                    duration = max(0, now - row["opened_at"])
+                connection.execute(
+                    "UPDATE incidents SET status = 'resolved', resolved_at = ?, "
+                    "duration_seconds = ?, resolution_reason = 'removed' WHERE id = ?",
+                    (now, duration, row["id"]),
+                )
             connection.commit()
-            return cursor.rowcount
+            return len(open_rows)
 
     def close(self) -> None:
         with self._lock:

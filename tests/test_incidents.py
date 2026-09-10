@@ -100,6 +100,22 @@ class IncidentCalendarTests(unittest.TestCase):
             finally:
                 store.close()
 
+    def test_extensao_removida_tambem_conta_so_o_tempo_util(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = IncidentStore(Path(directory) / "incidents.db", _CalendarDeDuasJanelas())
+            store.initialize()
+            try:
+                # Mesmo cenario do teste de resolucao normal (90 -> 250, 60
+                # uteis), mas fechado por remocao do ramal do monitoramento.
+                store.record_transition("1001", "offline", now=90)
+                changed = store.resolve_removed_extensions({"1001"}, now=250)
+                incident = store.recent(now=250)[0]
+                self.assertEqual(changed, 1)
+                self.assertEqual(incident["resolution_reason"], "removed")
+                self.assertEqual(incident["duration_seconds"], 60)
+            finally:
+                store.close()
+
     def test_sem_calendario_o_historico_segue_registrando_sempre(self):
         with tempfile.TemporaryDirectory() as directory:
             store = IncidentStore(Path(directory) / "incidents.db")
