@@ -189,6 +189,7 @@
   .report-period button:active, .report-tabs button:active { transform: scale(.965); }
   .report-banner { display: flex; align-items: flex-start; gap: 10px; margin: 14px 16px 0; padding: 11px 13px; border: 1px solid rgba(243, 179, 59, .38); border-radius: 14px; background: rgba(243, 179, 59, .09); color: var(--muted); font-size: .78rem; }
   .report-banner::before { content: ""; width: 8px; height: 8px; margin-top: 4px; border-radius: 50%; flex: 0 0 auto; background: var(--amber); box-shadow: 0 0 9px rgba(243, 179, 59, .35); }
+  .report-banner[hidden] { display: none; }
   .report-banner.ready { border-color: rgba(53, 207, 108, .3); background: rgba(53, 207, 108, .075); }
   .report-banner.ready::before { background: var(--green); }
   .report-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; padding: 14px 16px 0; }
@@ -1497,10 +1498,14 @@ function renderReport() {
   const report = reportData; const overall = report.overall || {}; const calendar = report.calendar || {};
   const banner = document.getElementById("report-banner");
   banner.className = "report-banner";
+  banner.hidden = false;
   if (!calendar.configured) {
     banner.textContent = "Calendário aguardando os horários oficiais. O histórico já está sendo coletado, mas nenhum e-mail individual será enviado até a agenda ser configurada.";
   } else if (!overall.data_sufficient) {
-    banner.textContent = "Base em formação: " + (calendar.working_days || 0) + " de " + (calendar.minimum_workdays || 20) + " dias úteis. As métricas são preliminares até atingir cobertura suficiente.";
+    // A contagem de dias uteis em formacao nao muda nenhuma decisao da
+    // operacao; enquanto a base amadurece o painel fica sem aviso.
+    banner.hidden = true;
+    banner.textContent = "";
   } else {
     banner.classList.add("ready");
     banner.textContent = "Base consolidada para o período selecionado, considerando expediente, finais de semana e exceções cadastradas.";

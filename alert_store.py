@@ -148,6 +148,34 @@ class AlertStore:
             events = self._hydrate(connection, rows)
         return {event["extension"]: event for event in events}
 
+    def notified_status_counts_since(self, since: float) -> dict[str, int]:
+        """Conta, por ramal, os alertas de conexao que realmente geraram entrega.
+
+        Serve para restaurar o limite diario apos um reinicio: eventos gravados
+        sem destinatario (suprimidos pelo limite) nao tem linha em
+        alert_deliveries e por isso nao entram na conta.
+        """
+        connection = self._require_connection()
+        with self._lock:
+            rows = connection.execute(
+                """
+                SELECT extension, COUNT(*) AS total
+                FROM alert_events AS event
+                WHERE kind = 'status'
+                  AND created_at >= ?
+                  -- Chamada perdida e boas-vindas usam a mesma fila, mas nao
+                  -- sao alarmes de conexao e nao consomem o limite diario.
+                  AND context_json NOT LIKE '%"event_type"%'
+                  AND EXISTS (
+                    SELECT 1 FROM alert_deliveries
+                    WHERE alert_deliveries.event_id = event.id
+                  )
+                GROUP BY extension
+                """,
+                (since,),
+            ).fetchall()
+        return {str(row["extension"]): int(row["total"]) for row in rows}
+
     def get(self, event_id: str) -> dict | None:
         connection = self._require_connection()
         with self._lock:

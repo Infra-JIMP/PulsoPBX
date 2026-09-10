@@ -115,6 +115,7 @@ class Config:
     alert_max_attempts: int
     alert_retry_base_seconds: float
     alert_test_cooldown_seconds: float
+    alert_daily_limit_per_extension: int
     responsible_alert_delay_seconds: float
     mass_outage_threshold: int
     mass_outage_window_seconds: float
@@ -299,6 +300,11 @@ def load_config() -> Config:
         alert_max_attempts=_int_env("ALERT_MAX_ATTEMPTS", 3, 1, 20),
         alert_retry_base_seconds=_float_env("ALERT_RETRY_BASE_SECONDS", 15, 1, 3_600),
         alert_test_cooldown_seconds=_float_env("ALERT_TEST_COOLDOWN_SECONDS", 60, 10, 3_600),
+        # Teto de e-mails de queda/retorno por ramal por dia. Alem dele o evento
+        # continua gravado para os relatorios, so nao vira notificacao. 0 desliga.
+        alert_daily_limit_per_extension=_int_env(
+            "ALERT_DAILY_LIMIT_PER_EXTENSION", 2, 0, 1_000
+        ),
         responsible_alert_delay_seconds=_float_env(
             "RESPONSIBLE_ALERT_DELAY_SECONDS", 120, 30, 3_600
         ),

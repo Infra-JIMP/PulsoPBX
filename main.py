@@ -274,6 +274,7 @@ async def run() -> None:
             retry_base_seconds=config.alert_retry_base_seconds,
             store=alert_store,
             test_cooldown_seconds=config.alert_test_cooldown_seconds,
+            daily_limit_per_extension=config.alert_daily_limit_per_extension,
         )
         if directory is not None:
             for extension in directory.paused_extensions():

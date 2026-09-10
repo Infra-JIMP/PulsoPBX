@@ -2,6 +2,7 @@ import asyncio
 import tempfile
 import time
 import unittest
+from datetime import datetime
 from pathlib import Path
 
 from alert_store import AlertStore
@@ -198,6 +199,157 @@ class AlertDispatcherTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(cancelled, 1)
         self.assertEqual(status["status"], "failed")
         self.assertEqual(status["last_error"], "Monitoramento temporariamente pausado")
+
+
+class DailyAlertLimitTests(unittest.IsolatedAsyncioTestCase):
+    """Ramais instaveis param de gerar e-mail, mas continuam no historico."""
+
+    @staticmethod
+    def _today_at(hour: int) -> float:
+        # Ancora no dia corrente para que a restauracao do limite (que usa a data
+        # de hoje) enxergue os eventos gravados pelo teste.
+        return datetime.now().replace(
+            hour=hour, minute=0, second=0, microsecond=0
+        ).timestamp()
+
+    async def _drain(self, dispatcher: AlertDispatcher) -> None:
+        worker = asyncio.create_task(dispatcher.run())
+        try:
+            await asyncio.wait_for(dispatcher._queue.join(), timeout=1)
+        finally:
+            worker.cancel()
+            with self.assertRaises(asyncio.CancelledError):
+                await worker
+
+    async def test_flapping_extension_stops_sending_after_the_daily_limit(self):
+        notifier = _FakeNotifier()
+        dispatcher = AlertDispatcher(notifier, daily_limit_per_extension=2)
+        base = self._today_at(9)
+
+        first = dispatcher.enqueue("1001", "offline", now=base)
+        second = dispatcher.enqueue("1001", "online", now=base + 60)
+        third = dispatcher.enqueue("1001", "offline", now=base + 120)
+        fourth = dispatcher.enqueue("1001", "online", now=base + 180)
+
+        # Os dois primeiros entram na fila; os seguintes ja nascem suprimidos.
+        self.assertEqual(first["status"], "queued")
+        self.assertEqual(second["status"], "queued")
+        # Passado o teto, o evento existe e fica no historico, sem entrega.
+        self.assertEqual(third["status"], "suppressed_daily_limit")
+        self.assertEqual(third["notification_suppressed"], "daily_limit")
+        self.assertEqual(third["total_recipients"], 0)
+        self.assertEqual(fourth["status"], "suppressed_daily_limit")
+
+        await self._drain(dispatcher)
+
+        # Somente os dois primeiros viraram e-mail.
+        self.assertEqual(len(notifier.deliveries), 2)
+        self.assertEqual(
+            [delivery[1:3] for delivery in notifier.deliveries],
+            [("1001", "offline"), ("1001", "online")],
+        )
+        self.assertEqual(dispatcher.daily_notification_count("1001", base), 2)
+        # Os quatro eventos continuam disponiveis para os relatorios.
+        self.assertEqual(len(dispatcher.recent_events(limit=10)), 4)
+
+    async def test_limit_is_per_extension_and_resets_on_the_next_day(self):
+        notifier = _FakeNotifier()
+        dispatcher = AlertDispatcher(notifier, daily_limit_per_extension=2)
+        base = self._today_at(9)
+
+        dispatcher.enqueue("1001", "offline", now=base)
+        dispatcher.enqueue("1001", "online", now=base + 60)
+        blocked = dispatcher.enqueue("1001", "offline", now=base + 120)
+        # Outro ramal tem orcamento proprio.
+        other = dispatcher.enqueue("2002", "offline", now=base + 130)
+        # No dia seguinte o ramal volta a notificar.
+        tomorrow = dispatcher.enqueue("1001", "online", now=base + 86_400)
+
+        await self._drain(dispatcher)
+
+        self.assertEqual(blocked["status"], "suppressed_daily_limit")
+        # Ramal vizinho e o dia seguinte seguem notificando normalmente.
+        self.assertEqual(other["status"], "queued")
+        self.assertEqual(tomorrow["status"], "queued")
+        self.assertEqual(
+            [delivery[1:3] for delivery in notifier.deliveries],
+            [
+                ("1001", "offline"),
+                ("1001", "online"),
+                ("2002", "offline"),
+                ("1001", "online"),
+            ],
+        )
+
+    async def test_limit_survives_a_restart(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "alerts.db"
+            store = AlertStore(path)
+            store.initialize()
+            notifier = _FakeNotifier()
+            base = self._today_at(9)
+
+            first = AlertDispatcher(
+                notifier, store=store, daily_limit_per_extension=2, retry_base_seconds=0.01
+            )
+            first.enqueue("1001", "offline", now=base)
+            first.enqueue("1001", "online", now=base + 60)
+            await self._drain(first)
+            store.close()
+
+            # O monitor reinicia no mesmo dia: o teto ja foi consumido.
+            resumed_store = AlertStore(path)
+            resumed_store.initialize()
+            resumed_notifier = _FakeNotifier()
+            resumed = AlertDispatcher(
+                resumed_notifier,
+                store=resumed_store,
+                daily_limit_per_extension=2,
+                retry_base_seconds=0.01,
+            )
+            try:
+                self.assertEqual(resumed.daily_notification_count("1001", base), 2)
+                blocked = resumed.enqueue("1001", "offline", now=base + 120)
+                await self._drain(resumed)
+
+                self.assertEqual(blocked["status"], "suppressed_daily_limit")
+                self.assertEqual(len(notifier.deliveries), 2)
+                self.assertEqual(resumed_notifier.deliveries, [])
+            finally:
+                resumed_store.close()
+
+    async def test_welcome_and_missed_call_do_not_consume_the_limit(self):
+        notifier = _FakeNotifier()
+        dispatcher = AlertDispatcher(notifier, daily_limit_per_extension=2)
+        base = self._today_at(9)
+        target = ["email:ti@example.com"]
+
+        dispatcher.enqueue_welcome("1001", target, now=base)
+        dispatcher.enqueue_missed_call("1001", target, now=base + 30)
+        first = dispatcher.enqueue("1001", "offline", now=base + 60)
+        second = dispatcher.enqueue("1001", "online", now=base + 90)
+
+        await self._drain(dispatcher)
+
+        # Boas-vindas e chamada perdida nao sao alarmes de conexao: os dois
+        # avisos de queda/retorno seguintes ainda cabem no teto do dia.
+        self.assertEqual(first["status"], "queued")
+        self.assertEqual(second["status"], "queued")
+        self.assertEqual(dispatcher.daily_notification_count("1001", base), 2)
+        self.assertEqual(len(notifier.deliveries), 4)
+
+    async def test_zero_disables_the_limit(self):
+        notifier = _FakeNotifier()
+        dispatcher = AlertDispatcher(notifier, daily_limit_per_extension=0)
+        base = self._today_at(9)
+
+        for index in range(6):
+            status = "offline" if index % 2 == 0 else "online"
+            dispatcher.enqueue("1001", status, now=base + index * 60)
+
+        await self._drain(dispatcher)
+
+        self.assertEqual(len(notifier.deliveries), 6)
 
 
 if __name__ == "__main__":

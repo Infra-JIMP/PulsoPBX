@@ -28,6 +28,7 @@ class AlertDispatcher:
         history_limit: int = 200,
         store: AlertStore | None = None,
         test_cooldown_seconds: float = 60,
+        daily_limit_per_extension: int = 0,
     ):
         self._notifier = notifier
         self._max_attempts = max_attempts
@@ -35,12 +36,18 @@ class AlertDispatcher:
         self._history_limit = history_limit
         self._store = store
         self._test_cooldown_seconds = test_cooldown_seconds
+        # Ramais que conectam e desconectam o dia inteiro geram uma enxurrada de
+        # avisos de queda/retorno. Passado o limite do dia, o evento continua
+        # gravado para os relatorios, mas nao vira e-mail. 0 desliga o teto.
+        self._daily_limit = max(0, int(daily_limit_per_extension))
+        self._daily_counts: dict[tuple[str, str], int] = {}
         self._queue: asyncio.Queue[_DeliveryJob] = asyncio.Queue()
         self._events: deque[dict] = deque(maxlen=history_limit)
         self._events_by_id: dict[str, dict] = {}
         self._latest_by_extension: dict[str, dict] = {}
         self._latest_test_event: dict | None = None
         self._restore_history()
+        self._restore_daily_counts()
 
     @property
     def can_send_test(self) -> bool:
@@ -69,6 +76,11 @@ class AlertDispatcher:
             logger.info("Alerta duplicado do ramal %s (%s) ignorado", extension, status)
             return result
 
+        over_limit = self._daily_limit_reached(extension, now)
+        if over_limit:
+            context["notification_suppressed"] = "daily_limit"
+            context["daily_limit"] = self._daily_limit
+
         event = self._create_event(
             extension,
             status,
@@ -76,9 +88,77 @@ class AlertDispatcher:
             now,
             recipients=recipients,
             context=context,
+            deliver=not over_limit,
         )
         self._latest_by_extension[extension] = event
+        if over_limit:
+            logger.info(
+                "Ramal %s ja atingiu o limite de %d alerta(s) por dia; o evento %s"
+                " (%s) fica registrado sem envio de e-mail",
+                extension,
+                self._daily_limit,
+                event["id"],
+                status,
+            )
+        else:
+            self._count_daily_notification(extension, now)
         return self._serialize(event)
+
+    def daily_notification_count(self, extension: str, now: float | None = None) -> int:
+        """Quantos alertas de conexao deste ramal ja viraram e-mail hoje."""
+        now = now if now is not None else time.time()
+        return self._daily_counts.get(self._daily_key(extension, now), 0)
+
+    @staticmethod
+    def _day_key(moment: float) -> str:
+        return datetime.fromtimestamp(moment).strftime("%Y-%m-%d")
+
+    def _daily_key(self, extension: str, now: float) -> tuple[str, str]:
+        return (str(extension), self._day_key(now))
+
+    def _daily_limit_reached(self, extension: str, now: float) -> bool:
+        if not self._daily_limit:
+            return False
+        return self.daily_notification_count(extension, now) >= self._daily_limit
+
+    def _count_daily_notification(self, extension: str, now: float) -> None:
+        if not self._daily_limit:
+            return
+        key = self._daily_key(extension, now)
+        self._daily_counts[key] = self._daily_counts.get(key, 0) + 1
+
+    def _restore_daily_counts(self) -> None:
+        """Recupera o consumo do dia para que um reinicio nao zere o teto."""
+        if not self._daily_limit:
+            return
+        now = time.time()
+        today = self._day_key(now)
+        start_of_day = datetime.fromtimestamp(now).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        ).timestamp()
+        if self._store is not None:
+            try:
+                counts = self._store.notified_status_counts_since(start_of_day)
+            except Exception:
+                logger.exception("Nao foi possivel restaurar o limite diario de alertas")
+            else:
+                self._daily_counts = {
+                    (extension, today): total for extension, total in counts.items()
+                }
+                return
+        # Sem banco, o historico em memoria e a unica referencia disponivel.
+        counts: dict[tuple[str, str], int] = {}
+        for event in self._events:
+            if event.get("kind") != "status" or not event.get("deliveries"):
+                continue
+            context = event.get("context") or {}
+            if context.get("event_type") or context.get("notification_suppressed"):
+                continue
+            if self._day_key(event["created_at"]) != today:
+                continue
+            key = (str(event["extension"]), today)
+            counts[key] = counts.get(key, 0) + 1
+        self._daily_counts = counts
 
     def enqueue_test(self, now: float | None = None) -> dict:
         """Envia um teste pelo mesmo caminho usado pelos alertas reais."""
@@ -145,6 +225,7 @@ class AlertDispatcher:
         now: float,
         recipients: list[str] | None = None,
         context: dict | None = None,
+        deliver: bool = True,
     ) -> dict:
         selected_recipients = list(
             dict.fromkeys(self._notifier.recipients if recipients is None else recipients)
@@ -170,9 +251,11 @@ class AlertDispatcher:
             "context": dict(context or {}),
             "created_at": now,
             "updated_at": now,
+            # Sem entrega, o evento fica so como registro historico: nenhuma
+            # linha em alert_deliveries e nada na fila de envio.
             "deliveries": {
                 recipient: {"status": "queued", "attempts": 0, "last_error": None}
-                for recipient in selected_recipients
+                for recipient in (selected_recipients if deliver else [])
             },
         }
         self._remember(event)
@@ -415,8 +498,9 @@ class AlertDispatcher:
         failed = sum(delivery["status"] == "failed" for delivery in deliveries)
         retrying = sum(delivery["status"] == "retrying" for delivery in deliveries)
         sending = sum(delivery["status"] == "sending" for delivery in deliveries)
+        suppressed = (event.get("context") or {}).get("notification_suppressed")
         if total == 0:
-            status = "not_configured"
+            status = "suppressed_daily_limit" if suppressed == "daily_limit" else "not_configured"
         elif sent == total:
             status = "sent"
         elif failed and sent + failed == total:
@@ -441,4 +525,5 @@ class AlertDispatcher:
             "failed_count": failed,
             "attempts": max((delivery["attempts"] for delivery in deliveries), default=0),
             "last_error": errors[0] if errors else None,
+            "notification_suppressed": suppressed,
         }
