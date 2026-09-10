@@ -6,6 +6,10 @@
   "engines": {
     "node": "24.x"
   },
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env scripts/dev-server.mjs",
+    "start": "node --env-file-if-exists=.env scripts/dev-server.mjs"
+  },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2"
   }
