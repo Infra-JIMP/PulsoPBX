@@ -66,6 +66,10 @@ class StateTracker:
                 )
         return changes
 
+    @property
+    def debounce_seconds(self) -> float:
+        return self._debounce
+
     def known_extensions(self) -> list[str]:
         return list(self._states.keys())
 

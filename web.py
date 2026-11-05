@@ -39,6 +39,7 @@ AVAILABILITY_KEY = web.AppKey("availability", object)
 CALENDAR_KEY = web.AppKey("calendar", object)
 DIRECTORY_KEY = web.AppKey("directory", object)
 CALL_HISTORY_KEY = web.AppKey("call_history", object)
+LIST_PUBLISHER_KEY = web.AppKey("list_publisher", object)
 PUBLIC_PROXY_HEADERS = ("CF-Connecting-IP", "CF-Ray", "CF-Visitor")
 
 
@@ -382,6 +383,14 @@ async def _dispatch_welcome_email(request: web.Request, person: dict) -> dict:
     return {"sent": True, "event_id": event["id"], "recipient_count": len(recipients)}
 
 
+async def _publish_lists(request: web.Request, reason: str) -> bool:
+    """Regrava as listas de ramais e e-mails logo apos uma alteracao de cadastro."""
+    publisher = request.app.get(LIST_PUBLISHER_KEY)
+    if publisher is None:
+        return False
+    return await publisher.publish(reason)
+
+
 async def _handle_directory_create(request: web.Request) -> web.Response:
     error = _management_error(request)
     if error is not None:
@@ -395,13 +404,20 @@ async def _handle_directory_create(request: web.Request) -> web.Response:
     except ValueError as exc:
         return web.json_response({"ok": False, "error": str(exc)}, status=400)
     removed = await _prune_inactive_directory_extensions(request)
+    lists_updated = await _publish_lists(request, f"cadastro de {person.get('name')}")
     try:
         welcome = await _dispatch_welcome_email(request, person)
     except Exception:
         logger.exception("Falha ao preparar as boas-vindas do cadastro %s", person.get("id"))
         welcome = {"sent": False, "reason": "dispatch_failed"}
     return web.json_response(
-        {"ok": True, "person": person, "removed": removed, "welcome": welcome},
+        {
+            "ok": True,
+            "person": person,
+            "removed": removed,
+            "welcome": welcome,
+            "lists_updated": lists_updated,
+        },
         status=201,
         headers={"Cache-Control": "no-store"},
     )
@@ -421,8 +437,9 @@ async def _handle_directory_update(request: web.Request) -> web.Response:
     except (TypeError, ValueError) as exc:
         return web.json_response({"ok": False, "error": str(exc) or "Cadastro invalido"}, status=400)
     removed = await _prune_inactive_directory_extensions(request)
+    lists_updated = await _publish_lists(request, f"alteracao de {person.get('name')}")
     return web.json_response(
-        {"ok": True, "person": person, "removed": removed},
+        {"ok": True, "person": person, "removed": removed, "lists_updated": lists_updated},
         headers={"Cache-Control": "no-store"},
     )
 
@@ -443,7 +460,11 @@ async def _handle_directory_reset_email(request: web.Request) -> web.Response:
         )
     except (TypeError, ValueError) as exc:
         return web.json_response({"ok": False, "error": str(exc) or "Cadastro invalido"}, status=400)
-    return web.json_response({"ok": True, "person": person}, headers={"Cache-Control": "no-store"})
+    lists_updated = await _publish_lists(request, f"e-mail de {person.get('name')} restaurado")
+    return web.json_response(
+        {"ok": True, "person": person, "lists_updated": lists_updated},
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 async def _handle_directory_export(request: web.Request) -> web.Response:
@@ -840,6 +861,7 @@ def create_app(
     calendar=None,
     directory=None,
     call_history=None,
+    list_publisher=None,
 ) -> web.Application:
     app = web.Application(middlewares=[_dashboard_auth_middleware])
     app[TRACKER_KEY] = tracker
@@ -852,6 +874,7 @@ def create_app(
     app[CALENDAR_KEY] = calendar
     app[DIRECTORY_KEY] = directory
     app[CALL_HISTORY_KEY] = call_history
+    app[LIST_PUBLISHER_KEY] = list_publisher
     app.router.add_get("/", _handle_index)
     app.router.add_get("/assets/pulsopbx-logo.png", _handle_brand_logo)
     app.router.add_get("/favicon.ico", _handle_favicon)
@@ -893,6 +916,7 @@ async def run_dashboard(
     calendar=None,
     directory=None,
     call_history=None,
+    list_publisher=None,
 ) -> None:
     app = create_app(
         tracker,
@@ -905,6 +929,7 @@ async def run_dashboard(
         calendar,
         directory,
         call_history,
+        list_publisher,
     )
     runner = web.AppRunner(app, access_log=None)
     await runner.setup()

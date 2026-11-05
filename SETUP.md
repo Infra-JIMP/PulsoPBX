@@ -24,6 +24,8 @@ Deve aparecer `[OK] Login AMI bem-sucedido` e a lista de ramais encontrados.
 
 ## 2. Configurar alertas por E-mail
 
+> **O envio de e-mail está desligado por padrão.** Enquanto `EMAIL_DISPATCH_ENABLED` não for `true`, o PulsoPBX não envia nada (queda, retorno, chamada perdida, boas-vindas ou teste), mesmo com o SMTP preenchido. Painel, histórico, disponibilidade e listas seguem iguais. O restante desta seção só vale depois de ligar a chave.
+
 Preencha `EMAIL_SMTP_HOST`, `EMAIL_SMTP_PORT` e `EMAIL_FROM`. Se o servidor exigir autenticação, configure também `EMAIL_SMTP_USERNAME` e `EMAIL_SMTP_PASSWORD`. Use `EMAIL_SMTP_STARTTLS=true` para a porta 587 ou `EMAIL_SMTP_SSL=true` para SSL direto, normalmente na porta 465; não ative os dois ao mesmo tempo.
 
 `EMAIL_RECIPIENTS` é opcional e serve apenas para o botão **Enviar teste** do painel.
@@ -145,7 +147,9 @@ O MikoPBX não tem campo de "setor" separado (o setor, quando existe, já vem de
     }
     ```
 
-As exportações atualizadas ficam disponíveis somente na rede interna:
+**Listas automáticas.** Com `LISTS_EXPORT_ENABLED=true` (padrão), o monitor grava `lista-ramais-atualizada.xlsx` e `lista-emails-atualizada.xlsx` em `LISTS_EXPORT_DIR` (padrão `data/listas`; pode ser um caminho de rede). Não há conferência automática: as listas são regravadas somente quando um cadastro muda — contratação, desligamento (arquivar), troca de cargo, setor, ramal ou e-mail na tela **Gerenciar cadastros**, ou um dado novo vindo do MikoPBX. Cada pessoa sai sempre com o próprio e-mail atual; numa troca de domínio, basta atualizar o e-mail no cadastro e a lista acompanha. Alterações que não aparecem nas listas (como a preferência de aviso) não regravam nada. A gravação é atômica; se um arquivo estiver aberto no Excel, a próxima alteração de cadastro o regrava.
+
+As exportações também continuam disponíveis sob demanda, somente na rede interna:
 
 - `/api/directory/export/extensions.xlsx` — lista de ramais;
 - `/api/directory/export/emails.xlsx` — lista de e-mails.

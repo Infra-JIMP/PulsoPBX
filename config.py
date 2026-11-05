@@ -105,6 +105,7 @@ class Config:
     email_use_ssl: bool
     email_timeout_seconds: float
     email_recipients: list[str]
+    email_dispatch_enabled: bool
     email_enabled: bool
     outage_alert_recipients: list[str]
     welcome_email_enabled: bool
@@ -140,6 +141,15 @@ class Config:
     missed_calls_enabled: bool
     missed_calls_poll_seconds: float
     missed_calls_pilot_extensions: list[str]
+
+    lists_export_enabled: bool
+    lists_export_dir: Path
+
+    cloud_sync_url: str | None
+    cloud_sync_token: str | None
+    cloud_sync_enabled: bool
+    cloud_sync_seconds: float
+    cloud_sync_heartbeat_seconds: float
 
     @property
     def notifications_enabled(self) -> bool:
@@ -224,11 +234,19 @@ def load_config() -> Config:
         else []
     )
 
+    # Chave mestra: o PulsoPBX nao envia nenhum e-mail enquanto ela estiver
+    # desligada, mesmo que o SMTP esteja preenchido no .env.
+    email_dispatch_enabled = _bool_env("EMAIL_DISPATCH_ENABLED", False)
+
     welcome_email_enabled = _bool_env("WELCOME_EMAIL_ENABLED", False)
     welcome_email_copy_recipients = _email_csv_env("WELCOME_EMAIL_COPY")
     if welcome_email_enabled and not (email_smtp_host and email_sender):
         raise ConfigError(
             "WELCOME_EMAIL_ENABLED exige EMAIL_SMTP_HOST e EMAIL_FROM configurados"
+        )
+    if welcome_email_enabled and not email_dispatch_enabled:
+        raise ConfigError(
+            "WELCOME_EMAIL_ENABLED exige EMAIL_DISPATCH_ENABLED=true"
         )
 
     mikopbx_api_key = _optional_env("MIKOPBX_API_KEY")
@@ -244,6 +262,20 @@ def load_config() -> Config:
     work_calendar_path = Path(_env_text("WORK_CALENDAR_PATH", "work_calendar.json"))
     if not work_calendar_path.is_absolute():
         work_calendar_path = PROJECT_DIR / work_calendar_path
+
+    lists_export_dir = Path(_env_text("LISTS_EXPORT_DIR", "data/listas"))
+    if not lists_export_dir.is_absolute():
+        lists_export_dir = PROJECT_DIR / lists_export_dir
+
+    # Painel em nuvem: so o status ao vivo sai da rede, e so quando muda.
+    cloud_sync_url = (_optional_env("CLOUD_SYNC_URL") or "").rstrip("/") or None
+    cloud_sync_token = _optional_env("CLOUD_SYNC_TOKEN")
+    if bool(cloud_sync_url) != bool(cloud_sync_token):
+        raise ConfigError("CLOUD_SYNC_URL e CLOUD_SYNC_TOKEN devem ser configurados juntos")
+    if cloud_sync_url and not cloud_sync_url.startswith("https://"):
+        raise ConfigError("CLOUD_SYNC_URL deve usar https://")
+    if cloud_sync_token and len(cloud_sync_token) < 32:
+        raise ConfigError("CLOUD_SYNC_TOKEN deve ter pelo menos 32 caracteres")
 
     return Config(
         ami_host=ami_host,
@@ -265,7 +297,8 @@ def load_config() -> Config:
         email_recipients=email_recipients,
         # Os destinatarios globais sao opcionais: alertas reais usam o e-mail
         # individual trazido pelo perfil do ramal no MikoPBX.
-        email_enabled=bool(email_smtp_host and email_sender),
+        email_dispatch_enabled=email_dispatch_enabled,
+        email_enabled=bool(email_dispatch_enabled and email_smtp_host and email_sender),
         outage_alert_recipients=outage_alert_recipients,
         # Boas-vindas comeca desligado de proposito: so envia depois que o
         # cadastro estiver revisado e alguem ligar a chave conscientemente.
@@ -304,4 +337,13 @@ def load_config() -> Config:
         missed_calls_enabled=_bool_env("MISSED_CALLS_ENABLED", False),
         missed_calls_poll_seconds=_float_env("MISSED_CALLS_POLL_SECONDS", 30, 10, 3_600),
         missed_calls_pilot_extensions=_csv_env("MISSED_CALLS_PILOT_EXTENSIONS"),
+        lists_export_enabled=_bool_env("LISTS_EXPORT_ENABLED", True),
+        lists_export_dir=lists_export_dir,
+        cloud_sync_url=cloud_sync_url,
+        cloud_sync_token=cloud_sync_token,
+        cloud_sync_enabled=bool(cloud_sync_url and cloud_sync_token),
+        cloud_sync_seconds=_float_env("CLOUD_SYNC_SECONDS", 30, 15, 3_600),
+        cloud_sync_heartbeat_seconds=_float_env(
+            "CLOUD_SYNC_HEARTBEAT_SECONDS", 600, 60, 86_400
+        ),
     )

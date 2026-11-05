@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <title>PulsoPBX · Entrar</title>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" href="/assets/pulsopbx-logo.png">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #02060f;
+      --border: rgba(255, 255, 255, .10);
+      --border-strong: rgba(255, 255, 255, .17);
+      --text: #f5f8ff;
+      --muted: rgba(238, 244, 255, .72);
+      --faint: rgba(225, 235, 255, .48);
+      --orange: #ff7700;
+      --orange-light: #ffad66;
+      --red: #ff5d57;
+      --red-bg: rgba(255, 93, 87, .13);
+      --green: #35cf6c;
+      --glass-blur: blur(28px) saturate(145%);
+      --mono: "Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    }
+    * { box-sizing: border-box; }
+    html { min-height: 100%; background: var(--bg); }
+    body {
+      min-height: 100vh; min-height: 100dvh; margin: 0; display: grid; place-items: center; padding: 24px 16px;
+      color: var(--text); overflow-x: hidden;
+      background:
+        radial-gradient(circle at 9% -7%, rgba(255, 119, 0, .19), transparent 25rem),
+        radial-gradient(circle at 88% 8%, rgba(46, 88, 205, .27), transparent 31rem),
+        radial-gradient(circle at 52% 112%, rgba(255, 119, 0, .08), transparent 31rem),
+        linear-gradient(145deg, #0a1838 0%, #060f28 40%, #02060f 100%);
+      font: 15px/1.45 "Segoe UI Variable", "Segoe UI", -apple-system, BlinkMacSystemFont, Inter, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    body::before { content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .28;
+      background-image: radial-gradient(rgba(214, 227, 255, .17) .65px, transparent .65px); background-size: 28px 28px;
+      mask-image: linear-gradient(180deg, #000, transparent 85%); -webkit-mask-image: linear-gradient(180deg, #000, transparent 85%); }
+    body::after { content: ""; position: fixed; width: 19rem; height: 19rem; right: -7rem; top: 31%; border-radius: 50%;
+      pointer-events: none; background: rgba(47, 82, 181, .13); filter: blur(14px); }
+    ::selection { background: rgba(255, 119, 0, .34); color: white; }
+    *:focus-visible { outline: 2px solid #ffcb9c; outline-offset: 3px; }
+
+    .shell { position: relative; z-index: 1; width: min(420px, 100%); }
+    .card {
+      padding: 30px 28px 26px; border: 1px solid var(--border-strong); border-radius: 28px;
+      background: radial-gradient(circle at 10% -10%, rgba(255,255,255,.14), transparent 14rem),
+                  linear-gradient(145deg, rgba(255,255,255,.085), rgba(8,20,50,.62) 52%, rgba(2,7,19,.72));
+      -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+      box-shadow: 0 30px 80px rgba(0,0,0,.5), inset 0 1px rgba(255,255,255,.14);
+      animation: rise .5s cubic-bezier(.2,.8,.2,1) both;
+    }
+    @keyframes rise { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } }
+    @media (prefers-reduced-motion: reduce) { .card { animation: none; } }
+
+    .brand { display: flex; align-items: center; gap: 14px; margin-bottom: 26px; }
+    .brand-mark { position: relative; width: 54px; height: 54px; flex: 0 0 auto; overflow: hidden;
+      border: 1px solid rgba(255, 177, 107, .4); border-radius: 17px; background: #182229;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, .35), 0 0 0 4px rgba(255, 119, 0, .06); }
+    .brand-mark img { position: absolute; width: 200%; max-width: none; left: 53%; top: 55%; transform: translate(-50%, -50%); }
+    .eyebrow { margin: 0 0 2px; color: var(--orange-light); font-size: .64rem; font-weight: 750; letter-spacing: 1.45px; text-transform: uppercase; }
+    h1 { margin: 0; font-size: 1.55rem; line-height: 1.1; letter-spacing: -.3px; }
+    .subtitle { display: block; margin-top: 3px; color: var(--muted); font-size: .82rem; }
+
+    .intro { margin: 0 0 20px; color: var(--muted); font-size: .86rem; }
+    .field { margin-bottom: 14px; }
+    label { display: block; margin-bottom: 7px; color: var(--faint); font-size: .66rem; font-weight: 800; letter-spacing: .9px; text-transform: uppercase; }
+    .input-wrap { position: relative; }
+    input {
+      width: 100%; padding: 13px 15px; border: 1px solid var(--border-strong); border-radius: 15px;
+      background: rgba(1, 6, 20, .5); color: var(--text); font: inherit; font-size: .95rem;
+      box-shadow: inset 0 1px rgba(255,255,255,.04); transition: border-color .15s, box-shadow .15s, background .15s;
+    }
+    input::placeholder { color: rgba(225, 235, 255, .32); }
+    input:hover { border-color: rgba(255,255,255,.26); }
+    input:focus { outline: none; border-color: rgba(255, 173, 102, .75); background: rgba(1, 6, 20, .66);
+      box-shadow: 0 0 0 4px rgba(255, 119, 0, .14); }
+    input:-webkit-autofill { -webkit-text-fill-color: var(--text); -webkit-box-shadow: 0 0 0 40px #0a1531 inset; caret-color: var(--text); }
+    .toggle { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); padding: 6px 9px; border: 0; border-radius: 10px;
+      background: transparent; color: var(--faint); cursor: pointer; font: 700 .7rem inherit; letter-spacing: .3px; }
+    .toggle:hover { color: var(--text); background: rgba(255,255,255,.07); }
+    #password { padding-right: 76px; }
+
+    .alert { display: none; align-items: center; gap: 9px; margin: 2px 0 14px; padding: 11px 13px;
+      border: 1px solid rgba(255, 93, 87, .36); border-radius: 14px; background: var(--red-bg); color: #ffb3b0; font-size: .82rem; }
+    .alert.show { display: flex; animation: shake .35s ease; }
+    @keyframes shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+
+    button[type="submit"] {
+      position: relative; width: 100%; margin-top: 6px; padding: 14px; border: 1px solid rgba(255, 190, 130, .5); border-radius: 15px;
+      background: linear-gradient(180deg, #ff8a1f, #ff6a00); color: #1b0b00; cursor: pointer;
+      font: 800 .95rem inherit; letter-spacing: .2px;
+      box-shadow: 0 12px 28px rgba(255, 106, 0, .28), inset 0 1px rgba(255,255,255,.35);
+      transition: transform .12s, box-shadow .15s, filter .15s;
+    }
+    button[type="submit"]:hover { filter: brightness(1.06); box-shadow: 0 16px 34px rgba(255, 106, 0, .36), inset 0 1px rgba(255,255,255,.35); }
+    button[type="submit"]:active { transform: translateY(1px); }
+    button[type="submit"][disabled] { cursor: progress; filter: saturate(.7) brightness(.9); }
+
+    .foot { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 18px; color: var(--faint); font-size: .72rem; }
+    .foot .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px rgba(53,207,108,.15); }
+
+    @media (max-width: 420px) {
+      .card { padding: 24px 20px 22px; border-radius: 24px; }
+      h1 { font-size: 1.35rem; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <form class="card" method="post" action="/api/login" id="login-form" novalidate>
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"><img src="/assets/pulsopbx-logo.png" alt=""></span>
+        <div>
+          <p class="eyebrow">Infraestrutura · Operação de voz</p>
+          <h1>PulsoPBX</h1>
+          <span class="subtitle">Monitor de Ramais</span>
+        </div>
+      </div>
+
+      <p class="intro">Entre para acompanhar o status dos ramais em tempo real.</p>
+
+      <div class="alert" id="error" role="alert">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 7v6M12 17h.01"/></svg>
+        Usuário ou senha incorretos.
+      </div>
+
+      <div class="field">
+        <label for="username">Usuário</label>
+        <input id="username" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus>
+      </div>
+      <div class="field">
+        <label for="password">Senha</label>
+        <div class="input-wrap">
+          <input id="password" name="password" type="password" autocomplete="current-password" required>
+          <button class="toggle" type="button" id="toggle" aria-controls="password" aria-pressed="false">Mostrar</button>
+        </div>
+      </div>
+
+      <button type="submit" id="submit">Entrar</button>
+
+      <div class="foot"><span class="dot" aria-hidden="true"></span>Conexão protegida · acesso restrito à equipe</div>
+    </form>
+  </main>
+  <script>
+    const error = document.getElementById("error");
+    if (new URLSearchParams(location.search).has("erro")) {
+      error.classList.add("show");
+      history.replaceState(null, "", "/login");
+    }
+    const password = document.getElementById("password");
+    const toggle = document.getElementById("toggle");
+    toggle.addEventListener("click", () => {
+      const show = password.type === "password";
+      password.type = show ? "text" : "password";
+      toggle.textContent = show ? "Ocultar" : "Mostrar";
+      toggle.setAttribute("aria-pressed", String(show));
+      password.focus();
+    });
+    document.getElementById("login-form").addEventListener("submit", (event) => {
+      const form = event.currentTarget;
+      if (!form.username.value.trim() || !form.password.value) {
+        event.preventDefault();
+        (form.username.value.trim() ? form.password : form.username).focus();
+        return;
+      }
+      const submit = document.getElementById("submit");
+      submit.disabled = true;
+      submit.textContent = "Entrando…";
+    });
+  </script>
+</body>
+</html>

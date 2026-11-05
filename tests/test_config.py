@@ -80,8 +80,42 @@ class ConfigTests(unittest.TestCase):
             config = load_config()
         self.assertEqual(config.email_recipients, ["ti@example.com", "suporte@example.com"])
 
+    def test_email_stays_off_even_with_smtp_filled_in(self):
+        values = {
+            "EMAIL_SMTP_HOST": "smtp.example.com",
+            "EMAIL_FROM": "monitor@example.com",
+            "EMAIL_RECIPIENTS": "ti@example.com",
+        }
+        with patch.dict(os.environ, values, clear=True):
+            config = load_config()
+        self.assertFalse(config.email_dispatch_enabled)
+        self.assertFalse(config.email_enabled)
+        self.assertFalse(config.notifications_enabled)
+        self.assertEqual(config.enabled_notification_channels, [])
+
+    def test_welcome_email_requires_the_master_switch(self):
+        values = {
+            "EMAIL_SMTP_HOST": "smtp.example.com",
+            "EMAIL_FROM": "monitor@example.com",
+            "WELCOME_EMAIL_ENABLED": "true",
+        }
+        with patch.dict(os.environ, values, clear=True):
+            with self.assertRaisesRegex(ConfigError, "EMAIL_DISPATCH_ENABLED"):
+                load_config()
+
+    def test_lists_export_defaults_and_overrides(self):
+        with patch.dict(os.environ, {}, clear=True):
+            config = load_config()
+        self.assertTrue(config.lists_export_enabled)
+        self.assertEqual(config.lists_export_dir.parts[-2:], ("data", "listas"))
+        self.assertFalse(hasattr(config, "lists_export_check_seconds"))
+
+        with patch.dict(os.environ, {"LISTS_EXPORT_ENABLED": "false"}, clear=True):
+            self.assertFalse(load_config().lists_export_enabled)
+
     def test_email_is_enabled_when_complete(self):
         values = {
+            "EMAIL_DISPATCH_ENABLED": "true",
             "EMAIL_SMTP_HOST": "smtp.example.com",
             "EMAIL_FROM": "monitor@example.com",
             "EMAIL_RECIPIENTS": "ti@example.com",
@@ -113,6 +147,7 @@ class ConfigTests(unittest.TestCase):
 
     def test_email_channel_can_use_only_responsible_addresses_from_mikopbx(self):
         values = {
+            "EMAIL_DISPATCH_ENABLED": "true",
             "EMAIL_SMTP_HOST": "smtp.example.com",
             "EMAIL_FROM": "monitor@example.com",
         }

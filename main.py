@@ -10,9 +10,11 @@ from alert_store import AlertStore
 from alerts import AlertDispatcher
 from ami_client import AmiClient
 from availability import AvailabilityStore
+from cloud_sync import CloudSync
 from config import ConfigError, load_config
 from directory import DirectoryStore
 from incidents import IncidentStore
+from list_publisher import ListPublisher
 from missed_calls import MissedCallMonitor
 from names import load_names
 from notifications import EmailNotifier, NotificationRouter
@@ -62,6 +64,7 @@ async def mikopbx_names_loop(
     incidents: IncidentStore | None,
     availability: AvailabilityStore | None,
     directory: DirectoryStore | None,
+    list_publisher: ListPublisher | None = None,
 ) -> None:
     while True:
         names = await asyncio.to_thread(
@@ -69,10 +72,12 @@ async def mikopbx_names_loop(
         )
         if names is not None:
             if directory is not None:
-                await asyncio.to_thread(
+                changed = await asyncio.to_thread(
                     directory.synchronize_mikopbx,
                     mikopbx_api.get_cached_profiles(),
                 )
+                if changed and list_publisher is not None:
+                    await list_publisher.publish(f"{changed} cadastro(s) atualizado(s) pelo MikoPBX")
             await _apply_employee_snapshot(tracker, incidents, names, availability, directory)
         await asyncio.sleep(config.mikopbx_names_refresh_seconds)
 
@@ -232,6 +237,17 @@ async def run() -> None:
         directory = None
         set_directory_store(None)
 
+    list_publisher: ListPublisher | None = None
+    if config.lists_export_enabled and directory is not None and not config.demo_mode:
+        list_publisher = ListPublisher(directory, config.lists_export_dir)
+        # Uma gravacao inicial garante que as listas existam e reflitam o
+        # cadastro atual; depois disso, so alteracoes de cadastro regravam.
+        await list_publisher.publish("inicializacao")
+        logger.info(
+            "Listas de ramais e e-mails em %s, atualizadas a cada alteracao de cadastro",
+            config.lists_export_dir,
+        )
+
     calendar = WorkCalendar(config.work_calendar_path)
     if calendar.configured:
         logger.info("Calendario de expediente carregado de %s", config.work_calendar_path)
@@ -247,6 +263,11 @@ async def run() -> None:
             "Canais de alerta ativos: %s (%d destino(s) global(is) para teste)",
             ", ".join(notifier.channel_names),
             len(notifier.recipients),
+        )
+    elif not config.email_dispatch_enabled:
+        logger.info(
+            "Envio de e-mail desligado (EMAIL_DISPATCH_ENABLED=false); "
+            "painel, historico e listas continuam funcionando"
         )
     else:
         logger.warning(
@@ -344,10 +365,12 @@ async def run() -> None:
         )
         if names is not None:
             if directory is not None:
-                await asyncio.to_thread(
+                changed = await asyncio.to_thread(
                     directory.synchronize_mikopbx,
                     mikopbx_api.get_cached_profiles(),
                 )
+                if changed and list_publisher is not None:
+                    await list_publisher.publish(f"{changed} cadastro(s) atualizado(s) pelo MikoPBX")
             await _apply_employee_snapshot(tracker, incidents, names, availability, directory)
 
     missed_calls: MissedCallMonitor | None = None
@@ -401,12 +424,13 @@ async def run() -> None:
             mass_outage_window_seconds=config.mass_outage_window_seconds,
             alert_recipients=config.outage_alert_recipients,
         )
-        if config.outage_alert_recipients:
+        # Sem canal de e-mail, quedas ficam apenas no painel e no historico.
+        if alerts is not None and config.outage_alert_recipients:
             logger.info(
                 "Avisos de queda e retorno vao somente para: %s",
                 ", ".join(config.outage_alert_recipients),
             )
-        else:
+        elif alerts is not None:
             logger.warning(
                 "OUTAGE_ALERT_RECIPIENTS vazio; nenhum e-mail de queda sera enviado "
                 "(painel e relatorios seguem completos)"
@@ -425,6 +449,7 @@ async def run() -> None:
             calendar,
             directory,
             missed_calls,
+            list_publisher,
         ),
     ]
     if alerts is not None:
@@ -441,7 +466,9 @@ async def run() -> None:
         tasks.append(client.periodic_reconcile(config.reconcile_seconds))
     if config.mikopbx_api_enabled and not config.demo_mode:
         tasks.append(
-            mikopbx_names_loop(config, tracker, incidents, availability, directory)
+            mikopbx_names_loop(
+                config, tracker, incidents, availability, directory, list_publisher
+            )
         )
     elif not config.demo_mode:
         logger.warning(
@@ -450,6 +477,21 @@ async def run() -> None:
         )
     if missed_calls is not None:
         tasks.append(missed_calls.run())
+    if config.cloud_sync_enabled and not config.demo_mode:
+        cloud_sync = CloudSync(
+            tracker,
+            client,
+            config.cloud_sync_url,
+            config.cloud_sync_token,
+            interval_seconds=config.cloud_sync_seconds,
+            heartbeat_seconds=config.cloud_sync_heartbeat_seconds,
+        )
+        logger.info(
+            "Status ao vivo sera enviado a %s somente quando mudar (verificacao local a cada %.0fs)",
+            config.cloud_sync_url,
+            config.cloud_sync_seconds,
+        )
+        tasks.append(cloud_sync.run())
     try:
         await asyncio.gather(*tasks)
     finally:

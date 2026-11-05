@@ -1,0 +1,12 @@
+{
+  "name": "pulsopbx-cloud",
+  "private": true,
+  "type": "module",
+  "description": "Painel somente leitura do PulsoPBX: recebe o resumo do monitor local e o exibe com cache.",
+  "engines": {
+    "node": "22.x"
+  },
+  "dependencies": {
+    "@vercel/functions": "3.10.6"
+  }
+}
